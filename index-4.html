@@ -1,0 +1,190 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Student To-Do Prototype</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#2f6feb;--ln:#e2e2de;--ph:#dcdcd7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10}}
+:root[data-theme=dark]{--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+html,body{height:100%;margin:0}body{background:var(--ph);color:var(--tx);display:flex;align-items:center;justify-content:center}
+#app{position:relative;width:390px;height:min(844px,calc(100% - 24px));background:var(--bg);border-radius:32px;overflow:hidden;box-shadow:0 10px 40px #0003;border:1px solid var(--ln)}
+@media(max-width:500px){#app{width:100%;height:100%;border-radius:0;border:0}}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg)}
+.ov{display:none;z-index:5}.ov.on{display:flex}
+button{font:inherit;color:inherit;cursor:pointer}
+.top{display:flex;align-items:flex-end;gap:6px;padding:14px 10px 0;background:var(--ln)}
+.ib{background:none;border:0;font-size:22px;padding:6px 8px;margin-bottom:4px;border-radius:8px}
+.tabs{flex:1;display:flex;gap:3px;overflow-x:auto;scrollbar-width:none}
+.tab{border:0;background:#0000000d;padding:9px 14px;border-radius:10px 10px 0 0;font-size:14px;color:var(--mu);white-space:nowrap}
+.tab.on{background:var(--bg);color:var(--tx);font-weight:600}
+.plus{background:var(--ac);color:#fff;border:0;width:28px;height:28px;border-radius:50%;font-size:18px;line-height:1;margin:0 4px 8px}
+.body{flex:1;overflow-y:auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;gap:10px;align-items:flex-start}
+.chk{width:22px;height:22px;border-radius:50%;border:2px solid var(--ac);background:none;flex:none;margin-top:2px}
+.chk.d{background:var(--ac)}.dn .nm{text-decoration:line-through;opacity:.5}
+.nm{font-weight:600;font-size:15px}.sub{font-size:12px;color:var(--mu);margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:11.5px;background:var(--bg);border:1px solid var(--ln);border-radius:20px;padding:3px 8px}
+.pr{color:var(--ac);font-weight:800;letter-spacing:1px}
+.lk{background:none;border:0;color:var(--ac);font-size:12px;padding:6px 0 0}
+.gh{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:12px 2px 8px}
+.bar{display:flex;justify-content:space-around;align-items:center;padding:8px 10px 14px;background:var(--card);border-top:1px solid var(--ln)}
+.bb{background:none;border:0;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mu);gap:2px}.bb b{font-size:22px;font-weight:400}
+.hd{display:flex;align-items:center;gap:8px;padding:16px 12px 10px;border-bottom:1px solid var(--ln);background:var(--card)}
+.hd h2{margin:0;font-size:17px;flex:1}
+.btn{border:1px solid var(--ln);background:var(--card);padding:12px;border-radius:12px;font-weight:600;flex:1}
+.btn.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.foot{display:flex;gap:10px;padding:12px 14px 16px;border-top:1px solid var(--ln);background:var(--card)}
+label{display:block;font-size:12px;color:var(--mu);margin:14px 0 5px}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:15px}
+input[type=checkbox]{width:auto}
+.scrim{position:absolute;inset:0;background:#0006;z-index:8;display:none}.scrim.on{display:block}
+#menu{position:absolute;top:0;bottom:0;left:0;width:78%;background:var(--card);z-index:9;transform:translateX(-105%);transition:.25s;padding:50px 8px 10px;box-shadow:4px 0 20px #0003}
+#menu.on{transform:none}
+.mi{display:flex;gap:12px;width:100%;text-align:left;background:none;border:0;padding:14px;font-size:16px;border-radius:10px}.mi:hover{background:var(--bg)}
+.msg{max-width:82%;padding:10px 12px;border-radius:14px;margin:8px 0;font-size:14px;line-height:1.4;white-space:pre-line}
+.bot{background:var(--card);border:1px solid var(--ln);border-top-left-radius:4px}
+.me{background:var(--ac);color:#fff;margin-left:auto;border-top-right-radius:4px}
+.sug{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.sug button{border:1px solid var(--ac);color:var(--ac);background:none;border-radius:20px;padding:6px 11px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.dy{aspect-ratio:1;border:0;background:var(--card);border-radius:10px;font-size:14px;position:relative;border:1px solid var(--ln)}
+.dy.s{background:var(--ac);color:#fff}.dy.t{border-color:var(--ac)}.dy.e{visibility:hidden}
+.dy i{position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}.dy.s i{background:#fff}
+.tg{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln);font-size:15px}
+.toast{position:absolute;left:14px;right:14px;bottom:84px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;z-index:20;font-size:13px;display:none;justify-content:space-between;gap:10px}.toast.on{display:flex}.toast button{background:none;border:0;color:#8fb3ff;font-weight:700}.err{color:#d33;font-size:12px;margin-top:5px}
+.hint{color:var(--mu);text-align:center;padding:40px 20px;font-size:14px}
+</style></head><body>
+<div id="app">
+ <div class="scr" id="home">
+  <div class="top"><button class="ib" onclick="menu(1)" aria-label="Menu">☰</button><div class="tabs" id="tabs"></div><button class="plus" onclick="openCreate()" aria-label="New assignment">+</button></div>
+  <div class="body" id="list"></div>
+  <div class="bar">
+   <button class="bb" onclick="openChat()"><b><svg width="26" height="26" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="9" width="18" height="14" rx="5"/><circle cx="12.5" cy="16" r="1.6" fill="currentColor"/><circle cx="19.5" cy="16" r="1.6" fill="currentColor"/><path d="M16 9V5"/><circle cx="16" cy="4" r="1.5"/></svg></b>Assistant</button>
+   <button class="bb" onclick="openCal()"><b>📅</b>Calendar</button>
+   <button class="bb" onclick="openSort()"><b>⇅</b>Sort by</button>
+  </div>
+ </div>
+
+ <div class="scr ov" id="sort"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>Sort by</h2></div>
+  <div class="body"><div class="sub" style="margin-bottom:6px">Choose what to sort by, then add more rules to break ties. Default is due date.</div><div id="sortrows"></div><button class="btn" style="width:100%;margin-top:10px" onclick="addSort()">+ Add sort</button></div>
+  <div class="foot"><button class="btn" onclick="closeOv()">Cancel</button><button class="btn p" onclick="applySort()">Apply</button></div></div>
+
+ <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>Calendar</h2></div>
+  <div class="body"><div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px"><button class="ib" onclick="mv(-1)">‹</button><b id="mt"></b><button class="ib" onclick="mv(1)">›</button></div>
+  <div class="grid" id="cg"></div><div id="dayp"></div></div></div>
+
+ <div class="scr ov" id="chat"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>AI Assistant</h2></div>
+  <div class="body" id="cb"></div>
+  <div class="foot"><input id="ci" placeholder="Message the assistant…" onkeydown="if(event.key==='Enter')send()"><button class="btn p" style="flex:none" onclick="send()">Send</button></div></div>
+
+ <div class="scr ov" id="create"><div class="hd"><h2>New Assignment</h2></div>
+  <div class="body"><label>Name</label><input id="cn" placeholder="e.g. Lab report"><label>Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label>Class</label><select id="cc"></select>
+  <label>Estimated time (minutes)</label><input id="ct" placeholder="e.g. 45m or 1h 30m" value="45m"><div class="err" id="ce"></div>
+  <div class="tg" style="border:0"><span>Let AI decide the time</span><input type="checkbox" id="ca" onchange="ct.disabled=this.checked"></div>
+  <div class="tg" style="border:0"><span>Optional (lowest priority)</span><input type="checkbox" id="co"></div></div>
+  <div class="foot"><button class="btn" onclick="cancelC()">Cancel</button><button class="btn p" onclick="createA()">Create</button></div></div>
+
+ <div class="scr ov" id="panel"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2 id="pt"></h2></div><div class="body" id="pb"></div></div>
+
+ <div class="toast" id="toast"></div>
+ <div class="scrim" id="scrim" onclick="menu(0)"></div>
+ <div id="menu">
+  <button class="mi" onclick="pan('settings')">⚙️ Settings</button><button class="mi" onclick="pan('profile')">👤 Profile</button>
+  <button class="mi" onclick="pan('classes')">🎓 Classes</button><button class="mi" onclick="pan('newlist')">➕ New List</button><button class="mi" onclick="pan('drafts')">📝 Drafts</button>
+  <button class="mi" onclick="menu(0);openChat()">🤖 AI Assistant</button>
+  <div class="sub" style="padding:14px">Canvas connected · demo data</div>
+ </div>
+</div>
+<script>
+const $=id=>document.getElementById(id),S={tab:0,lists:['Main','By Class','Study'],rules:[],drafts:[],sorts:['due'],cy:2026,cm:8,sel:null,cf:'due',done:{},next:4,
+A:[{id:1,n:'401 Exam',c:'BIO 401',d:'2026-10-02',t:60,g:25,p:3,l:null},{id:2,n:'Chapter 5 Readings',c:'HIST 402',d:'2026-09-30',t:30,g:5,p:1,l:null},{id:3,n:'Research Essay Draft',c:'ENG 403',d:'2026-10-06',t:120,g:15,p:2,l:null}]};
+const CL=['BIO 401','HIST 402','ENG 403'],TODAY='2026-09-29',EX=/exam|test|quiz/i;
+const K={due:(a,b)=>a.d.localeCompare(b.d),class:(a,b)=>a.c.localeCompare(b.c),grade:(a,b)=>b.g-a.g,time:(a,b)=>(b.t??-1)-(a.t??-1),priority:(a,b)=>b.p-a.p};
+const LB={due:'Due date',class:'Class name',grade:'Grade %',time:'Est. time'};
+const RK=a=>S.rules.includes(a.c)?0:1;
+const srt=(arr,keys=S.sorts)=>[...arr].sort((a,b)=>{if(RK(a)-RK(b))return RK(a)-RK(b);for(const k of keys){const r=K[k](a,b);if(r)return r}return 0});
+const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
+const card=a=>`<div class="card ${S.done[a.id]?'dn':''}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" onclick="tog(${a.id})"></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${a.n}</div><button class="ib" style="font-size:14px;margin:-6px -6px 0 0" onclick="del(${a.id})" aria-label="Delete">🗑</button></div><div class="sub">${a.c} · Due ${fd(a.d)}</div>
+<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g}% of grade</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}</div><button class="lk" onclick="openCal('${a.d}')">See in calendar →</button></div></div></div>`;
+function home(){
+ $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="S.tab=${i};home()">${l}</button>`).join('');
+ const t=S.lists[S.tab];let h='';
+ if(t=='Main'){const ac=srt(S.A.filter(a=>!a.l&&!S.done[a.id])),od=ac.filter(a=>a.d<TODAY),ok=ac.filter(a=>a.d>=TODAY),dn=S.A.filter(a=>!a.l&&S.done[a.id]);
+ h=(od.length?'<div class="gh" style="color:#d33">Past due</div>'+od.map(card).join(''):'')+ok.map(card).join('')+(dn.length?'<div class="gh">Completed</div>'+dn.map(card).join(''):'')}
+ else if(t=='Study')h='<div class="sub" style="margin-bottom:10px">Tests, quizzes and exams, soonest first.</div>'+srt(S.A.filter(a=>EX.test(a.n)),['due']).map(card).join('')
+ else if(t=='By Class')h=CL.map(c=>{const x=srt(S.A.filter(a=>a.c==c&&!a.l));return x.length?`<div class="gh">${c}</div>`+x.map(card).join(''):''}).join('');
+ else h=srt(S.A.filter(a=>a.l==t)).map(card).join('')||'<div class="hint">This list is empty.<br>Tap + to add an assignment to it.</div>';
+ $('list').innerHTML=h||'<div class="hint">Nothing here yet.</div>';
+}
+const tog=id=>{S.done[id]=!S.done[id];home()};
+const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
+const closeOv=()=>{ov();menu(0);home()};
+function menu(o){$('menu').classList.toggle('on',!!o);$('scrim').classList.toggle('on',!!o)}
+/* sort */
+function openSort(){S.tmp=[...S.sorts];sr();ov('sort')}
+function sr(){$('sortrows').innerHTML=S.tmp.map((k,i)=>`<div class="row" style="align-items:center;margin-bottom:8px"><span class="sub" style="width:64px">${i?'then by':'Sort by'}</span><select onchange="S.tmp[${i}]=this.value">${Object.keys(LB).map(o=>`<option value="${o}" ${o==k?'selected':''}>${LB[o]}</option>`).join('')}</select>${i?`<button class="ib" onclick="S.tmp.splice(${i},1);sr()">✕</button>`:''}</div>`).join('')}
+function addSort(){if(S.tmp.length<4){S.tmp.push(Object.keys(LB).find(k=>!S.tmp.includes(k))||'due');sr()}}
+function applySort(){S.sorts=S.tmp;closeOv()}
+/* calendar */
+function openCal(d){if(d){S.sel=d;const x=new Date(d+'T00:00');S.cy=x.getFullYear();S.cm=x.getMonth()}S.cf='due';ov('cal');cal()}
+function mv(n){S.cm+=n;if(S.cm<0){S.cm=11;S.cy--}if(S.cm>11){S.cm=0;S.cy++}S.sel=null;cal()}
+function cal(){
+ $('mt').textContent=new Date(S.cy,S.cm,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+ const f=new Date(S.cy,S.cm,1).getDay(),n=new Date(S.cy,S.cm+1,0).getDate();
+ let h='SMTWTFS'.split('').map(c=>`<div class="sub">${c}</div>`).join('')+'<div class="dy e"></div>'.repeat(f);
+ for(let i=1;i<=n;i++){const d=`${S.cy}-${String(S.cm+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`,has=S.A.some(a=>a.d==d);
+  h+=`<button class="dy ${d==S.sel?'s':''} ${d==TODAY?'t':''}" onclick="S.sel='${d}';cal()">${i}${has?'<i></i>':''}</button>`}
+ $('cg').innerHTML=h;
+ if(!S.sel){$('dayp').innerHTML='<div class="hint">Tap a day to see its assignments.</div>';return}
+ const x=srt(S.A.filter(a=>a.d==S.sel),[S.cf]);
+ $('dayp').innerHTML=`<div class="row" style="align-items:center;justify-content:space-between;margin:16px 0 8px"><b>${fd(S.sel)}</b><select style="width:auto;padding:8px" onchange="S.cf=this.value;cal()">${['due','time','priority','grade'].map(k=>`<option value="${k}" ${k==S.cf?'selected':''}>Filter: ${k=='due'?'Due date':k=='time'?'Est. time':k=='priority'?'Priority':'Grade %'}</option>`).join('')}</select></div>`+(x.map(card).join('')||'<div class="hint">No assignments due this day.</div>');
+}
+/* chat */
+function openChat(){ov('chat');$('cb').innerHTML=`<div style="text-align:center"><svg width="90" height="90" viewBox="0 0 32 32" fill="none" stroke="var(--ac)" stroke-width="1.6"><rect x="7" y="9" width="18" height="14" rx="5" fill="var(--card)"/><g fill="var(--ac)" stroke="none"><circle cx="16" cy="16" r="1.3"/><circle cx="20.5" cy="16" r=".9"/><circle cx="19.2" cy="19.2" r=".9"/><circle cx="16" cy="20.5" r=".9"/><circle cx="12.8" cy="19.2" r=".9"/><circle cx="11.5" cy="16" r=".9"/><circle cx="12.8" cy="12.8" r=".9"/><circle cx="16" cy="11.5" r=".9"/><circle cx="19.2" cy="12.8" r=".9"/></g><path d="M16 9V5"/><circle cx="16" cy="4" r="1.5"/></svg></div>
+<div class="msg bot">Hey Alex! What questions do you have about our work to do today?</div><div class="sug" id="sg">${['Show my work tasks for today','What should I do first?','How do these affect my grade?'].map(s=>`<button onclick="ask(this.textContent)">${s}</button>`).join('')}</div>`}
+const ask=q=>{$('ci').value=q;send()};
+function reply(q){q=q.toLowerCase();const s=srt(S.A.filter(a=>!S.done[a.id]),['due','priority']);
+ if(!s.length)return "You're all caught up. Nothing left on your list!";
+ if(/first|priorit/.test(q))return `Start with "${s[0].n}" (${s[0].c}). It's due ${fd(s[0].d)} and worth ${s[0].g}% of your grade.`;
+ if(/grade|affect|%/.test(q)){const g=srt(s,['grade'])[0];return s.map(a=>`• ${a.n}: ${a.g}% of grade`).join('\n')+`\n\n"${g.n}" moves your grade the most.`}
+ if(/today|task|work|plan|show/.test(q))return "Here's a plan for today:\n"+s.map((a,i)=>`${i+1}. ${a.n} (${ft(a.t)}, due ${fd(a.d)})`).join('\n')+`\n\nTotal: ${ft(s.reduce((x,a)=>x+(a.t||0),0))}.`;
+ return 'I can show today\'s tasks, tell you what to do first, or explain grade impact. Try one of those!'}
+function send(){const v=$('ci').value.trim();if(!v)return;$('ci').value='';const b=$('cb');$('sg')&&$('sg').remove();
+ b.insertAdjacentHTML('beforeend',`<div class="msg me">${v.replace(/</g,'&lt;')}</div>`);
+ setTimeout(()=>{b.insertAdjacentHTML('beforeend',`<div class="msg bot">${reply(v)}</div>`);b.scrollTop=b.scrollHeight},450);b.scrollTop=b.scrollHeight}
+/* create */
+const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
+function openCreate(d){d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||'2026-10-09';$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
+function createA(force){const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
+ if(!n){$('cn').focus();return}
+ if(!d||d<TODAY){$('cde').textContent="Due date can't be in the past.";return}
+ let t=null;
+ if($('ca').checked){t=EX.test(n)?60:/read/i.test(n)?30:/essay|paper|project/i.test(n)?120:/lab|hw|homework|problem/i.test(n)?45:null}
+ else{t=parseT($('ct').value);if(isNaN(t)||t<1){$('ce').textContent='Use minutes or hours, like "45m", "1h 30m" or "2h".';return}
+  if(t>600&&force!==1){$('ce').innerHTML='That is over 10 hours. Is that right? <button class="lk" onclick="createA(1)">Yes, confirm</button>';return}}
+ const l=['Main','By Class','Study'].includes(S.lists[S.tab])?null:S.lists[S.tab],o=$('co').checked;
+ S.A.push({id:S.next++,n,c:$('cc').value,d,t,g:10,p:o?0:2,o,l});closeOv();
+ if(EX.test(n))toast('Exam added to Study. Consider setting a study priority based on how comfortable you feel in this class.')}
+function cancelC(){const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
+let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5000)}
+function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
+function undo(){if(S.last){S.A.push(S.last);S.last=null;home();$('toast').classList.remove('on')}}
+function resume(i){openCreate(S.drafts.splice(i,1)[0])}
+function rl(){$('rl').innerHTML=S.rules.map((c,i)=>`<div class="tg"><span>${c} over all classes</span><button class="ib" onclick="S.rules.splice(${i},1);rl()">✕</button></div>`).join('')||'<div class="sub">No custom rules. Default: due date, then est. time.</div>'}
+function addRule(){const c=$('rs').value,e=$('re');if(S.rules.includes(c)){e.textContent='You already have this rule.';return}
+ if(S.rules.length){e.textContent=`Conflict: "${S.rules[0]} over all classes" already puts another class first. Remove it first.`;return}
+ S.rules.push(c);e.textContent='';rl()}
+let sx=null;const sw=x=>{if(sx==null)return;const dx=x-sx;sx=null;if(Math.abs(dx)>60){S.tab=Math.max(0,Math.min(S.lists.length-1,S.tab+(dx<0?1:-1)));home()}};
+$('list').addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});$('list').addEventListener('touchend',e=>sw(e.changedTouches[0].clientX));
+$('list').addEventListener('mousedown',e=>sx=e.clientX);$('list').addEventListener('mouseup',e=>sw(e.clientX));
+/* menu panels */
+function pan(k){menu(0);ov('panel');const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts'};$('pt').textContent=T[k];let h='';
+ if(k=='settings')h=['Push notifications','Sync with Canvas','Dark mode'].map((s,i)=>`<div class="tg"><span>${s}</span><input type="checkbox" ${i<2?'checked':''} ${i==2?'onchange="document.documentElement.dataset.theme=this.checked?\'dark\':\'light\'"':''}></div>`).join('')+`<div class="gh">Prioritization rules</div><div id="rl"></div><label>Add rule: this class has priority over all others</label><select id="rs">${CL.map(c=>`<option>${c}</option>`).join('')}</select><div class="err" id="re"></div><button class="btn" style="width:100%;margin-top:8px" onclick="addRule()">Add rule</button><div class="sub" style="margin-top:8px">Your rules always override the automatic ones.</div>`;
+ if(k=='profile')h='<div class="card"><div class="nm">Alex Rivera</div><div class="sub">alex.rivera@university.edu</div><div class="sub">Junior · Biology major</div><div class="sub">Canvas: connected</div></div>';
+ if(k=='classes')h='<div class="sub" style="margin-bottom:8px">Currently enrolled</div>'+CL.map((c,i)=>`<div class="card"><div class="nm">${c}</div><div class="sub">${['Cell Biology','World History II','Advanced Composition'][i]}</div></div>`).join('');
+ if(k=='drafts')h=S.drafts.map((d,i)=>`<div class="card"><div class="nm">${d.n}</div><div class="sub">${d.c} · unfinished</div><button class="lk" onclick="resume(${i})">Resume</button></div>`).join('')||'<div class="hint">No drafts.</div>';
+ if(k=='newlist')h='<label>List name</label><input id="ln" placeholder="e.g. Club projects"><button class="btn p" style="width:100%;margin-top:16px" onclick="mkList()">Create list</button>';
+ $('pb').innerHTML=h;if(k=='settings')rl()}
+function mkList(){const n=$('ln').value.trim();if(!n)return;S.lists.push(n);S.tab=S.lists.length-1;closeOv()}
+home();
+</script></body></html>
