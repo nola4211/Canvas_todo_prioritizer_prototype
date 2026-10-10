@@ -1,0 +1,7 @@
+preview*.log
+# Keep local setup screenshots out of the public repository.
+docs/*.jpg
+!docs/completed-after-refresh.jpg
+!docs/database-completed.jpg
+!docs/database-reset.jpg
+!docs/failed-save-preserved.jpg

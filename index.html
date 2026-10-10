@@ -52,10 +52,17 @@ input[type=checkbox]{width:auto}
 .tg{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln);font-size:15px}
 .toast{position:absolute;left:14px;right:14px;bottom:84px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;z-index:20;font-size:13px;display:none;justify-content:space-between;gap:10px}.toast.on{display:flex}.toast button{background:none;border:0;color:#8fb3ff;font-weight:700}.err{color:#d33;font-size:12px;margin-top:5px}
 .hint{color:var(--mu);text-align:center;padding:40px 20px;font-size:14px}
+.sync{padding:8px 14px;border-bottom:1px solid var(--ln);font-size:12px;background:var(--card)}
+.sync p{margin:4px 0}.sync button{font-size:12px;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:5px 8px}.sync button:disabled{opacity:.5;cursor:wait}.chk:disabled{opacity:.5;cursor:wait}
+#login{padding:18px;border-bottom:1px solid var(--ln);background:var(--card)}
+#login h2{font-size:18px;margin:0}#login .btn{margin-top:14px;width:100%}
+[hidden]{display:none!important}
 </style></head><body>
 <div id="app">
  <div class="scr" id="home">
-  <div class="top"><button class="ib" onclick="menu(1)" aria-label="Menu">☰</button><div class="tabs" id="tabs"></div><button class="plus" onclick="openCreate()" aria-label="New assignment">+</button></div>
+  <div class="top"><button class="ib" onclick="menu(1)" aria-label="Menu">☰</button><div class="tabs" id="tabs"></div><button class="plus" disabled title="Creating assignments is outside this demo" aria-label="New assignment (unavailable in demo)">+</button></div>
+  <div class="sync"><p id="sync-status" role="status" aria-live="polite">Starting…</p><p id="sync-error" class="err" role="alert" hidden></p><button id="reload-tasks" onclick="loadTasks()" hidden>Reload assignments</button> <button id="signout" onclick="signOut()" hidden>Sign out</button></div>
+  <form id="login" hidden onsubmit="event.preventDefault();signIn()"><h2>Shared demo sign-in</h2><div class="sub">Use the shared demo account, test@user.com, and its password.</div><label for="demo-email">Email</label><input id="demo-email" type="email" autocomplete="username" required><label for="demo-password">Password</label><input id="demo-password" type="password" autocomplete="current-password" required><button class="btn p" id="signin" type="submit">Sign in</button></form>
   <div class="body" id="list"></div>
   <div class="bar">
    <button class="bb" onclick="openChat()"><b><svg width="26" height="26" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="9" width="18" height="14" rx="5"/><circle cx="12.5" cy="16" r="1.6" fill="currentColor"/><circle cx="19.5" cy="16" r="1.6" fill="currentColor"/><path d="M16 9V5"/><circle cx="16" cy="4" r="1.5"/></svg></b>Assistant</button>
@@ -91,23 +98,26 @@ input[type=checkbox]{width:auto}
   <button class="mi" onclick="pan('settings')">⚙️ Settings</button><button class="mi" onclick="pan('profile')">👤 Profile</button>
   <button class="mi" onclick="pan('classes')">🎓 Classes</button><button class="mi" onclick="pan('newlist')">➕ New List</button><button class="mi" onclick="pan('drafts')">📝 Drafts</button>
   <button class="mi" onclick="menu(0);openChat()">🤖 AI Assistant</button>
-  <div class="sub" style="padding:14px">Canvas connected · demo data</div>
+  <div class="sub" style="padding:14px">Shared Supabase demo · Canvas sync is a prototype</div>
  </div>
 </div>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="backend.js"></script>
 <script>
-const $=id=>document.getElementById(id),S={tab:0,lists:['Main','By Class','Study'],rules:[],drafts:[],sorts:['due'],cy:2026,cm:8,sel:null,cf:'due',done:{},next:4,
-A:[{id:1,n:'401 Exam',c:'BIO 401',d:'2026-10-02',t:60,g:25,p:3,l:null},{id:2,n:'Chapter 5 Readings',c:'HIST 402',d:'2026-09-30',t:30,g:5,p:1,l:null},{id:3,n:'Research Essay Draft',c:'ENG 403',d:'2026-10-06',t:120,g:15,p:2,l:null}]};
-const CL=['BIO 401','HIST 402','ENG 403'],TODAY='2026-09-29',EX=/exam|test|quiz/i;
+const $=id=>document.getElementById(id),S={tab:0,lists:['Main','By Class','Study'],rules:[],drafts:[],sorts:['due'],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
+const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const K={due:(a,b)=>a.d.localeCompare(b.d),class:(a,b)=>a.c.localeCompare(b.c),grade:(a,b)=>b.g-a.g,time:(a,b)=>(b.t??-1)-(a.t??-1),priority:(a,b)=>b.p-a.p};
 const LB={due:'Due date',class:'Class name',grade:'Grade %',time:'Est. time'};
 const RK=a=>S.rules.includes(a.c)?0:1;
 const srt=(arr,keys=S.sorts)=>[...arr].sort((a,b)=>{if(RK(a)-RK(b))return RK(a)-RK(b);for(const k of keys){const r=K[k](a,b);if(r)return r}return 0});
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
-const card=a=>`<div class="card ${S.done[a.id]?'dn':''}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" onclick="tog(${a.id})"></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${a.n}</div><button class="ib" style="font-size:14px;margin:-6px -6px 0 0" onclick="del(${a.id})" aria-label="Delete">🗑</button></div><div class="sub">${a.c} · Due ${fd(a.d)}</div>
-<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g}% of grade</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}</div><button class="lk" onclick="openCal('${a.d}')">See in calendar →</button></div></div></div>`;
+const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g}% of grade</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
 function home(){
- $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="S.tab=${i};home()">${l}</button>`).join('');
+ $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="S.tab=${i};home()">${esc(l)}</button>`).join('');
  const t=S.lists[S.tab];let h='';
  if(t=='Main'){const ac=srt(S.A.filter(a=>!a.l&&!S.done[a.id])),od=ac.filter(a=>a.d<TODAY),ok=ac.filter(a=>a.d>=TODAY),dn=S.A.filter(a=>!a.l&&S.done[a.id]);
  h=(od.length?'<div class="gh" style="color:#d33">Past due</div>'+od.map(card).join(''):'')+ok.map(card).join('')+(dn.length?'<div class="gh">Completed</div>'+dn.map(card).join(''):'')}
@@ -116,7 +126,35 @@ function home(){
  else h=srt(S.A.filter(a=>a.l==t)).map(card).join('')||'<div class="hint">This list is empty.<br>Tap + to add an assignment to it.</div>';
  $('list').innerHTML=h||'<div class="hint">Nothing here yet.</div>';
 }
-const tog=id=>{S.done[id]=!S.done[id];home()};
+let db=null,backend=null,user=null,loadVersion=0;
+const showError=message=>{$('sync-error').textContent=message;$('sync-error').hidden=!message};
+function paint(){home();if($('cal').classList.contains('on'))cal()}
+function showSession(){const signed=!!user;$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
+async function loadTasks(){
+ if(!backend||!user||S.saving.size)return;
+ const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';$('reload-tasks').disabled=true;paint();
+ try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(tasks.map(a=>[a.id,a.completed]));S.ready=true;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase`:'No demo assignments found. The team must add sample rows and check access policies.'}
+ catch(error){if(version!==loadVersion)return;S.A=[];S.done={};showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
+ finally{if(version===loadVersion){S.loading=false;$('reload-tasks').disabled=false;paint()}}
+}
+async function tog(id){
+ if(!S.ready||S.loading||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
+ const previous=!!S.done[id],next=!previous;S.saving.add(id);showError('');$('reload-tasks').disabled=true;$('signout').disabled=true;paint();
+ try{const saved=await backend.save(id,previous,next);S.done[id]=saved;$('sync-status').textContent=saved?'Saved to Supabase · completed':'Saved to Supabase · incomplete'}
+ catch(error){showError(error.message);$('sync-status').textContent='Save was not confirmed. Reload to check the database.'}
+ finally{S.saving.delete(id);$('reload-tasks').disabled=!!S.saving.size;$('signout').disabled=!!S.saving.size;paint()}
+}
+document.addEventListener('click',event=>{const button=event.target.closest('[data-complete]');if(button&&!button.disabled)tog(button.dataset.complete)});
+async function signIn(){
+ if(!db)return;$('signin').disabled=true;showError('');
+ try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;showSession();await loadTasks()}
+ catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this demo account in Supabase, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
+}
+async function signOut(){if(!db||S.saving.size)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;++loadVersion;S.A=[];S.done={};S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function boot(){
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;++loadVersion;S.A=[];S.done={};S.ready=false;S.loading=false;showSession();paint()}})}
+ catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
+}
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
 const closeOv=()=>{ov();menu(0);home()};
 function menu(o){$('menu').classList.toggle('on',!!o);$('scrim').classList.toggle('on',!!o)}
@@ -151,7 +189,7 @@ function reply(q){q=q.toLowerCase();const s=srt(S.A.filter(a=>!S.done[a.id]),['d
  return 'I can show today\'s tasks, tell you what to do first, or explain grade impact. Try one of those!'}
 function send(){const v=$('ci').value.trim();if(!v)return;$('ci').value='';const b=$('cb');$('sg')&&$('sg').remove();
  b.insertAdjacentHTML('beforeend',`<div class="msg me">${v.replace(/</g,'&lt;')}</div>`);
- setTimeout(()=>{b.insertAdjacentHTML('beforeend',`<div class="msg bot">${reply(v)}</div>`);b.scrollTop=b.scrollHeight},450);b.scrollTop=b.scrollHeight}
+ setTimeout(()=>{b.insertAdjacentHTML('beforeend',`<div class="msg bot">${esc(reply(v))}</div>`);b.scrollTop=b.scrollHeight},450);b.scrollTop=b.scrollHeight}
 /* create */
 const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
 function openCreate(d){d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||'2026-10-09';$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
@@ -180,11 +218,12 @@ $('list').addEventListener('mousedown',e=>sx=e.clientX);$('list').addEventListen
 /* menu panels */
 function pan(k){menu(0);ov('panel');const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts'};$('pt').textContent=T[k];let h='';
  if(k=='settings')h=['Push notifications','Sync with Canvas','Dark mode'].map((s,i)=>`<div class="tg"><span>${s}</span><input type="checkbox" ${i<2?'checked':''} ${i==2?'onchange="document.documentElement.dataset.theme=this.checked?\'dark\':\'light\'"':''}></div>`).join('')+`<div class="gh">Prioritization rules</div><div id="rl"></div><label>Add rule: this class has priority over all others</label><select id="rs">${CL.map(c=>`<option>${c}</option>`).join('')}</select><div class="err" id="re"></div><button class="btn" style="width:100%;margin-top:8px" onclick="addRule()">Add rule</button><div class="sub" style="margin-top:8px">Your rules always override the automatic ones.</div>`;
- if(k=='profile')h='<div class="card"><div class="nm">Alex Rivera</div><div class="sub">alex.rivera@university.edu</div><div class="sub">Junior · Biology major</div><div class="sub">Canvas: connected</div></div>';
- if(k=='classes')h='<div class="sub" style="margin-bottom:8px">Currently enrolled</div>'+CL.map((c,i)=>`<div class="card"><div class="nm">${c}</div><div class="sub">${['Cell Biology','World History II','Advanced Composition'][i]}</div></div>`).join('');
+ if(k=='profile')h='<div class="card"><div class="nm">Shared demo account</div><div class="sub">Canvas sync is a prototype.</div></div>';
+ if(k=='classes')h='<div class="sub">The current database has no direct assignment-to-class field. Demo assignments appear under Shared demo.</div>';
  if(k=='drafts')h=S.drafts.map((d,i)=>`<div class="card"><div class="nm">${d.n}</div><div class="sub">${d.c} · unfinished</div><button class="lk" onclick="resume(${i})">Resume</button></div>`).join('')||'<div class="hint">No drafts.</div>';
  if(k=='newlist')h='<label>List name</label><input id="ln" placeholder="e.g. Club projects"><button class="btn p" style="width:100%;margin-top:16px" onclick="mkList()">Create list</button>';
  $('pb').innerHTML=h;if(k=='settings')rl()}
 function mkList(){const n=$('ln').value.trim();if(!n)return;S.lists.push(n);S.tab=S.lists.length-1;closeOv()}
 home();
+boot();
 </script></body></html>
