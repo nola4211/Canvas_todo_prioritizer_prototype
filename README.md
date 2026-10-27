@@ -1,5 +1,7 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
+**Lists update — October 27, 2026:** the saved-list migration has been applied to the live Supabase project. Database operation and access checks passed with their test writes rolled back. Both simulated test suites pass. Authenticated browser checks passed for creating and renaming a list, adding/removing memberships, refresh persistence, and shared completion across lists. See `docs/lists-verification.md` for details. See Saved custom lists below for maintenance and setup details. Earlier Module 05 notes below describe the previous completion-only release.
+
 **Status:** the authenticated completion action is verified locally at `http://127.0.0.1:4182/`: save, database readback, refresh persistence, reversal, and rejection of a stale save all passed. The app is ready to record with three incomplete synthetic assignments. Recording and Canvas submission are pending. The newer `chat` and `message` tables still require sample rows and an access decision.
 
 **Latest setup progress:** Cameron approved and applied `docs/finish-demo.sql` on October 9. The shared Supabase Auth account exists, each existing table received three synthetic rows, and account-specific completion access is enabled. The browser-safe key and assignment IDs `1`, `2`, and `3` are configured. `docs/verify-access.sql` passed against the real database and rolled its test writes back: allowed demo read/completion; denied name changes, inserts, deletes, user-table access, another identity, and signed-out access.
@@ -141,7 +143,61 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 ### Prototype limits
 
 - Creation/deletion are unavailable in this demo; only completion is persisted.
-- Sorting, lists, rules, drafts, and preferences remain temporary prototype state.
+- Sorting, rules, drafts, and preferences remain temporary prototype state. Custom lists and their assignment connections now use Supabase.
 - The assistant uses scripted replies and is not an AI service.
 - Canvas connection/settings are prototype controls with no real Canvas integration.
 - Shared-account access is a class demo choice. Real student data requires a reviewed individual ownership model and policies.
+
+## Saved custom lists
+
+The lists feature keeps the existing HTML page and Supabase client. There is no new framework.
+
+### How the two tables work
+
+- `lists`: one row per list, with `id`, `owner_id` (the Supabase Auth account), `name`, and `created_at`.
+- `list_assignments`: one row per connection, containing `list_id` and `assignment_id`. The pair is unique, so an assignment cannot be added to the same list twice. It can belong to several different lists.
+
+Main and By Class are automatic views, not database lists. They keep showing assignments even when those assignments belong to custom lists. Completion belongs to the assignment, so every view shows the same completion value. Deleting a list removes its connections, not its assignments.
+
+Each account receives a Study list once: the migration adds it for existing accounts, and a small database trigger adds it for new accounts. It is not recreated by refresh or sign-in. People using the shared demo login share its lists.
+
+### Database setup
+
+**Applied to the current project on October 27, 2026. Do not rerun the migration there.** The steps below document setup for a fresh compatible project. `docs/verify-lists.sql` passed against the current project and rolled back its test writes.
+
+1. Check the current Supabase project schema first. Confirm that `public.assignments.assignment_id` is `bigint` and that `lists` and `list_assignments` do not already exist. Review the existing assignment policies; this migration leaves them unchanged.
+2. Run `supabase/migrations/202610270001_lists.sql` **once** in the Supabase SQL Editor. Run the entire file together. It uses a transaction, so an error rolls back setup. Do not rerun the old demo seed script.
+3. Run `docs/verify-lists.sql` in the SQL Editor. It uses the existing synthetic demo account and assignment 1. It tests list operations and security, then rolls back all test changes. A successful run ends with a PASS result.
+4. Sign into the app and choose Reload assignments to load lists too.
+
+The browser uses the existing publishable key. List ownership comes from `auth.uid()`, not from a name or user ID supplied by the page. Security policies limit list access to its owner. Adding membership also checks that the user can read the assignment under its existing policies. The frontend still loads only the configured synthetic assignments; this feature does not expand assignment access.
+
+### Where to maintain it
+
+Database requests are in `backend.js`:
+
+| Function | Purpose |
+| --- | --- |
+| `loadLists()` | Read the signed-in account's lists. |
+| `loadListAssignments()` | Read its assignment connections. |
+| `createList(name)` | Trim and validate a name, then insert a list. |
+| `renameList(listId, name)` | Change a name without changing the list ID. |
+| `deleteList(listId)` | Delete a list and its connections. |
+| `addAssignmentToList(listId, assignmentId)` | Connect an existing assignment to a list. |
+| `removeAssignmentFromList(listId, assignmentId)` | Remove just that connection. |
+
+The section marked `Saved lists` in `index.html` handles the interface. `S.lists` stores list IDs and names; `S.memberships` stores connections. `loadSavedLists` reloads both. `saveListChange` supplies the shared saving lock and error message. The individual handlers call one database function and change the displayed state only after it succeeds. If lists fail to load, assignments remain usable and the page displays a setup/reload error.
+
+### Manual check
+
+1. Sign in. Open New List from the menu, enter a name, and create it.
+2. Open Edit list and assignments. Check an assignment; wait for Saved to Supabase, then refresh. Confirm the list and assignment remain.
+3. Rename the list and refresh. Confirm its assignment is still there.
+4. Add the same assignment to another list. Complete it in either list; both lists and Main should show the same result.
+5. Uncheck its membership in one list. Confirm it remains in the other list and Main.
+6. Delete a list and confirm. Its assignments should remain in Main. Delete Study and refresh; it should stay deleted.
+7. Try a blank name, a name longer than 100 characters through the adapter, and a duplicate name with different capitalization. These should fail.
+8. Disconnect the network and try a list change. Confirm an error appears and the displayed state keeps the last confirmed value. Reconnect and reload before retrying: a lost response can mean the server saved even though the browser did not receive confirmation.
+9. Sign out. Personal list tabs should disappear. Check privacy using `docs/verify-lists.sql`; a separate browser tab using the same login is the same account, not a privacy test.
+
+Run the simulated checks with `node test.cjs` and `node test-lists.cjs`. These check adapter and interface behavior, while the SQL check verifies actual database constraints and policies.
