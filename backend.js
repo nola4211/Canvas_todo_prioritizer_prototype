@@ -27,10 +27,58 @@
       t: minutes(row.est_time), g: Number(row.percentage_of_grade) || 0,
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), l: null, completed: row.completed, persisted: true };
   }
+  function listName(value) {
+    const name = String(value).trim();
+    if (!name || [...name].length > 100) throw new Error('Use a list name between 1 and 100 characters.');
+    return name;
+  }
+  function listError(error) {
+    if (error.code === '23505') return new Error('That list name or assignment entry already exists.');
+    return new Error(error.message || 'The list change could not be saved.');
+  }
   function create(client, assignmentIds) {
     const allowed = [...new Set(assignmentIds.map(id))];
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
     return {
+      async loadLists() {
+        const { data, error } = await client.from('lists').select('id,name').order('created_at').order('id');
+        if (error) throw listError(error);
+        return data;
+      },
+      async loadListAssignments() {
+        const { data, error } = await client.from('list_assignments').select('list_id,assignment_id');
+        if (error) throw listError(error);
+        return data.map(row => ({ list_id: row.list_id, assignment_id: id(row.assignment_id) }));
+      },
+      async createList(name) {
+        const { data, error } = await client.from('lists').insert({ name: listName(name) }).select('id,name').single();
+        if (error) throw listError(error);
+        return data;
+      },
+      async renameList(listId, name) {
+        const { data, error } = await client.from('lists').update({ name: listName(name) }).eq('id', listId).select('id,name').single();
+        if (error) throw listError(error);
+        return data;
+      },
+      async deleteList(listId) {
+        const { data, error } = await client.from('lists').delete().eq('id', listId).select('id').single();
+        if (error) throw listError(error);
+        return data;
+      },
+      async addAssignmentToList(listId, assignmentId) {
+        const key = id(assignmentId);
+        if (!allowed.includes(key)) throw new Error('This assignment is outside the demo.');
+        const { data, error } = await client.from('list_assignments').insert({ list_id: listId, assignment_id: key })
+          .select('list_id,assignment_id').single();
+        if (error) throw listError(error);
+        return { list_id: data.list_id, assignment_id: id(data.assignment_id) };
+      },
+      async removeAssignmentFromList(listId, assignmentId) {
+        const { data, error } = await client.from('list_assignments').delete().eq('list_id', listId).eq('assignment_id', id(assignmentId))
+          .select('list_id,assignment_id').single();
+        if (error) throw listError(error);
+        return data;
+      },
       async load() {
         const { data, error } = await client.from('assignments').select(columns).in('assignment_id', allowed).eq('deleted', false).order('assignment_id');
         if (error) throw new Error(error.message || 'Database load failed.');
@@ -49,5 +97,5 @@
       }
     };
   }
-  root.CanvasBackend = { create, record, minutes, id };
+  root.CanvasBackend = { create, record, minutes, id, listName };
 })(typeof window === 'undefined' ? globalThis : window);
