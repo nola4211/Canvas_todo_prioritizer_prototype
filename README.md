@@ -238,7 +238,7 @@ A rules value is a small JSON array, for example:
 
 **Applied to project `uowlwdwrqceklbqjcnmc` on October 28, 2026; do not rerun there.** The schema change is recorded in `supabase/migrations/202610280001_priorities.sql`. Apply it once after the lists migration, and do not rerun either old migration against an already-updated project. It preserves assignments, list names, memberships, and existing policies. New columns default to no list rules and no override. A missing migration or failed priorities load shows an error and prevents editing unsafely.
 
-Run `node test.cjs`, `node test-lists.cjs`, and `node test-priorities.cjs`. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
+Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `node test-local-assignments.cjs`. The last check covers the newer device-only assignment creation working alongside saved priorities. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
 
 ### Manual verification
 

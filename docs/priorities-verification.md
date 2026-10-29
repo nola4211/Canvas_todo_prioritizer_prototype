@@ -35,3 +35,9 @@ Priority Demo remains as an example containing assignments 1–3, with percentag
 Network failures and stale-session cases were simulated. Account isolation was checked using database roles and claims rather than a second browser login. By Class scope storage was database-tested; it uses the same editor as Main. Grade in class is intentionally unavailable until Canvas supplies it. The new frontend has not yet been deployed or tested on GitHub Pages.
 
 An additional browser invalid-title submission was not run: automatic approval review flagged a risk of saving an unintended demo rule. The saved configuration was then reloaded and confirmed unchanged. Invalid rules were tested successfully in the automated suite and rollback-only SQL checks.
+
+## Merge integration — October 29, 2026
+
+Resolved the overlap with the newer Main-branch assignment-creation edit. The combined page retains device-only assignment creation and completion, loading those assignments alongside Supabase tasks, and loading saved priorities after refresh. It keeps the new priority-script versions and the missing-grade label.
+
+`node test-local-assignments.cjs` verifies that a newly created local assignment survives reload, uses saved priority rules, saves completion only on the device, remains available after a database-load failure, and respects priority-saving locks. The existing completion, list, and priority suites also pass. No database changes were required for the conflict resolution.
