@@ -71,9 +71,19 @@ input[type=checkbox]{width:auto}
   </div>
  </div>
 
- <div class="scr ov" id="sort"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>Sort by</h2></div>
-  <div class="body"><div class="sub" style="margin-bottom:6px">Choose what to sort by, then add more rules to break ties. Default is due date.</div><div id="sortrows"></div><button class="btn" style="width:100%;margin-top:10px" onclick="addSort()">+ Add sort</button></div>
-  <div class="foot"><button class="btn" onclick="closeOv()">Cancel</button><button class="btn p" onclick="applySort()">Apply</button></div></div>
+ <div class="scr ov" id="sort"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2 id="priority-heading">Priorities</h2></div>
+  <div class="body">
+   <p class="sub">Rules run from top to bottom. Each rule breaks ties from the rule above it.</p>
+   <div id="priority-inheritance"></div>
+   <div id="sortrows"></div>
+   <button class="btn" data-priority-control onclick="addPriorityRule()">+ Add rule</button>
+   <p class="sub">Title matches ignore capitalization and can match part of a title. For example: Exam, readings, or assignment.</p>
+   <p class="sub">Grade in class will be available after Canvas supplies class grades.</p>
+   <p class="sub">When rules tie, earliest due date comes first. Tasks without a due date go last.</p>
+  </div>
+  <p id="priority-message" class="sub" style="margin:0;padding:0 14px" role="status"></p>
+  <div class="foot"><button class="btn" data-priority-control onclick="closeOv()">Cancel</button><button class="btn p" data-priority-control onclick="savePriorityRules()">Save priorities</button></div>
+ </div>
 
  <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>Calendar</h2></div>
   <div class="body"><div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px"><button class="ib" onclick="mv(-1)">‹</button><b id="mt"></b><button class="ib" onclick="mv(1)">›</button></div>
@@ -103,45 +113,60 @@ input[type=checkbox]{width:auto}
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Change this version when backend.js changes so browsers load the matching file. -->
-<script src="backend.js?v=20261027-lists-1"></script>
+<!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
+<script src="priorities.js?v=20261028-1"></script>
+<script src="backend.js?v=20261028-priorities-1"></script>
 <script>
-const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,rules:[],drafts:[],sorts:['due'],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
+const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
 const LOCAL_KEY='canvas-todo-local-assignments-v1';
 function readLocalAssignments(){try{const value=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]');return Array.isArray(value)?value.filter(a=>a&&typeof a.id==='string'&&a.id.startsWith('local-')&&typeof a.n==='string'&&typeof a.d==='string').map(a=>({...a,persisted:false})):[]}catch{return []}}
 function saveLocalAssignments(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(S.A.filter(a=>!a.persisted)))}catch(error){showError('Could not save this assignment on this device: '+error.message)}}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const K={due:(a,b)=>a.d.localeCompare(b.d),class:(a,b)=>a.c.localeCompare(b.c),grade:(a,b)=>b.g-a.g,time:(a,b)=>(b.t??-1)-(a.t??-1),priority:(a,b)=>b.p-a.p};
-const LB={due:'Due date',class:'Class name',grade:'Grade %',time:'Est. time'};
-const RK=a=>S.rules.includes(a.c)?0:1;
-const srt=(arr,keys=S.sorts)=>[...arr].sort((a,b)=>{if(RK(a)-RK(b))return RK(a)-RK(b);for(const k of keys){const r=K[k](a,b);if(r)return r}return 0});
+const Priority=window.CanvasPriorities;
+function currentListPriorities(){
+ const list=S.lists[S.tab] || S.lists[0];
+ if(list.id==='main'||list.id==='classes')return S.viewPriorities[list.id] || {rules:[],ignore_user_rules:false};
+ return {rules:list.priority_rules || [],ignore_user_rules:list.ignore_user_rules || false};
+}
+function srt(assignments,keys){
+ // Calendar controls use the user's rules first, then their temporary view sort.
+ if(keys)return Priority.sortAssignments(assignments,S.userRules,keys.map(type=>({type})));
+ const config=currentListPriorities();
+ return Priority.sortAssignments(assignments,S.userRules,config.rules,config.ignore_user_rules);
+}
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
-const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${(!S.ready&&a.persisted)||S.loading||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
-<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g}% of grade</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}${!a.persisted?'<span class="chip">This device</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
+const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${(!S.ready&&a.persisted)||S.loading||S.prioritySaving||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g==null?'Grade weight not set':a.g+'% of grade'}</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}${!a.persisted?'<span class="chip">This device</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
 function home(){
- $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="if(!S.listSaving){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
+ $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="if(!S.listSaving&&!S.prioritySaving){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
  const t=S.lists[S.tab] || S.lists[0];let h='';
- if(t.id=='main'){const ac=srt(S.A.filter(a=>!S.done[a.id])),od=ac.filter(a=>a.d<TODAY),ok=ac.filter(a=>a.d>=TODAY),dn=S.A.filter(a=>S.done[a.id]);
- h=(od.length?'<div class="gh" style="color:#d33">Past due</div>'+od.map(card).join(''):'')+ok.map(card).join('')+(dn.length?'<div class="gh">Completed</div>'+dn.map(card).join(''):'')}
+ if(t.id=='main'){
+  // Keep the chosen priority order; grouping overdue tasks first would override it.
+  const incomplete=srt(S.A.filter(a=>!S.done[a.id]));
+  const completed=srt(S.A.filter(a=>S.done[a.id]));
+  h=incomplete.map(card).join('')+(completed.length?'<div class="gh">Completed</div>'+completed.map(card).join(''):'');
+ }
  else if(t.id=='classes')h=CL.map(c=>{const x=srt(S.A.filter(a=>a.c==c));return x.length?`<div class="gh">${c}</div>`+x.map(card).join(''):''}).join('');
  else h='<button class="btn" onclick="openListEditor()">Edit list and assignments</button>'+ (srt(S.A.filter(a=>S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id))).map(card).join('')||'<div class="hint">This list is empty. Choose Edit list and assignments to add assignments.</div>');
- $('list').innerHTML=h||'<div class="hint">Nothing here yet.</div>';
+ const config=currentListPriorities();
+ const summary=config.ignore_user_rules?'This list ignores your settings priorities.':'Settings priorities first, then this list’s priorities.';
+ $('list').innerHTML=(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
 }
 let db=null,backend=null,user=null,loadVersion=0;
 const showError=message=>{$('sync-error').textContent=message;$('sync-error').hidden=!message};
 function paint(){home();if($('cal').classList.contains('on'))cal()}
 function showSession(){const signed=!!user;$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
 async function loadTasks(){
- if(!backend||!user||S.saving.size||S.listSaving)return;
+ if(!backend||!user||S.saving.size||S.listSaving||S.prioritySaving)return;
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';$('reload-tasks').disabled=true;paint();
- try{const tasks=await backend.load();if(version!==loadVersion)return;const local=readLocalAssignments();S.A=[...tasks,...local];S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedLists(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase${local.length?` · ${local.length} saved on this device`:''}`:local.length?`${local.length} assignments saved on this device · no demo assignments found`:'No demo assignments found. The team must add sample rows and check access policies.'}
+ try{const tasks=await backend.load();if(version!==loadVersion)return;const local=readLocalAssignments();S.A=[...tasks,...local];S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase${local.length?` · ${local.length} saved on this device`:''}`:local.length?`${local.length} assignments saved on this device · no demo assignments found`:'No demo assignments found. The team must add sample rows and check access policies.'}
  catch(error){if(version!==loadVersion)return;S.A=readLocalAssignments();S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
  finally{if(version===loadVersion){S.loading=false;$('reload-tasks').disabled=false;paint()}}
 }
 async function tog(id){
- if(S.loading||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
+ if(S.loading||S.prioritySaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
  const assignment=S.A.find(a=>a.id===id);
  if(!assignment.persisted){S.done[id]=!S.done[id];assignment.completed=S.done[id];saveLocalAssignments();paint();return}
  if(!S.ready)return;
@@ -156,19 +181,118 @@ async function signIn(){
  try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;showSession();await loadTasks()}
  catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this demo account in Supabase, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
 }
-async function signOut(){if(!db||S.saving.size||S.listSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
  try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
-const closeOv=()=>{if(S.listSaving)return;ov();menu(0);home()};
+const closeOv=()=>{if(S.listSaving||S.prioritySaving)return;ov();menu(0);home()};
 function menu(o){$('menu').classList.toggle('on',!!o);$('scrim').classList.toggle('on',!!o)}
-/* sort */
-function openSort(){S.tmp=[...S.sorts];sr();ov('sort')}
-function sr(){$('sortrows').innerHTML=S.tmp.map((k,i)=>`<div class="row" style="align-items:center;margin-bottom:8px"><span class="sub" style="width:64px">${i?'then by':'Sort by'}</span><select onchange="S.tmp[${i}]=this.value">${Object.keys(LB).map(o=>`<option value="${o}" ${o==k?'selected':''}>${LB[o]}</option>`).join('')}</select>${i?`<button class="ib" onclick="S.tmp.splice(${i},1);sr()">✕</button>`:''}</div>`).join('')}
-function addSort(){if(S.tmp.length<4){S.tmp.push(Object.keys(LB).find(k=>!S.tmp.includes(k))||'due');sr()}}
-function applySort(){S.sorts=S.tmp;closeOv()}
+/* Saved priorities. Draft edits do not change the list until Save succeeds. */
+async function loadSavedPriorities(version){
+ if(version!==loadVersion)return;
+ S.prioritiesReady=false;
+ try{
+  const rows=await backend.loadUserPriorities();
+  const settings={};
+  for(const row of rows)settings[row.scope]={rules:Priority.validateRules(row.rules),ignore_user_rules:row.ignore_user_rules};
+  if(version!==loadVersion)return;
+  S.userRules=settings.settings?.rules || [];
+  S.viewPriorities={main:settings.main,classes:settings.classes};
+  S.prioritiesReady=true;
+ }catch(error){
+  if(version!==loadVersion)return;
+  S.userRules=[];S.viewPriorities={};
+  showError('Could not load saved priorities: '+error.message+' Reload before editing priorities.');
+ }
+}
+function openSort(){openPriorityEditor('list')}
+function openPriorityEditor(scope){
+ if(S.listSaving||S.prioritySaving)return;
+ if(!user||!S.prioritiesReady||S.loading){showError('Sign in and reload saved priorities before editing.');return}
+ const list=S.lists[S.tab];
+ const config=scope==='settings'?{rules:S.userRules,ignore_user_rules:false}:currentListPriorities();
+ // Capture the target now, rather than reading whichever tab is selected when saving finishes.
+ S.priorityDraft={scope:scope==='settings'?'settings':list.id,rules:config.rules.map(rule=>({...rule})),ignoreUserRules:config.ignore_user_rules};
+ $('priority-heading').textContent=scope==='settings'?'Settings priorities':list.name+' priorities';
+ $('priority-message').textContent='';
+ menu(0);ov('sort');renderPriorityRules();
+}
+function priorityRuleText(rule){
+ return rule.type==='title'?'Title contains “'+rule.text+'”':Priority.labels[rule.type];
+}
+function renderPriorityRules(){
+ const draft=S.priorityDraft;
+ const isSettings=draft.scope==='settings';
+ $('priority-inheritance').innerHTML=isSettings?'<p class="sub">These are your rules for every list.</p>':
+  `<label class="tg"><span>Ignore settings priorities for this list</span><input type="checkbox" data-priority-control ${draft.ignoreUserRules?'checked':''} onchange="S.priorityDraft.ignoreUserRules=this.checked;renderPriorityRules()"></label>`+
+  `<p class="sub">${draft.ignoreUserRules?'Only this list’s rules will apply.':'Settings first: '+esc(S.userRules.map(priorityRuleText).join(' → ') || 'No settings rules')+'. This list’s rules break remaining ties.'}</p>`;
+ $('sortrows').innerHTML=draft.rules.map((rule,i)=>`
+  <div class="card">
+   <label for="priority-type-${i}">Rule ${i+1}${i?' — then by':''}</label>
+   <select id="priority-type-${i}" data-priority-control onchange="changePriorityType(${i},this.value)">${Object.entries(Priority.labels).map(([type,label])=>`<option value="${type}" ${type===rule.type?'selected':''}>${label}</option>`).join('')}</select>
+   ${rule.type==='title'?`<label for="priority-text-${i}">Words in title</label><input id="priority-text-${i}" data-priority-control maxlength="80" placeholder="e.g. Exam" value="${esc(rule.text)}" oninput="S.priorityDraft.rules[${i}].text=this.value">`:''}
+   <div class="row" style="margin-top:10px;gap:4px">
+    <button class="btn" data-priority-control onclick="movePriorityRule(${i},-1)" ${i===0?'disabled':''}>Up</button>
+    <button class="btn" data-priority-control onclick="movePriorityRule(${i},1)" ${i===draft.rules.length-1?'disabled':''}>Down</button>
+    <button class="btn" data-priority-control onclick="removePriorityRule(${i})">Remove</button>
+   </div>
+  </div>`).join('') || '<p class="sub">No rules here yet. Add a rule, or save an empty list of rules to use the fallback order.</p>';
+}
+function addPriorityRule(){
+ if(S.prioritySaving)return;
+ if(S.priorityDraft.rules.length>=10){$('priority-message').textContent='Use up to 10 rules.';return}
+ const used=S.priorityDraft.rules.map(rule=>rule.type);
+ const type=['due','grade','title','time','class'].find(type=>!used.includes(type)) || 'title';
+ S.priorityDraft.rules.push(type==='title'?{type,text:''}:{type});
+ renderPriorityRules();
+}
+function changePriorityType(index,type){
+ if(S.prioritySaving)return;
+ S.priorityDraft.rules[index]=type==='title'?{type,text:''}:{type};renderPriorityRules();
+}
+function movePriorityRule(index,direction){
+ if(S.prioritySaving)return;
+ const rules=S.priorityDraft.rules,other=index+direction;
+ if(other<0||other>=rules.length)return;
+ [rules[index],rules[other]]=[rules[other],rules[index]];renderPriorityRules();
+}
+function removePriorityRule(index){
+ if(S.prioritySaving)return;
+ S.priorityDraft.rules.splice(index,1);renderPriorityRules();
+}
+async function savePriorityRules(){
+ if(!user||!S.prioritiesReady||!S.priorityDraft||S.prioritySaving||S.listSaving||S.saving.size||S.loading)return;
+ const draft=S.priorityDraft,version=loadVersion;
+ let rules;
+ try{rules=Priority.validateRules(draft.rules)}catch(error){$('priority-message').textContent=error.message;return}
+ S.prioritySaving=true;
+ document.querySelectorAll('[data-priority-control]').forEach(control=>control.disabled=true);
+ lockListControls();$('priority-message').textContent='Saving…';
+ try{
+  if(['settings','main','classes'].includes(draft.scope)){
+   const saved=await backend.saveUserPriorities(draft.scope,rules,draft.ignoreUserRules);
+   if(version!==loadVersion)return;
+   if(draft.scope==='settings')S.userRules=saved.rules;
+   else S.viewPriorities[draft.scope]={rules:saved.rules,ignore_user_rules:saved.ignore_user_rules};
+  }else{
+   const saved=await backend.saveListPriorities(draft.scope,rules,draft.ignoreUserRules);
+   if(version!==loadVersion)return;
+   const list=S.lists.find(list=>list.id===saved.id);
+   if(list){list.priority_rules=saved.priority_rules;list.ignore_user_rules=saved.ignore_user_rules}
+  }
+  $('priority-message').textContent='Saved to Supabase. These priorities will survive refresh.';paint();
+ }catch(error){
+  if(version===loadVersion)$('priority-message').textContent='Could not save priorities: '+error.message+' Reload before retrying if the connection was lost.';
+ }finally{
+  S.prioritySaving=false;lockListControls();
+  if(version===loadVersion){
+   document.querySelectorAll('[data-priority-control]').forEach(control=>control.disabled=false);
+   renderPriorityRules();
+  }
+ }
+}
 /* calendar */
 function openCal(d){if(d){S.sel=d;const x=new Date(d+'T00:00');S.cy=x.getFullYear();S.cm=x.getMonth()}S.cf='due';ov('cal');cal()}
 function mv(n){S.cm+=n;if(S.cm<0){S.cm=11;S.cy--}if(S.cm>11){S.cm=0;S.cy++}S.sel=null;cal()}
@@ -190,7 +314,7 @@ const ask=q=>{$('ci').value=q;send()};
 function reply(q){q=q.toLowerCase();const s=srt(S.A.filter(a=>!S.done[a.id]),['due','priority']);
  if(!s.length)return "You're all caught up. Nothing left on your list!";
  if(/first|priorit/.test(q))return `Start with "${s[0].n}" (${s[0].c}). It's due ${fd(s[0].d)} and worth ${s[0].g}% of your grade.`;
- if(/grade|affect|%/.test(q)){const g=srt(s,['grade'])[0];return s.map(a=>`• ${a.n}: ${a.g}% of grade`).join('\n')+`\n\n"${g.n}" moves your grade the most.`}
+ if(/grade|affect|%/.test(q)){const g=srt(s,['grade'])[0];return s.map(a=>`• ${a.n}: ${a.g==null?'Grade weight not set':a.g+'% of grade'}`).join('\n')+`\n\n"${g.n}" moves your grade the most.`}
  if(/today|task|work|plan|show/.test(q))return "Here's a plan for today:\n"+s.map((a,i)=>`${i+1}. ${a.n} (${ft(a.t)}, due ${fd(a.d)})`).join('\n')+`\n\nTotal: ${ft(s.reduce((x,a)=>x+(a.t||0),0))}.`;
  return 'I can show today\'s tasks, tell you what to do first, or explain grade impact. Try one of those!'}
 function send(){const v=$('ci').value.trim();if(!v)return;$('ci').value='';const b=$('cb');$('sg')&&$('sg').remove();
@@ -216,16 +340,13 @@ let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?
 function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
 function undo(){if(S.last){S.A.push(S.last);S.last=null;home();$('toast').classList.remove('on')}}
 function resume(i){openCreate(S.drafts.splice(i,1)[0])}
-function rl(){$('rl').innerHTML=S.rules.map((c,i)=>`<div class="tg"><span>${c} over all classes</span><button class="ib" onclick="S.rules.splice(${i},1);rl()">✕</button></div>`).join('')||'<div class="sub">No custom rules. Default: due date, then est. time.</div>'}
-function addRule(){const c=$('rs').value,e=$('re');if(S.rules.includes(c)){e.textContent='You already have this rule.';return}
- if(S.rules.length){e.textContent=`Conflict: "${S.rules[0]} over all classes" already puts another class first. Remove it first.`;return}
- S.rules.push(c);e.textContent='';rl()}
-let sx=null;const sw=x=>{if(sx==null||S.listSaving)return;const dx=x-sx;sx=null;if(Math.abs(dx)>60){S.tab=Math.max(0,Math.min(S.lists.length-1,S.tab+(dx<0?1:-1)));home()}};
+let sx=null;const sw=x=>{if(sx==null||S.listSaving||S.prioritySaving)return;const dx=x-sx;sx=null;if(Math.abs(dx)>60){S.tab=Math.max(0,Math.min(S.lists.length-1,S.tab+(dx<0?1:-1)));home()}};
 $('list').addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});$('list').addEventListener('touchend',e=>sw(e.changedTouches[0].clientX));
 $('list').addEventListener('mousedown',e=>sx=e.clientX);$('list').addEventListener('mouseup',e=>sw(e.clientX));
 /* menu panels */
-function pan(k){if(S.listSaving)return;menu(0);ov('panel');const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts'};$('pt').textContent=T[k];let h='';
- if(k=='settings')h=['Push notifications','Sync with Canvas','Dark mode'].map((s,i)=>`<div class="tg"><span>${s}</span><input type="checkbox" ${i<2?'checked':''} ${i==2?'onchange="document.documentElement.dataset.theme=this.checked?\'dark\':\'light\'"':''}></div>`).join('')+`<div class="gh">Prioritization rules</div><div id="rl"></div><label>Add rule: this class has priority over all others</label><select id="rs">${CL.map(c=>`<option>${c}</option>`).join('')}</select><div class="err" id="re"></div><button class="btn" style="width:100%;margin-top:8px" onclick="addRule()">Add rule</button><div class="sub" style="margin-top:8px">Your rules always override the automatic ones.</div>`;
+function pan(k){if(S.listSaving||S.prioritySaving)return;menu(0);ov('panel');const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts'};$('pt').textContent=T[k];let h='';
+ if(k=='settings')h=['Push notifications','Sync with Canvas','Dark mode'].map((text,i)=>`<div class="tg"><span>${text}</span><input type="checkbox" ${i<2?'checked':''} ${i==2?'onchange="document.documentElement.dataset.theme=this.checked?\'dark\':\'light\'"':''}></div>`).join('')+
+  '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" onclick="openPriorityEditor(\'settings\')">Edit settings priorities</button>';
  if(k=='profile')h='<div class="card"><div class="nm">Shared demo account</div><div class="sub">Canvas sync is a prototype.</div></div>';
  if(k=='classes')h='<div class="sub">The current database has no direct assignment-to-class field. Demo assignments appear under Shared demo.</div>';
  if(k=='drafts')h=S.drafts.map((d,i)=>`<div class="card"><div class="nm">${d.n}</div><div class="sub">${d.c} · unfinished</div><button class="lk" onclick="resume(${i})">Resume</button></div>`).join('')||'<div class="hint">No drafts.</div>';
@@ -233,20 +354,21 @@ function pan(k){if(S.listSaving)return;menu(0);ov('panel');const T={settings:'Se
    if(!user||!S.listsReady){h='<div class="hint">Sign in and reload successfully before creating a list.</div>'}
    else h='<label for="ln">List name</label><input id="ln" maxlength="100" placeholder="e.g. Club projects"><button class="btn p" data-list-control style="width:100%;margin-top:16px" onclick="saveNewList()">Create list</button><p id="list-message" role="status"></p>';
  }
- $('pb').innerHTML=h;if(k=='settings')rl()}
+ $('pb').innerHTML=h}
 /* Saved lists: database IDs stay the same when names change. */
 function resetLists(){
  S.lists=[{id:'main',name:'Main'},{id:'classes',name:'By Class'}];
- S.memberships=[];S.tab=0;S.listsReady=false;ov();
+ S.memberships=[];S.tab=0;S.listsReady=false;S.userRules=[];S.viewPriorities={};S.prioritiesReady=false;S.priorityDraft=null;ov();
 }
 async function loadSavedLists(version){
+ if(version!==loadVersion)return;
  S.listsReady=false;
  try{
   const lists=await backend.loadLists();
   const memberships=await backend.loadListAssignments();
   if(version!==loadVersion)return;
   const selected=S.lists[S.tab]?.id;
-  S.lists=[{id:'main',name:'Main'},{id:'classes',name:'By Class'},...lists];
+  S.lists=[{id:'main',name:'Main'},{id:'classes',name:'By Class'},...lists.map(list=>({...list,priority_rules:Priority.validateRules(list.priority_rules || [])}))];
   S.memberships=memberships;S.listsReady=true;
   S.tab=Math.max(0,S.lists.findIndex(list=>list.id===selected));
  }catch(error){
@@ -256,11 +378,12 @@ async function loadSavedLists(version){
 }
 function openListEditor(){
  const list=S.lists[S.tab];
- if(!user||!S.listsReady||S.tab<2)return;
+ if(!user||!S.listsReady||S.tab<2||S.prioritySaving)return;
  ov('panel');$('pt').textContent='Edit list';
  $('pb').innerHTML='<label for="ln">List name</label><input id="ln" maxlength="100">'+
   '<button class="btn" data-list-control onclick="saveListName()">Save name</button> '+
   '<button class="btn" data-list-control onclick="deleteCurrentList()">Delete list</button>'+
+  '<button class="btn" data-list-control style="display:block;margin-top:12px" onclick="openSort()">List priorities</button>'+
   '<p class="sub">Check an assignment to add it. Uncheck to remove it from this list. Each change saves immediately.</p>'+
   S.A.filter(a=>a.persisted).map(a=>`<label class="tg"><span>${esc(a.n)}</span><input type="checkbox" data-list-control data-list-assignment="${esc(a.id)}" ${S.memberships.some(m=>m.list_id===list.id&&m.assignment_id===a.id)?'checked':''}></label>`).join('')+
   '<p id="list-message" role="status"></p>';
@@ -268,13 +391,13 @@ function openListEditor(){
  lockListControls();
 }
 function lockListControls(){
- document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=S.listSaving);
- $('reload-tasks').disabled=S.listSaving||!!S.saving.size;
- $('signout').disabled=S.listSaving||!!S.saving.size;
+ document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=S.listSaving||S.prioritySaving);
+ $('reload-tasks').disabled=S.listSaving||S.prioritySaving||!!S.saving.size;
+ $('signout').disabled=S.listSaving||S.prioritySaving||!!S.saving.size;
 }
 // One operation at a time. A failed request leaves the last confirmed data intact.
 async function saveListChange(operation){
- if(!user||!S.listsReady||S.listSaving||S.loading)return;
+ if(!user||!S.listsReady||S.listSaving||S.prioritySaving||S.loading)return;
  const version=loadVersion;
  S.listSaving=true;lockListControls();$('list-message').textContent='Saving…';
  try{

@@ -11,6 +11,7 @@ function element(name) {
   return elements.get(name);
 }
 const context = vm.createContext({console,setTimeout,clearTimeout,Intl,Date,window:{APP_CONFIG:{publishableKey:''}},document:{getElementById:element,addEventListener(){},querySelectorAll:()=>[]}});
+vm.runInContext(fs.readFileSync(__dirname+'/priorities.js','utf8'),context);
 vm.runInContext(fs.readFileSync(__dirname+'/backend.js','utf8'),context);
 context.CanvasBackend=context.window.CanvasBackend;
 vm.runInContext(inline,context);
@@ -18,7 +19,7 @@ const api = context.CanvasBackend;
 const rows = [1,2].map(assignment_id=>({assignment_id,name:assignment_id===1?'<img src=x onerror=alert(1)>':'Another assignment',percentage_of_grade:10,completed:false,deleted:false,priority:99,due_date:'2026-10-11T05:59:00Z',est_time:'01:30:00'}));
 const calls = [];
 let failure = false,wrongResponse = false,release=null;
-const client = {from(table){if(table==='lists'||table==='list_assignments')return {select(){return this},order(){return this},then(resolve){return Promise.resolve({data:[],error:null}).then(resolve)}};assert.equal(table,'assignments');let patch=null,filters=[];const query={
+const client = {from(table){if(table==='lists'||table==='list_assignments'||table==='user_priorities')return {select(){return this},order(){return this},then(resolve){return Promise.resolve({data:[],error:null}).then(resolve)}};assert.equal(table,'assignments');let patch=null,filters=[];const query={
   select(){return query},in(key,values){filters.push(row=>values.includes(String(row[key])));return query},
   eq(key,value){filters.push(row=>String(row[key])===String(value));return query},
   order(){return query},update(value){patch=value;calls.push(value);return query},
