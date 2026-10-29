@@ -60,7 +60,7 @@ input[type=checkbox]{width:auto}
 </style></head><body>
 <div id="app">
  <div class="scr" id="home">
-  <div class="top"><button class="ib" onclick="menu(1)" aria-label="Menu">☰</button><div class="tabs" id="tabs"></div><button class="plus" disabled title="Creating assignments is outside this demo" aria-label="New assignment (unavailable in demo)">+</button></div>
+  <div class="top"><button class="ib" onclick="menu(1)" aria-label="Menu">☰</button><div class="tabs" id="tabs"></div><button class="plus" onclick="openCreate()" title="Add assignment" aria-label="New assignment">+</button></div>
   <div class="sync"><p id="sync-status" role="status" aria-live="polite">Starting…</p><p id="sync-error" class="err" role="alert" hidden></p><button id="reload-tasks" onclick="loadTasks()" hidden>Reload assignments</button> <button id="signout" onclick="signOut()" hidden>Sign out</button></div>
   <form id="login" hidden onsubmit="event.preventDefault();signIn()"><h2>Shared demo sign-in</h2><div class="sub">Use the shared demo account, test@user.com, and its password.</div><label for="demo-email">Email</label><input id="demo-email" type="email" autocomplete="username" required><label for="demo-password">Password</label><input id="demo-password" type="password" autocomplete="current-password" required><button class="btn p" id="signin" type="submit">Sign in</button></form>
   <div class="body" id="list"></div>
@@ -107,6 +107,9 @@ input[type=checkbox]{width:auto}
 <script>
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,rules:[],drafts:[],sorts:['due'],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
+const LOCAL_KEY='canvas-todo-local-assignments-v1';
+function readLocalAssignments(){try{const value=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]');return Array.isArray(value)?value.filter(a=>a&&typeof a.id==='string'&&a.id.startsWith('local-')&&typeof a.n==='string'&&typeof a.d==='string').map(a=>({...a,persisted:false})):[]}catch{return []}}
+function saveLocalAssignments(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(S.A.filter(a=>!a.persisted)))}catch(error){showError('Could not save this assignment on this device: '+error.message)}}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const K={due:(a,b)=>a.d.localeCompare(b.d),class:(a,b)=>a.c.localeCompare(b.c),grade:(a,b)=>b.g-a.g,time:(a,b)=>(b.t??-1)-(a.t??-1),priority:(a,b)=>b.p-a.p};
 const LB={due:'Due date',class:'Class name',grade:'Grade %',time:'Est. time'};
@@ -114,8 +117,8 @@ const RK=a=>S.rules.includes(a.c)?0:1;
 const srt=(arr,keys=S.sorts)=>[...arr].sort((a,b)=>{if(RK(a)-RK(b))return RK(a)-RK(b);for(const k of keys){const r=K[k](a,b);if(r)return r}return 0});
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
-const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
-<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g}% of grade</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
+const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${(!S.ready&&a.persisted)||S.loading||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g}% of grade</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}${!a.persisted?'<span class="chip">This device</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
 function home(){
  $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="if(!S.listSaving){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
  const t=S.lists[S.tab] || S.lists[0];let h='';
@@ -132,12 +135,15 @@ function showSession(){const signed=!!user;$('login').hidden=signed;$('signout')
 async function loadTasks(){
  if(!backend||!user||S.saving.size||S.listSaving)return;
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';$('reload-tasks').disabled=true;paint();
- try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(tasks.map(a=>[a.id,a.completed]));S.ready=true;await loadSavedLists(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase`:'No demo assignments found. The team must add sample rows and check access policies.'}
- catch(error){if(version!==loadVersion)return;S.A=[];S.done={};resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
+ try{const tasks=await backend.load();if(version!==loadVersion)return;const local=readLocalAssignments();S.A=[...tasks,...local];S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedLists(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase${local.length?` · ${local.length} saved on this device`:''}`:local.length?`${local.length} assignments saved on this device · no demo assignments found`:'No demo assignments found. The team must add sample rows and check access policies.'}
+ catch(error){if(version!==loadVersion)return;S.A=readLocalAssignments();S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
  finally{if(version===loadVersion){S.loading=false;$('reload-tasks').disabled=false;paint()}}
 }
 async function tog(id){
- if(!S.ready||S.loading||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
+ if(S.loading||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
+ const assignment=S.A.find(a=>a.id===id);
+ if(!assignment.persisted){S.done[id]=!S.done[id];assignment.completed=S.done[id];saveLocalAssignments();paint();return}
+ if(!S.ready)return;
  const previous=!!S.done[id],next=!previous;S.saving.add(id);showError('');$('reload-tasks').disabled=true;$('signout').disabled=true;paint();
  try{const saved=await backend.save(id,previous,next);S.done[id]=saved;$('sync-status').textContent=saved?'Saved to Supabase · completed':'Saved to Supabase · incomplete'}
  catch(error){showError(error.message);$('sync-status').textContent='Save was not confirmed. Reload to check the database.'}
@@ -191,7 +197,7 @@ function send(){const v=$('ci').value.trim();if(!v)return;$('ci').value='';const
  setTimeout(()=>{b.insertAdjacentHTML('beforeend',`<div class="msg bot">${esc(reply(v))}</div>`);b.scrollTop=b.scrollHeight},450);b.scrollTop=b.scrollHeight}
 /* create */
 const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
-function openCreate(d){d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||'2026-10-09';$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
+function openCreate(d){d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
 function createA(force){const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
  if(!n){$('cn').focus();return}
  if(!d||d<TODAY){$('cde').textContent="Due date can't be in the past.";return}
@@ -200,8 +206,10 @@ function createA(force){const n=$('cn').value.trim(),d=$('cd').value;$('ce').tex
  else{t=parseT($('ct').value);if(isNaN(t)||t<1){$('ce').textContent='Use minutes or hours, like "45m", "1h 30m" or "2h".';return}
   if(t>600&&force!==1){$('ce').innerHTML='That is over 10 hours. Is that right? <button class="lk" onclick="createA(1)">Yes, confirm</button>';return}}
  const l=null,o=$('co').checked;
- S.A.push({id:S.next++,n,c:$('cc').value,d,t,g:10,p:o?0:2,o,l});closeOv();
- if(EX.test(n))toast('Exam added to Study. Consider setting a study priority based on how comfortable you feel in this class.')}
+ const assignment={id:'local-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),n,c:$('cc').value,d,t,g:10,p:o?0:2,o,l,completed:false,persisted:false};
+ S.A.push(assignment);S.done[assignment.id]=false;saveLocalAssignments();closeOv();
+ toast('Assignment added · saved on this device only');
+ if(EX.test(n))toast('Exam added on this device. Consider setting a study priority based on how comfortable you feel in this class.')}
 function cancelC(){const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
 let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5000)}
 function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
