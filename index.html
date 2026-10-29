@@ -103,7 +103,8 @@ input[type=checkbox]{width:auto}
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="backend.js"></script>
+<!-- Change this version when backend.js changes so browsers load the matching file. -->
+<script src="backend.js?v=20261027-lists-1"></script>
 <script>
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,rules:[],drafts:[],sorts:['due'],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
