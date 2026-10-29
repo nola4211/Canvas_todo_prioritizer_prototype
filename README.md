@@ -1,5 +1,7 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
+**Priorities update — October 28, 2026:** per-account and per-list priorities now save to Supabase. The additive migration and rollback-only security checks passed on the live project. Local browser checks verified settings precedence, list overrides, ordered rules, cancellation, and refresh persistence. See `docs/priorities-verification.md`. The frontend change is pending merge/deployment.
+
 **Lists update — October 27, 2026:** the saved-list migration has been applied to the live Supabase project. Database operation and access checks passed with their test writes rolled back. Both simulated test suites pass. Authenticated browser checks passed for creating and renaming a list, adding/removing memberships, refresh persistence, and shared completion across lists. See `docs/lists-verification.md` for details. See Saved custom lists below for maintenance and setup details. Earlier Module 05 notes below describe the previous completion-only release.
 
 **Status:** the authenticated completion action is verified locally at `http://127.0.0.1:4182/`: save, database readback, refresh persistence, reversal, and rejection of a stale save all passed. The app is ready to record with three incomplete synthetic assignments. Recording and Canvas submission are pending. The newer `chat` and `message` tables still require sample rows and an access decision.
@@ -143,7 +145,7 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 ### Prototype limits
 
 - Creation/deletion are unavailable in this demo; only completion is persisted.
-- Sorting, rules, drafts, and preferences remain temporary prototype state. Custom lists and their assignment connections now use Supabase.
+- Lists, their assignment connections, and prioritization rules use Supabase. Drafts and unrelated preferences remain temporary prototype state.
 - The assistant uses scripted replies and is not an AI service.
 - Canvas connection/settings are prototype controls with no real Canvas integration.
 - Shared-account access is a class demo choice. Real student data requires a reviewed individual ownership model and policies.
@@ -201,3 +203,50 @@ The section marked `Saved lists` in `index.html` handles the interface. `S.lists
 9. Sign out. Personal list tabs should disappear. Check privacy using `docs/verify-lists.sql`; a separate browser tab using the same login is the same account, not a privacy test.
 
 Run the simulated checks with `node test.cjs` and `node test-lists.cjs`. These check adapter and interface behavior, while the SQL check verifies actual database constraints and policies.
+
+## Saved prioritization rules
+
+Open **Settings → Edit settings priorities** for account-wide rules. Open **Sort by** on any tab, or **List priorities** in a custom list's editor, to save rules for that list/view. Use Up, Down, and Remove to arrange the rules, then choose **Save priorities**. Until saving succeeds, edits do not change the displayed assignment order. Cancel leaves the saved rules alone.
+
+Supported rules:
+
+- **Assignment % of grade:** highest assignment weight first. This is how much the assignment counts toward the course grade, not the student's current grade.
+- **Due date:** earliest first; missing dates go last.
+- **Words in title:** matching titles first, ignoring capitalization. This is a literal substring match, so `exam` also matches `Exams`. Multiple title rules can prioritize `Exam`, then `readings`, then `assignment`.
+- **Estimated time:** longest first. **Class name:** alphabetical. These preserve the existing sorting choices.
+- **Grade in class is deferred** until Canvas supplies class links and current grades. No class grades are invented or entered manually in this release.
+
+### Which rules win?
+
+Normally the order is **settings rules → list rules → due date → assignment ID**. Each rule only breaks ties left by earlier rules. For example, settings can prioritize titles containing `Exam`, and the list can order those exams by assignment weight. A list's higher weight will not move a reading above an exam in that example.
+
+Checking **Ignore settings priorities for this list** makes the order **list rules → due date → assignment ID**. The settings rules are skipped entirely. Saving no rules uses the fallback. Settings starts empty rather than adding a due-date rule that would unintentionally outrank every list rule.
+
+Main keeps incomplete assignments before its Completed section, but no longer forces overdue tasks above your priority rules. By Class retains its class sections and applies priorities within each section. Calendar's temporary view sort comes after account-wide rules and does not use the currently selected custom list's rules.
+
+### Storage and maintenance
+
+`lists.priority_rules` stores a custom list's ordered rules. `lists.ignore_user_rules` stores its override checkbox. `user_priorities` stores account-wide rules under scope `settings`, plus independent saved rules for the automatic `main` and `classes` views. All three scopes belong to a Supabase Auth account. Existing ownership policies still protect lists; the new table has its own owner-only policy.
+
+A rules value is a small JSON array, for example:
+
+```json
+[{"type":"title","text":"Exam"},{"type":"grade"},{"type":"due"}]
+```
+
+`priorities.js` has the labels, validation, precedence, and sorting functions. `backend.js` adds `loadUserPriorities`, `saveUserPriorities`, and `saveListPriorities`. The page's Saved priorities section handles the editor and saving state. No new dependencies were added. Rule lists allow up to 10 entries, with no duplicates; title text is trimmed and limited to 80 characters. Both the browser and database validate saved rules.
+
+**Applied to project `uowlwdwrqceklbqjcnmc` on October 28, 2026; do not rerun there.** The schema change is recorded in `supabase/migrations/202610280001_priorities.sql`. Apply it once after the lists migration, and do not rerun either old migration against an already-updated project. It preserves assignments, list names, memberships, and existing policies. New columns default to no list rules and no override. A missing migration or failed priorities load shows an error and prevents editing unsafely.
+
+Run `node test.cjs`, `node test-lists.cjs`, and `node test-priorities.cjs`. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
+
+### Manual verification
+
+1. Add two or more assignments to a list so their order is visible.
+2. In Settings, add a title rule for `readings` and save it.
+3. In that list, add Assignment % of grade, leaving the override unchecked. Readings should come first even if another task has a higher weight.
+4. Check Ignore settings priorities, save, then refresh and reopen the list. Assignment weight should now determine order, and the checkbox should remain checked when reopening the editor.
+5. Uncheck the override and save; the settings title rule should win again.
+6. Add a title rule such as `Exam`, followed by due date. Use Up/Down to change priority order and confirm the visible result after saving. Editing without saving and choosing Cancel should not change the saved order.
+7. Try duplicate rules or blank title text: validation should prevent the save. A simulated failed save should leave the last confirmed rules active.
+8. Check Main and By Class's saved priorities, then sign out/in or refresh. Their rules should reload independently. Users sharing the demo login share its priorities.
