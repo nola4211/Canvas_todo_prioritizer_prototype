@@ -321,3 +321,30 @@ The migration `supabase/migrations/202610300006_weekly_engagement_okr.sql` was a
 The tracker shows the current percentage against the 75% goal, the qualifying and active-account counts, and a seven-day unique-user bar chart. Run `node test-okr.cjs` to check the browser adapter and the migration's key privacy and calculation rules.
 
 Administrators choose **Team administrator** on the prototype login or open `admin.html`. The visible form accepts a username; internally the app maps it to a Supabase Auth identity in the same project. Administrators never need the Supabase dashboard for normal sign-in. The page checks the signed session and the protected database function checks the role again, so changing browser code cannot grant access. Never hardcode an administrator password in HTML or JavaScript. Add future team OKRs as additional aggregate cards on this dashboard.
+
+### Administrator login and maintenance
+
+The live prototype administrator was created on October 30, 2026 with username `admin`. Its password is shared with the project team separately and is intentionally excluded from this public repository.
+
+To use the administrator dashboard:
+
+1. Open the prototype and choose **Team administrator**, or open `admin.html` directly.
+2. Enter the administrator username and password. The app converts a username such as `admin` to the internal Auth identity `admin@canvas-prioritizer.local`; users never see or enter that internal address.
+3. After authentication, the page loads the protected aggregate OKR report. Choose **Sign out** when finished.
+
+To create or replace an administrator:
+
+1. In Supabase Authentication → Users, create and auto-confirm an internal user named `<username>@canvas-prioritizer.local`. Set its password there; never add the password to source code, SQL files, issues, or the README.
+2. In the SQL Editor, assign the protected role to that exact account:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+  || '{"role":"admin"}'::jsonb
+where email = '<username>@canvas-prioritizer.local';
+```
+
+3. Have the administrator sign out and sign in again so the refreshed session contains the new role.
+4. Verify that `admin.html` displays the OKR dashboard and that a regular account receives no aggregate report.
+
+To revoke access, remove the `role` key from that Auth user's app metadata or delete the dedicated administrator user. Keep administrator accounts separate from the shared student demo login.
