@@ -30,6 +30,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .pr{font-weight:700}.pr-low{color:var(--mu)}.pr-normal{color:var(--ac)}.pr-high{color:#b85c00}.pr-urgent{color:#d33}
 .lk{background:none;border:0;color:var(--ac);font-size:12px;padding:6px 0 0}
 .gh{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:12px 2px 8px}
+.completed-heading{margin-top:24px;padding-top:14px;border-top:1px solid var(--ln);color:var(--tx);font-weight:700}
 .bar{display:flex;justify-content:space-around;align-items:center;padding:8px 10px 14px;background:var(--card);border-top:1px solid var(--ln)}
 .bb{background:none;border:0;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mu);gap:4px}.bb b{font-size:22px;font-weight:400;line-height:1}
 .hd{display:flex;align-items:center;gap:8px;padding:16px 12px 10px;border-bottom:1px solid var(--ln);background:var(--card)}
@@ -159,17 +160,29 @@ const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60
 const priorityNames=['Low','Normal','High','Urgent'];
 const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)"><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
 <div class="chips"><span class="chip"><i class="fi fi-rr-clock" aria-hidden="true"></i> ${ft(a.t)}</span><span class="chip"><i class="fi fi-rr-percentage" aria-hidden="true"></i> ${a.g==null?'Grade weight not set':a.g+' of grade'}</span><span class="chip pr pr-${priorityName.toLowerCase()}"><i class="fi fi-rr-flag" aria-hidden="true"></i> ${priorityName}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk with-icon" onclick="openCal('${a.d}')"><i class="fi fi-rr-calendar-arrow-up" aria-hidden="true"></i>See in calendar</button>`}</div></div></div>`};
+const completedSection=html=>html?'<div class="gh completed-heading">Completed</div>'+html:'';
+function separatedCards(assignments){
+ const incomplete=srt(assignments.filter(a=>!S.done[a.id])).map(card).join('');
+ const completed=srt(assignments.filter(a=>S.done[a.id])).map(card).join('');
+ return incomplete+completedSection(completed);
+}
+function groupedByClass(assignments){
+ return [...new Set(assignments.map(a=>a.c))].sort().map(c=>{const rows=srt(assignments.filter(a=>a.c===c));return rows.length?`<div class="gh">${esc(c)}</div>`+rows.map(card).join(''):''}).join('');
+}
 function home(){
  $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="if(!S.listSaving&&!S.prioritySaving){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
  const t=S.lists[S.tab] || S.lists[0];let h='';
- if(t.id=='main'){
-  // Keep the chosen priority order; grouping overdue tasks first would override it.
-  const incomplete=srt(S.A.filter(a=>!S.done[a.id]));
-  const completed=srt(S.A.filter(a=>S.done[a.id]));
-  h=incomplete.map(card).join('')+(completed.length?'<div class="gh">Completed</div>'+completed.map(card).join(''):'');
+ // Completion is a section, not a priority rule. Each section keeps the selected rule order.
+ if(t.id=='main')h=separatedCards(S.A);
+ else if(t.id=='classes'){
+  const incomplete=groupedByClass(S.A.filter(a=>!S.done[a.id]));
+  const completed=groupedByClass(S.A.filter(a=>S.done[a.id]));
+  h=incomplete+completedSection(completed);
  }
- else if(t.id=='classes')h=[...new Set(S.A.map(a=>a.c))].sort().map(c=>{const x=srt(S.A.filter(a=>a.c==c));return x.length?`<div class="gh">${esc(c)}</div>`+x.map(card).join(''):''}).join('');
- else h='<button class="btn" onclick="openListEditor()">Edit list and assignments</button>'+ (srt(S.A.filter(a=>S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id))).map(card).join('')||'<div class="hint">This list is empty. Choose Edit list and assignments to add assignments.</div>');
+ else{
+  const assignments=S.A.filter(a=>S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id));
+  h='<button class="btn" onclick="openListEditor()">Edit list and assignments</button>'+(separatedCards(assignments)||'<div class="hint">This list is empty. Choose Edit list and assignments to add assignments.</div>');
+ }
  const config=currentListPriorities();
  const summary=config.ignore_user_rules?'This list ignores your settings priorities.':'Settings priorities first, then this list’s priorities.';
  $('list').innerHTML=(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');

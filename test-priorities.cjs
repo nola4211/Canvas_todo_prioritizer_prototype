@@ -84,6 +84,18 @@ context.testBackend=context.CanvasBackend.create(client,['1','2','3','4']);conte
  await run('loadSavedPriorities(loadVersion)');
  context.savedLists=await context.testBackend.loadLists();run('S.lists[2]=savedLists[0]');
  assert.equal(ids(run('srt(S.A)')),'1,3,2,4'); // refresh restores override and both rule sets
+ // Every view keeps completed work below unfinished work, while preserving priority order inside both sections.
+ run("S.done={'1':true,'4':true};S.memberships=S.A.map(a=>({list_id:'list-1',assignment_id:a.id}));S.tab=2;home()");
+ let listHtml=element('list').innerHTML,completedAt=listHtml.indexOf('completed-heading');
+ assert.ok(listHtml.indexOf('Exam practice assignment')<listHtml.indexOf('Chapter Readings'));
+ assert.ok(listHtml.indexOf('Chapter Readings')<completedAt);
+ assert.ok(completedAt<listHtml.indexOf('EXAM 1'));
+ assert.ok(listHtml.indexOf('EXAM 1')<listHtml.indexOf('Assignment without dates or weight'));
+ run('S.tab=0;home()');listHtml=element('list').innerHTML;completedAt=listHtml.indexOf('completed-heading');
+ assert.ok(listHtml.indexOf('Chapter Readings')<completedAt&&completedAt<listHtml.indexOf('EXAM 1'));
+ run('S.tab=1;home()');listHtml=element('list').innerHTML;completedAt=listHtml.indexOf('completed-heading');
+ assert.ok(listHtml.indexOf('Exam practice assignment')<completedAt&&completedAt<listHtml.indexOf('EXAM 1'));
+ run('S.tab=2');
  run("openPriorityEditor('list');S.priorityDraft.rules=[{type:'due'}]");
  fail=true;await run('savePriorityRules()');
  assert.equal(run('S.lists[2].priority_rules[0].type'),'grade');assert.ok(element('priority-message').textContent.includes('Network unavailable'));
@@ -105,5 +117,5 @@ context.testBackend=context.CanvasBackend.create(client,['1','2','3','4']);conte
  assert.equal(run('S.prioritiesReady'),true);assert.equal(run('S.listsReady'),true);
  fail=true;await run('loadSavedPriorities(loadVersion)');assert.equal(run('S.prioritiesReady'),false);
  assert.equal(element('sync-error').hidden,false);
- console.log('PASS: priority precedence, overrides, rule order, title matching, missing values, validation, saves/reload, built-in views, cancellation-safe drafts, failed saves, saving locks, escaping, stale-session results, and load failure.');
+ console.log('PASS: priority precedence, overrides, rule order, completion sections in every list, title matching, missing values, validation, saves/reload, built-in views, cancellation-safe drafts, failed saves, saving locks, escaping, stale-session results, and load failure.');
 })().catch(error=>{console.error(error);process.exitCode=1});
