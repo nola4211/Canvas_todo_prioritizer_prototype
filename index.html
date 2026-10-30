@@ -89,9 +89,11 @@ input[type=checkbox]{width:auto}
   <div class="body"><div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px"><button class="ib" onclick="mv(-1)">‹</button><b id="mt"></b><button class="ib" onclick="mv(1)">›</button></div>
   <div class="grid" id="cg"></div><div id="dayp"></div></div></div>
 
- <div class="scr ov" id="chat"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>AI Assistant</h2></div>
-  <div class="body" id="cb"></div>
-  <div class="foot"><input id="ci" placeholder="Message the assistant…" onkeydown="if(event.key==='Enter')send()"><button class="btn p" style="flex:none" onclick="send()">Send</button></div></div>
+ <div class="scr ov" id="chat"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>AI Assistant</h2><button class="btn" id="chat-new" onclick="chatClient.newChat()">New chat</button></div>
+  <div style="padding:10px 14px"><label for="chat-history">Saved conversations</label><select id="chat-history" onchange="chatClient.selectChat(this.value)"></select><p class="sub">Uses your database-saved tasks. Device-only tasks are not included.</p></div>
+  <div class="body" id="cb"></div><p class="sub" id="chat-status" role="status" style="padding:0 14px"></p>
+  <button class="btn" id="chat-retry" onclick="chatClient.send(true)" hidden>Retry unanswered message</button>
+  <div class="foot"><input id="ci" maxlength="2000" aria-label="Message the assistant" placeholder="Ask about your saved tasks…" onkeydown="if(event.key==='Enter')chatClient.send()"><button class="btn p" id="chat-send" style="flex:none" onclick="chatClient.send()">Send</button></div></div>
 
  <div class="scr ov" id="create"><div class="hd"><h2>New Assignment</h2></div>
   <div class="body"><label>Name</label><input id="cn" placeholder="e.g. Lab report"><label>Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label>Class</label><select id="cc"></select>
@@ -116,6 +118,7 @@ input[type=checkbox]{width:auto}
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
 <script src="backend.js?v=20261028-priorities-1"></script>
+<script src="chat.js?v=20261030-1"></script>
 <script>
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
@@ -154,7 +157,7 @@ function home(){
  const summary=config.ignore_user_rules?'This list ignores your settings priorities.':'Settings priorities first, then this list’s priorities.';
  $('list').innerHTML=(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
 }
-let db=null,backend=null,user=null,loadVersion=0;
+let db=null,backend=null,chatClient=null,user=null,loadVersion=0;
 const showError=message=>{$('sync-error').textContent=message;$('sync-error').hidden=!message};
 function paint(){home();if($('cal').classList.contains('on'))cal()}
 function showSession(){const signed=!!user;$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
@@ -181,9 +184,9 @@ async function signIn(){
  try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;showSession();await loadTasks()}
  catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this demo account in Supabase, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
 }
-async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db);const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
@@ -307,19 +310,11 @@ function cal(){
  const x=srt(S.A.filter(a=>a.d==S.sel),[S.cf]);
  $('dayp').innerHTML=`<div class="row" style="align-items:center;justify-content:space-between;margin:16px 0 8px"><b>${fd(S.sel)}</b><select style="width:auto;padding:8px" onchange="S.cf=this.value;cal()">${['due','time','priority','grade'].map(k=>`<option value="${k}" ${k==S.cf?'selected':''}>Filter: ${k=='due'?'Due date':k=='time'?'Est. time':k=='priority'?'Priority':'Grade %'}</option>`).join('')}</select></div>`+(x.map(card).join('')||'<div class="hint">No assignments due this day.</div>');
 }
-/* chat */
-function openChat(){ov('chat');$('cb').innerHTML=`<div style="text-align:center"><svg width="90" height="90" viewBox="0 0 32 32" fill="none" stroke="var(--ac)" stroke-width="1.6"><rect x="7" y="9" width="18" height="14" rx="5" fill="var(--card)"/><g fill="var(--ac)" stroke="none"><circle cx="16" cy="16" r="1.3"/><circle cx="20.5" cy="16" r=".9"/><circle cx="19.2" cy="19.2" r=".9"/><circle cx="16" cy="20.5" r=".9"/><circle cx="12.8" cy="19.2" r=".9"/><circle cx="11.5" cy="16" r=".9"/><circle cx="12.8" cy="12.8" r=".9"/><circle cx="16" cy="11.5" r=".9"/><circle cx="19.2" cy="12.8" r=".9"/></g><path d="M16 9V5"/><circle cx="16" cy="4" r="1.5"/></svg></div>
-<div class="msg bot">Hey Alex! What questions do you have about our work to do today?</div><div class="sug" id="sg">${['Show my work tasks for today','What should I do first?','How do these affect my grade?'].map(s=>`<button onclick="ask(this.textContent)">${s}</button>`).join('')}</div>`}
-const ask=q=>{$('ci').value=q;send()};
-function reply(q){q=q.toLowerCase();const s=srt(S.A.filter(a=>!S.done[a.id]),['due','priority']);
- if(!s.length)return "You're all caught up. Nothing left on your list!";
- if(/first|priorit/.test(q))return `Start with "${s[0].n}" (${s[0].c}). It's due ${fd(s[0].d)} and worth ${s[0].g}% of your grade.`;
- if(/grade|affect|%/.test(q)){const g=srt(s,['grade'])[0];return s.map(a=>`• ${a.n}: ${a.g==null?'Grade weight not set':a.g+'% of grade'}`).join('\n')+`\n\n"${g.n}" moves your grade the most.`}
- if(/today|task|work|plan|show/.test(q))return "Here's a plan for today:\n"+s.map((a,i)=>`${i+1}. ${a.n} (${ft(a.t)}, due ${fd(a.d)})`).join('\n')+`\n\nTotal: ${ft(s.reduce((x,a)=>x+(a.t||0),0))}.`;
- return 'I can show today\'s tasks, tell you what to do first, or explain grade impact. Try one of those!'}
-function send(){const v=$('ci').value.trim();if(!v)return;$('ci').value='';const b=$('cb');$('sg')&&$('sg').remove();
- b.insertAdjacentHTML('beforeend',`<div class="msg me">${v.replace(/</g,'&lt;')}</div>`);
- setTimeout(()=>{b.insertAdjacentHTML('beforeend',`<div class="msg bot">${esc(reply(v))}</div>`);b.scrollTop=b.scrollHeight},450);b.scrollTop=b.scrollHeight}
+/* AI conversation history and replies are handled in chat.js. */
+async function openChat(){
+ if(!user||!chatClient){showError('Sign in before using the assistant.');return}
+ menu(0);ov('chat');await chatClient.open();
+}
 /* create */
 const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
 function openCreate(d){d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
