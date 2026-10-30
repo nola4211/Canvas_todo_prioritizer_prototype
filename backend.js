@@ -45,6 +45,16 @@
     let visible = new Set(allowed);
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
     return {
+      async recordAppOpen() {
+        const {data,error}=await client.rpc('record_app_open');
+        if(error)throw new Error(error.message || 'Could not record app activity.');
+        return data;
+      },
+      async loadWeeklyEngagementOKR() {
+        const {data,error}=await client.rpc('get_weekly_engagement_okr');
+        if(error)throw new Error(error.message || 'Could not load the weekly engagement tracker.');
+        return data;
+      },
       async createAssignment(input) {
         const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g});
         const {data,error}=await client.rpc('create_saved_assignment',{

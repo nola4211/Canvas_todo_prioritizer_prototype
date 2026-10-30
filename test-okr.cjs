@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const vm=require('node:vm');
+const calls=[];
+const report={goal_percent:75,engagement_percent:50,daily_users:2,active_users:4,week_start:'2026-10-24',week_end:'2026-10-30',active_window_days:30,goal_met:false,daily_trend:[]};
+const client={rpc:async(name)=>{calls.push(name);return name==='record_app_open'?{data:'2026-10-30'}:{data:report}}};
+const context={console,AssignmentFields:{validate:value=>value},CanvasPriorities:{validateRules:value=>value},globalThis:null};context.globalThis=context;
+vm.createContext(context);vm.runInContext(fs.readFileSync('backend.js','utf8'),context);
+(async()=>{
+ const backend=context.CanvasBackend.create(client,[1]);
+ assert.equal(await backend.recordAppOpen(),'2026-10-30');
+ assert.deepEqual(await backend.loadWeeklyEngagementOKR(),report);
+ assert.deepEqual(calls,['record_app_open','get_weekly_engagement_okr']);
+ client.rpc=async()=>({error:{message:'Administrator access required'}});
+ await assert.rejects(()=>backend.loadWeeklyEngagementOKR(),/Administrator access required/);
+ const sql=fs.readFileSync('supabase/migrations/202610300006_weekly_engagement_okr.sql','utf8');
+ assert.match(sql,/primary key \(owner_id, activity_date\)/);
+ assert.match(sql,/having count\(distinct activity_date\)=7/);
+ assert.match(sql,/app_metadata.*role.*admin/s);
+ console.log('PASS: daily activity recording, protected OKR loading, seven-day calculation, and admin enforcement.');
+})().catch(error=>{console.error(error);process.exitCode=1});
