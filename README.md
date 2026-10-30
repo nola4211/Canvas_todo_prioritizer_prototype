@@ -271,20 +271,21 @@ Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `nod
 
 The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It can prepare new assignments for review and confirmation; it cannot edit, delete, or complete existing tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
 
-Choose **New chat**, enter a question, and send it. The history selector switches between conversations. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
+Choose **New chat** to see a welcome message and four blue suggested-question bubbles. Selecting a suggestion sends it like a typed question. The compact history selector shows a five-word-or-shorter summary and creation date, without a timestamp. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
 
 ### Tables and functions
 
 - Existing `chat` holds one row per conversation: its Auth `owner_id`, title, timestamps, and a short request lock. The older nullable `user_ID` is left alone; it is not the Auth owner.
 - Existing `message` holds individual user/assistant messages linked by `chat_ID`, with a request ID and pending/complete/failed status. The conversation lives in `chat`; its text lives in `message`.
 - `create_ai_chat` creates a conversation for the signed-in account (maximum 50 per account).
+- `name_ai_chat` gives a new conversation a title made from the first five words of its first student message. It verifies the conversation belongs to the signed-in account.
 - `begin_ai_turn` saves/reserves a user question, checks ownership and limits, and returns a cached answer for completed retries.
 - `finish_ai_turn` saves the reply and updates the user message status together. Only the backend service role can call it.
 - `chat.js` handles the history selector, New chat, loading, sending, retries, and sign-out clearing. `supabase/functions/study-assistant/index.ts` verifies sign-in, loads data using the caller's permissions, calls OpenAI, and saves the answer. Ordinary browser accounts can read only their own conversations and cannot write fake assistant replies.
 
 ### Setup
 
-The migration `supabase/migrations/202610300001_ai_chat.sql` was applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026. **Do not rerun it there.** For a different project, inspect the existing chat/message tables first, then apply this migration once in SQL Editor. It deliberately refuses to run if either table already contains data; existing conversations need ownership reviewed before migration. Do not rerun the old demo setup.
+The migrations `supabase/migrations/202610300001_ai_chat.sql` and `supabase/migrations/202610300005_chat_titles.sql` were applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026. **Do not rerun them there.** For a different project, inspect the existing chat/message tables first, then apply each migration once in SQL Editor. The first migration deliberately refuses to run if either table already contains data; existing conversations need ownership reviewed before migration. Do not rerun the old demo setup.
 
 Deploy `supabase/functions/study-assistant/index.ts` as the Edge Function **study-assistant**, keeping JWT verification enabled (`supabase/config.toml`). In Dashboard, use Edge Functions → Deploy a new function → Via Editor, replace `index.ts`, and use that exact name. Later changes use the function's Code tab → Deploy updates.
 

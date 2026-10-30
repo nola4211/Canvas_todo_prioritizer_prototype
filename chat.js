@@ -4,17 +4,32 @@
     const backend=options.backend;
     let conversations=[],selected=null,messages=[],loading=false,sending=false,version=0,retry=null,draft=null;
     const el=id=>document.getElementById(id);
+    const suggestions=['What should I work on first?','Help me plan today','What is due soon?','Create a new assignment'];
     function message(text,role){const node=document.createElement('div');node.className='msg '+(role==='user'?'me':'bot');node.textContent=text;return node}
     function status(text){el('chat-status').textContent=text}
+    function chatLabel(chat){
+      const date=new Date(chat.created_at);
+      const dateText=Number.isNaN(date.getTime())?'':date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      const storedTitle=String(chat.title||'').trim();
+      const title=/^Conversation\s+\d/i.test(storedTitle)?'New chat':storedTitle.split(/\s+/).slice(0,5).join(' ')||'New chat';
+      return title+(dateText?' · '+dateText:'');
+    }
+    function renderWelcome(area){
+      area.append(message('Hi! I can help you plan your work, understand your priorities, or add a new assignment. What would you like to do?','assistant'));
+      const choices=document.createElement('div');choices.className='sug';
+      for(const text of suggestions){const button=document.createElement('button');button.type='button';button.textContent=text;button.disabled=loading||sending;button.onclick=()=>sendSuggestion(text);choices.append(button)}
+      area.append(choices);
+    }
     function render(){
       const select=el('chat-history');select.replaceChildren();
-      const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a conversation';select.append(placeholder);
-      for(const chat of conversations){const option=document.createElement('option');option.value=chat.id;option.textContent=chat.title;select.append(option)}
+      const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a chat';select.append(placeholder);
+      for(const chat of conversations){const option=document.createElement('option');option.value=chat.id;option.textContent=chatLabel(chat);select.append(option)}
       select.value=selected || '';select.disabled=loading||sending;
       el('chat-new').disabled=loading||sending;el('chat-send').disabled=loading||sending||!selected;el('ci').disabled=loading||sending||!selected;
       el('chat-retry').hidden=!retry||sending||loading;el('chat-retry').disabled=sending||loading;
       const area=el('cb');area.replaceChildren();
-      if(!selected)area.append(message('Start a new conversation to ask about your saved assignments, lists, and priorities.','assistant'));
+      if(!selected)area.append(message('Select a saved chat or start a new one.','assistant'));
+      else if(!messages.length&&!loading)renderWelcome(area);
       for(const item of messages){
         const friendlyText=item.role==='assistant'&&/^Created assignment: .+\. Saved to Supabase\.$/.test(item.message)?'Assignment successfully saved!':item.message;
         const node=message(friendlyText,item.role);
@@ -100,7 +115,7 @@
       if(loading||sending)return;
       const current=version;loading=true;render();status('Creating conversation…');
       try{
-        const title='Conversation '+new Date().toLocaleString();
+        const title='New chat';
         const chat=await query(client.rpc('create_ai_chat',{p_title:title}));
         if(current!==version)return;
         conversations.unshift(chat);loading=false;await selectChat(chat.id);
@@ -112,6 +127,7 @@
       const text=useRetry?retry?.message:el('ci').value.trim();
       if(!text||text.length>2000){status('Enter a message between 1 and 2000 characters.');return}
       const turn=useRetry?retry:{requestId:crypto.randomUUID(),message:text};
+      const firstMessage=!messages.some(item=>item.role==='user');
       const current=version;const chatId=selected;sending=true;retry=turn;render();status('Thinking…');
       try{
         const {data:sessionData,error:sessionError}=await client.auth.getSession();
@@ -124,10 +140,17 @@
         }
         if(!data||typeof data.reply!=='string'||!data.reply.trim())throw new Error('Your reply isn’t ready. Please reopen this chat and try again.');
         if(current!==version)return;
+        if(firstMessage){
+          try{
+            const title=await query(client.rpc('name_ai_chat',{p_chat_id:chatId,p_message:turn.message}));
+            const chat=conversations.find(item=>item.id===chatId);if(chat&&typeof title==='string')chat.title=title;
+          }catch{}
+        }
         retry=null;el('ci').value='';sending=false;
         await selectChat(chatId);
       }catch(error){if(current===version){status(error.message);sending=false;render()}}
     }
+    function sendSuggestion(text){if(loading||sending||!selected)return;el('ci').value=text;send()}
     return {open,newChat,selectChat,send,confirmDraft,changeDraft,reset};
   }
   root.CanvasChat={create};

@@ -47,7 +47,9 @@ input[type=checkbox]{width:auto}
 .msg{max-width:82%;padding:10px 12px;border-radius:14px;margin:8px 0;font-size:14px;line-height:1.4;white-space:pre-line}
 .bot{background:var(--card);border:1px solid var(--ln);border-top-left-radius:4px}
 .me{background:var(--ac);color:#fff;margin-left:auto;border-top-right-radius:4px}
-.sug{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.sug button{border:1px solid var(--ac);color:var(--ac);background:none;border-radius:20px;padding:6px 11px;font-size:13px}
+.sug{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}.sug button{border:0;color:#fff;background:var(--ac);border-radius:20px;padding:8px 12px;font-size:13px;text-align:left}.sug button:disabled{opacity:.55;cursor:wait}
+.chat-history-bar{padding:10px 14px;background:var(--card);border-bottom:1px solid var(--ln)}
+.history-picker{position:relative}.history-picker select{appearance:none;padding-right:40px;font-weight:600}.history-picker .fi{position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mu)}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
 .dy{aspect-ratio:1;border:0;background:var(--card);border-radius:10px;font-size:14px;position:relative;border:1px solid var(--ln)}
 .dy.s{background:var(--ac);color:#fff}.dy.t{border-color:var(--ac)}.dy.e{visibility:hidden}
@@ -93,7 +95,7 @@ input[type=checkbox]{width:auto}
   <div class="grid" id="cg"></div><div id="dayp"></div></div></div>
 
  <div class="scr ov" id="chat"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>AI Assistant</h2><button class="btn with-icon" id="chat-new" onclick="chatClient.newChat()"><i class="fi fi-rr-comment-alt-medical" aria-hidden="true"></i>New chat</button></div>
-  <div style="padding:10px 14px"><label for="chat-history"><i class="fi fi-rr-time-past" aria-hidden="true"></i> Saved conversations</label><select id="chat-history" onchange="chatClient.selectChat(this.value)"></select><p class="sub">Ask about your assignments, or tell me about a new one you’d like to add.</p></div>
+  <div class="chat-history-bar"><div class="history-picker"><select id="chat-history" aria-label="Saved conversations" onchange="chatClient.selectChat(this.value)"></select><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></div></div>
   <div class="body" id="cb"></div><p class="sub" id="chat-status" role="status" style="padding:0 14px"></p>
   <button class="btn with-icon" id="chat-retry" onclick="chatClient.send(true)" hidden><i class="fi fi-rr-refresh" aria-hidden="true"></i>Try again</button>
   <div class="foot"><input id="ci" maxlength="2000" aria-label="Message the assistant" placeholder="Ask about your saved tasks…" onkeydown="if(event.key==='Enter')chatClient.send()"><button class="btn p with-icon" id="chat-send" style="flex:none" onclick="chatClient.send()"><i class="fi fi-rr-paper-plane" aria-hidden="true"></i>Send</button></div></div>
