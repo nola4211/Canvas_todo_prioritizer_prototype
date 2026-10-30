@@ -309,3 +309,15 @@ Manual checks:
 6. Sign out and sign in as a different account; the first account's conversations must not appear. The shared demo login is the same account on every device.
 
 See `docs/chat-verification.md` for completed live checks and any remaining external blockers.
+
+## Weekly engagement OKR tracker
+
+The OKR is measured as: **accounts that opened the app on every one of the last 7 Denver calendar days ÷ accounts that opened it at least once in the last 30 days**. The goal is 75%. This definition keeps the weekly result comparable while giving “active user” a clear meaning.
+
+`app_daily_activity` stores one row per Supabase Auth account per day. Opening or refreshing the signed-in app calls `record_app_open`; another open on the same day updates its timestamp and count instead of creating a duplicate. `get_weekly_engagement_okr` returns only aggregate counts, the percentage, and seven daily totals. It never returns account IDs or emails. Only a user whose Auth `app_metadata.role` is `admin` can call the report function or see **OKR Tracker** in the app menu.
+
+The migration `supabase/migrations/202610300006_weekly_engagement_okr.sql` was applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026; **do not rerun it there**. Apply it once on another project. To designate a team administrator, set that person's immutable Auth app metadata to `{ "role": "admin" }` with an administrator-controlled Supabase tool, then have them sign out and back in so their access token refreshes. Do not give the role to a shared public demo account in production. Every student needs a separate Auth account for the metric to represent individual users; a shared login always counts as one account.
+
+The tracker shows the current percentage against the 75% goal, the qualifying and active-account counts, and a seven-day unique-user bar chart. Run `node test-okr.cjs` to check the browser adapter and the migration's key privacy and calculation rules.
+
+Administrators choose **Team administrator** on the prototype login or open `admin.html`. The visible form accepts a username; internally the app maps it to a Supabase Auth identity in the same project. Administrators never need the Supabase dashboard for normal sign-in. The page checks the signed session and the protected database function checks the role again, so changing browser code cannot grant access. Never hardcode an administrator password in HTML or JavaScript. Add future team OKRs as additional aggregate cards on this dashboard.
