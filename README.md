@@ -326,6 +326,8 @@ Administrators choose **Team administrator** on the prototype login or open `adm
 
 The live prototype administrator was created on October 30, 2026 with username `admin`. Its password is shared with the project team separately and is intentionally excluded from this public repository.
 
+The automated suites and live administrator flows were verified on October 30, 2026. See [`docs/okr-verification.md`](docs/okr-verification.md) for the results and the limits of a metric that needs seven real days of activity.
+
 To use the administrator dashboard:
 
 1. Open the prototype and choose **Team administrator**, or open `admin.html` directly.
