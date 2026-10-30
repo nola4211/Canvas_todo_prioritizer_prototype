@@ -62,13 +62,24 @@ input[type=checkbox]{width:auto}
 .sync p{margin:4px 0}.sync button{font-size:12px;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:5px 8px}.sync button:disabled{opacity:.5;cursor:wait}.chk:disabled{opacity:.5;cursor:wait}
 #login{padding:18px;border-bottom:1px solid var(--ln);background:var(--card)}
 #login h2{font-size:18px;margin:0}#login .btn{margin-top:14px;width:100%}
+#home.signed-out{justify-content:center;background:var(--card)}
+#home.signed-out .top,#home.signed-out .sync,#home.signed-out #list,#home.signed-out .bar{display:none}
+#home.signed-out #login{border:0;padding:clamp(36px,8vh,68px) 24px 32px;height:100%;display:flex;flex-direction:column}
+.login-intro h2{font-size:24px!important}.login-intro .sub{font-size:14px;line-height:1.45;margin-top:8px}
+.login-fields{margin:auto 0;display:flex;flex-direction:column}.login-fields label{margin-top:24px}.login-fields label:first-child{margin-top:0}
+.login-fields input{padding:15px;font-size:16px}.login-fields .btn{padding:15px;margin-top:24px}
+.login-admin{margin-top:auto}.login-admin .btn{padding:15px;margin:0}
 [hidden]{display:none!important}
 </style></head><body>
 <div id="app">
- <div class="scr" id="home">
+ <div class="scr signed-out" id="home">
   <div class="top"><button class="ib" onclick="menu(1)" aria-label="Menu"><i class="fi fi-rr-menu-burger" aria-hidden="true"></i></button><div class="tabs" id="tabs"></div><button class="plus" onclick="openCreate()" title="Add assignment" aria-label="New assignment"><i class="fi fi-rr-plus" aria-hidden="true"></i></button></div>
   <div class="sync"><p id="sync-status" role="status" aria-live="polite">Starting…</p><p id="sync-error" class="err" role="alert" hidden></p><button id="reload-tasks" onclick="loadTasks()" hidden>Reload assignments</button> <button id="signout" onclick="signOut()" hidden>Sign out</button></div>
-  <form id="login" hidden onsubmit="event.preventDefault();signIn()"><h2>Shared demo sign-in</h2><div class="sub">Use the shared demo account, test@user.com, and its password.</div><label for="demo-email">Email</label><input id="demo-email" type="email" autocomplete="username" required><label for="demo-password">Password</label><input id="demo-password" type="password" autocomplete="current-password" required><button class="btn p" id="signin" type="submit">Sign in</button><button class="btn" type="button" onclick="location.href='admin.html'">Team administrator</button></form>
+  <form id="login" hidden onsubmit="event.preventDefault();signIn()">
+   <div class="login-intro"><h2>Shared demo sign-in</h2><div class="sub">Use the shared demo account, test@user.com, and its password.</div></div>
+   <div class="login-fields"><label for="demo-email">Email</label><input id="demo-email" type="email" autocomplete="username" required><label for="demo-password">Password</label><input id="demo-password" type="password" autocomplete="current-password" required><p id="login-error" class="err" role="alert" hidden></p><button class="btn p" id="signin" type="submit">Sign in</button></div>
+   <div class="login-admin"><button class="btn" type="button" onclick="location.href='admin.html'">Team administrator</button></div>
+  </form>
   <div class="body" id="list"></div>
   <div class="bar">
    <button class="bb" onclick="openChat()"><b><i class="fi fi-rr-robot" aria-hidden="true"></i></b>Assistant</button>
@@ -164,10 +175,10 @@ function home(){
  $('list').innerHTML=(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
 }
 let db=null,backend=null,chatClient=null,user=null,loadVersion=0;
-const showError=message=>{$('sync-error').textContent=message;$('sync-error').hidden=!message};
+const showError=message=>{['sync-error','login-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
 function paint(){home();if($('cal').classList.contains('on'))cal()}
 function isOkrAdmin(){return user?.app_metadata?.role==='admin'}
-function showSession(){const signed=!!user;$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
+function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
 async function recordAppOpen(){if(!backend||!user)return;try{await backend.recordAppOpen()}catch(error){console.warn('Daily activity could not be recorded:',error.message)}}
 async function loadTasks(){
  if(!backend||!user||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;
