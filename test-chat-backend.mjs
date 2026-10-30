@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createAIHandler,prepareDraft,mergeDraftUpdates,assignmentResponseFormat} from './supabase/functions/study-assistant/index.ts';
+import {createAIHandler,prepareDraft,mergeDraftUpdates,assignmentResponseFormat,wantsAssignmentDraft} from './supabase/functions/study-assistant/index.ts';
 const env={SUPABASE_URL:'https://database.test',SUPABASE_ANON_KEY:'public',SUPABASE_SERVICE_ROLE_KEY:'server',OPENAI_API_KEY:'secret'};
 const turn={chatId:'1',requestId:'11111111-1111-4111-8111-111111111111',message:'What should I study?'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status});
@@ -46,10 +46,18 @@ for(const patch of [{name:null},{class_name:null},{due_date:'2026-02-30'},{estim
 assert.equal(prepareDraft({...complete,time_source:'ai_estimate',estimate_allowed:true},today).draft.status,'review');
 assert.match(prepareDraft({...complete,grade_weight_answered:false},today).reply,/I don’t know/);
 assert.equal(assignmentResponseFormat.strict,true);
+for(const message of ['Create a new assignment','Please add an assignment','I want to make a homework task'])assert.equal(wantsAssignmentDraft(message),true);
+for(const message of ['What assignments are due?','Help prioritize my assignment','What should I study?'])assert.equal(wantsAssignmentDraft(message),false);
+assert.equal(wantsAssignmentDraft('The name is chapter 4',{status:'collecting'}),true);
 {
- const s=setup({draft:complete});const r=await s.request();assert.equal(r.status,200);
+ const s=setup({draft:complete});const r=await s.request({...turn,message:'Create a new assignment'});assert.equal(r.status,200);
  const finish=JSON.parse(s.calls.at(-1).init.body);assert.equal(finish.p_draft.status,'review');assert.equal(finish.p_draft.percentage_of_grade,null);
  assert.ok(!s.calls.some(c=>c.url.includes('create_saved_assignment')||c.url.includes('confirm_ai_assignment')));
+}
+{
+ const s=setup({draft:complete});const r=await s.request();assert.equal(r.status,200);
+ const finish=JSON.parse(s.calls.at(-1).init.body);assert.equal(finish.p_draft,null);
+ const ai=s.calls.find(c=>c.url.includes('api.openai.com'));assert.match(JSON.parse(ai.init.body).instructions,/did not ask to create/);
 }
 console.log('PASS: complete/partial drafts, permission to estimate, unknown grade weight, strict output, and no AI-side assignment writes.');
 
