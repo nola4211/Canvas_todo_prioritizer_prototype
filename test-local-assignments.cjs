@@ -14,7 +14,7 @@ const context = vm.createContext({console,Date,Intl,setTimeout:()=>0,clearTimeou
   crypto:{randomUUID:()=>`00000000-0000-4000-8000-${String(nextRequest++).padStart(12,'0')}`},
   localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
   document:{getElementById:element,querySelectorAll:()=>[],addEventListener(){}}});
-for (const name of ['priorities.js','backend.js']) vm.runInContext(fs.readFileSync(__dirname+'/'+name,'utf8'),context);
+for (const name of ['assignment-fields.js','priorities.js','backend.js']) vm.runInContext(fs.readFileSync(__dirname+'/'+name,'utf8'),context);
 context.CanvasBackend=context.window.CanvasBackend;
 const inline=[...fs.readFileSync(__dirname+'/index.html','utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
 vm.runInContext(inline,context);
@@ -33,7 +33,7 @@ context.testBackend={
 (async()=>{
   run("backend=testBackend;user={id:'demo'}");await run('loadTasks()');
   run('openCreate()');assert.equal(element('cd').value,run('TODAY'));
-  element('cn').value='Local exam';element('cd').value=run('TODAY');element('cc').value='Shared demo';element('ct').value='45m';
+  element('cn').value='Local exam';element('cd').value=run('TODAY');element('cc').value='Shared demo';element('ct').value='45m';element('cg-unknown').checked=true;
   failCreate=true;await run('createA()');
   assert.equal(run('S.A.length'),1);assert.ok(element('ce').textContent.includes('Network unavailable'));
   failCreate=false;await run('createA()');
@@ -51,5 +51,6 @@ context.testBackend={
   assert.equal(run('readLocalAssignments().length'),0);assert.equal(run('S.A.length'),3);
   assert.equal(rows[2].completed,true);assert.equal(completionRequests,0);
   await run('loadTasks()');assert.equal(run('S.A.length'),3);assert.equal(run('S.A.every(a=>a.persisted)'),true);
+  run("S.A[0].c='History <script>';S.tab=1;home()");assert.ok(element('list').innerHTML.includes('History &lt;script&gt;'));assert.ok(!element('list').innerHTML.includes('<script>'));
   console.log('PASS: database creation, failed save retry, reload, and explicit device assignment import.');
 })().catch(error=>{console.error(error);process.exitCode=1});

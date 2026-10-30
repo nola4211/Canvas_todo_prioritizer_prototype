@@ -1,5 +1,7 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
+**AI assignment creation update — October 30, 2026:** the chatbot now collects assignment details into a saved draft, asks for missing answers, and offers a review before creation. The manual form and reviewed chat draft use one database creation function. See [AI assignment creation](docs/ai-assignment-creation.md) for setup, the system prompt, limits, and verification. This update supersedes the earlier advice-only behavior below.
+
 **Assignment creation update — October 30, 2026:** the Add Assignment form now saves new tasks to Supabase. Existing device-only tasks have a **Save to Supabase** action. The migration was applied to the live project; a rollback-only database check passed creation, completion, and account isolation. Frontend creation in a signed-in browser has not yet been exercised against the live project. See [Database-backed assignment creation](#database-backed-assignment-creation).
 
 **AI update — October 30, 2026:** saved conversations, a read-only OpenAI backend, and account privacy are implemented. The migration and backend are deployed; automated and live database checks passed. After the API project was funded, real replies, follow-up context, refresh persistence, and advice-only behavior passed in the signed-in preview. See the AI study assistant section and `docs/chat-verification.md`. Frontend changes require merging/deploying this update. Earlier status notes below describe prior releases.
@@ -267,7 +269,7 @@ Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `nod
 
 ## AI study assistant
 
-The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It cannot edit tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
+The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It can prepare new assignments for review and confirmation; it cannot edit, delete, or complete existing tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
 
 Choose **New chat**, enter a question, and send it. The history selector switches between conversations. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
 
@@ -292,7 +294,7 @@ Default allowed website origins are `https://nola4211.github.io`, `http://127.0.
 
 ### Limits and checks
 
-Each question allows 2,000 characters. The function sends at most 20 previous completed messages, 50 database tasks, 50 lists, and 500 memberships, with a size guard. This prototype may not see every item in larger accounts. Each reply is capped at 900 output tokens. Accounts allow 30 attempts per hour, up to three attempts per request. A 90-second lock prevents overlapping replies within a conversation. Requests set `store: false` at OpenAI; the app's own history remains in Supabase. These limits bound prototype usage but do not replace OpenAI project spending limits.
+Each question allows 2,000 characters. The function sends at most 20 previous completed messages, 50 database tasks, 50 lists, and 500 memberships, with a size guard. This prototype may not see every item in larger accounts. Each reply, including its draft data, is capped at 1,400 output tokens. Accounts allow 30 attempts per hour, up to three attempts per request. A 90-second lock prevents overlapping replies within a conversation. Requests set `store: false` at OpenAI; the app's own history remains in Supabase. These limits bound prototype usage but do not replace OpenAI project spending limits.
 
 Run `node test-chat-backend.mjs` (Node 22.18+ or another runtime supporting `.ts` imports) and `node test-chat.cjs`, plus the four existing test commands above. Run `docs/verify-chat.sql` in SQL Editor to test privacy, write restrictions, request locking, atomic saving, retry caching, and duplicate prevention. Its test writes roll back.
 
@@ -301,7 +303,7 @@ Manual checks:
 1. Sign in, open Assistant, create a chat, and ask which saved task to start. Check assignment names and priorities against the app.
 2. Ask a follow-up referring to the previous answer. Refresh, reopen Assistant, and confirm both turns remain.
 3. Create another chat. It should start empty. Switch back to the first conversation to confirm separation.
-4. Ask the assistant to complete an assignment. It should explain it can only advise; task data should stay unchanged.
+4. Ask the assistant to complete an existing assignment. It should explain it cannot change existing tasks; task data should stay unchanged.
 5. A failed API request should show an error, retain the draft, and allow a retry. Check that retrying does not duplicate the user question in saved history.
 6. Sign out and sign in as a different account; the first account's conversations must not appear. The shared demo login is the same account on every device.
 
