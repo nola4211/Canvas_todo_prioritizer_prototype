@@ -1,10 +1,12 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
+**AI update — October 30, 2026:** saved conversations, a read-only OpenAI backend, and account privacy are implemented. The migration and backend are deployed; automated and live database checks passed. After the API project was funded, real replies, follow-up context, refresh persistence, and advice-only behavior passed in the signed-in preview. See the AI study assistant section and `docs/chat-verification.md`. Frontend changes require merging/deploying this update. Earlier status notes below describe prior releases.
+
 **Priorities update — October 28, 2026:** per-account and per-list priorities now save to Supabase. The additive migration and rollback-only security checks passed on the live project. Local browser checks verified settings precedence, list overrides, ordered rules, cancellation, and refresh persistence. See `docs/priorities-verification.md`. The frontend change is pending merge/deployment.
 
 **Lists update — October 27, 2026:** the saved-list migration has been applied to the live Supabase project. Database operation and access checks passed with their test writes rolled back. Both simulated test suites pass. Authenticated browser checks passed for creating and renaming a list, adding/removing memberships, refresh persistence, and shared completion across lists. See `docs/lists-verification.md` for details. See Saved custom lists below for maintenance and setup details. Earlier Module 05 notes below describe the previous completion-only release.
 
-**Status:** the authenticated completion action is verified locally at `http://127.0.0.1:4182/`: save, database readback, refresh persistence, reversal, and rejection of a stale save all passed. The app is ready to record with three incomplete synthetic assignments. Recording and Canvas submission are pending. The newer `chat` and `message` tables still require sample rows and an access decision.
+**Status:** the authenticated completion action is verified locally at `http://127.0.0.1:4182/`: save, database readback, refresh persistence, reversal, and rejection of a stale save all passed. The app is ready to record with three incomplete synthetic assignments. Recording and Canvas submission are pending. The chat tables now have account ownership and access policies; see the AI update above.
 
 **Latest setup progress:** Cameron approved and applied `docs/finish-demo.sql` on October 9. The shared Supabase Auth account exists, each existing table received three synthetic rows, and account-specific completion access is enabled. The browser-safe key and assignment IDs `1`, `2`, and `3` are configured. `docs/verify-access.sql` passed against the real database and rolled its test writes back: allowed demo read/completion; denied name changes, inserts, deletes, user-table access, another identity, and signed-out access.
 
@@ -20,7 +22,7 @@ Students can view tasks in the main list, by class, or in the study view.
 The calendar and sorting controls help students compare upcoming work.
 The Module 05 implementation connects the existing completion checkbox to Supabase’s database API.
 A shared demo account signs in to load synthetic assignments, and the interface changes completion only after the database confirms the saved value.
-Canvas synchronization and the assistant remain prototype behavior, while completion persistence has been verified against the live database.
+Canvas synchronization remains prototype behavior. The assistant has an OpenAI backend and Supabase history, with its remaining live verification documented below.
 
 ## ERD
 
@@ -144,9 +146,9 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 
 ### Prototype limits
 
-- Creation/deletion are unavailable in this demo; only completion is persisted.
+- Assignment creation is device-only; database assignment deletion is unavailable. Completion is persisted.
 - Lists, their assignment connections, and prioritization rules use Supabase. Drafts and unrelated preferences remain temporary prototype state.
-- The assistant uses scripted replies and is not an AI service.
+- The assistant requires a funded OpenAI API project; see AI study assistant below.
 - Canvas connection/settings are prototype controls with no real Canvas integration.
 - Shared-account access is a class demo choice. Real student data requires a reviewed individual ownership model and policies.
 
@@ -250,3 +252,45 @@ Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `nod
 6. Add a title rule such as `Exam`, followed by due date. Use Up/Down to change priority order and confirm the visible result after saving. Editing without saving and choosing Cancel should not change the saved order.
 7. Try duplicate rules or blank title text: validation should prevent the save. A simulated failed save should leave the last confirmed rules active.
 8. Check Main and By Class's saved priorities, then sign out/in or refresh. Their rules should reload independently. Users sharing the demo login share its priorities.
+
+## AI study assistant
+
+The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It cannot edit tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
+
+Choose **New chat**, enter a question, and send it. The history selector switches between conversations. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
+
+### Tables and functions
+
+- Existing `chat` holds one row per conversation: its Auth `owner_id`, title, timestamps, and a short request lock. The older nullable `user_ID` is left alone; it is not the Auth owner.
+- Existing `message` holds individual user/assistant messages linked by `chat_ID`, with a request ID and pending/complete/failed status. The conversation lives in `chat`; its text lives in `message`.
+- `create_ai_chat` creates a conversation for the signed-in account (maximum 50 per account).
+- `begin_ai_turn` saves/reserves a user question, checks ownership and limits, and returns a cached answer for completed retries.
+- `finish_ai_turn` saves the reply and updates the user message status together. Only the backend service role can call it.
+- `chat.js` handles the history selector, New chat, loading, sending, retries, and sign-out clearing. `supabase/functions/study-assistant/index.ts` verifies sign-in, loads data using the caller's permissions, calls OpenAI, and saves the answer. Ordinary browser accounts can read only their own conversations and cannot write fake assistant replies.
+
+### Setup
+
+The migration `supabase/migrations/202610300001_ai_chat.sql` was applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026. **Do not rerun it there.** For a different project, inspect the existing chat/message tables first, then apply this migration once in SQL Editor. It deliberately refuses to run if either table already contains data; existing conversations need ownership reviewed before migration. Do not rerun the old demo setup.
+
+Deploy `supabase/functions/study-assistant/index.ts` as the Edge Function **study-assistant**, keeping JWT verification enabled (`supabase/config.toml`). In Dashboard, use Edge Functions → Deploy a new function → Via Editor, replace `index.ts`, and use that exact name. Later changes use the function's Code tab → Deploy updates.
+
+In Supabase → Edge Functions → Secrets, enter `OPENAI_API_KEY` directly. Never place it in `config.js`, browser code, a commit, or chat. The function uses Supabase's automatically supplied server configuration; do not copy the service-role key into the browser. The default OpenAI model is `gpt-6-luna`; optionally set backend secret `OPENAI_MODEL` to another compatible Responses API model supporting `reasoning.effort: none`. API quota/billing belongs to the key owner's OpenAI project. A saved secret alone does not guarantee available quota.
+
+Default allowed website origins are `https://nola4211.github.io`, `http://127.0.0.1:4183`, and `http://localhost:4183`. Set backend `ALLOWED_ORIGINS` to a comma-separated list if hosting changes. CORS is an extra browser restriction; ownership is still enforced by Auth and database policies.
+
+### Limits and checks
+
+Each question allows 2,000 characters. The function sends at most 20 previous completed messages, 50 database tasks, 50 lists, and 500 memberships, with a size guard. This prototype may not see every item in larger accounts. Each reply is capped at 900 output tokens. Accounts allow 30 attempts per hour, up to three attempts per request. A 90-second lock prevents overlapping replies within a conversation. Requests set `store: false` at OpenAI; the app's own history remains in Supabase. These limits bound prototype usage but do not replace OpenAI project spending limits.
+
+Run `node test-chat-backend.mjs` (Node 22.18+ or another runtime supporting `.ts` imports) and `node test-chat.cjs`, plus the four existing test commands above. Run `docs/verify-chat.sql` in SQL Editor to test privacy, write restrictions, request locking, atomic saving, retry caching, and duplicate prevention. Its test writes roll back.
+
+Manual checks:
+
+1. Sign in, open Assistant, create a chat, and ask which saved task to start. Check assignment names and priorities against the app.
+2. Ask a follow-up referring to the previous answer. Refresh, reopen Assistant, and confirm both turns remain.
+3. Create another chat. It should start empty. Switch back to the first conversation to confirm separation.
+4. Ask the assistant to complete an assignment. It should explain it can only advise; task data should stay unchanged.
+5. A failed API request should show an error, retain the draft, and allow a retry. Check that retrying does not duplicate the user question in saved history.
+6. Sign out and sign in as a different account; the first account's conversations must not appear. The shared demo login is the same account on every device.
+
+See `docs/chat-verification.md` for completed live checks and any remaining external blockers.

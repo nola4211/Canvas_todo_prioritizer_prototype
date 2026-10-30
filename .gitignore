@@ -5,3 +5,8 @@ docs/*.jpg
 !docs/database-completed.jpg
 !docs/database-reset.jpg
 !docs/failed-save-preserved.jpg
+# Server credentials stay outside source control.
+.env
+.env.*
+!.env.example
+supabase/functions/.env
