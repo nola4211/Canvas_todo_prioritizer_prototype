@@ -1,7 +1,10 @@
 // This adapter uses the existing schema; it creates no tables or sample rows.
 (function (root) {
   'use strict';
-  const columns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
+  const columns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id';
+  const legacyColumns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
+  const missingCreationColumns = error => error && (error.code === '42703' ||
+    /(?:optional|client_request_id).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id)/i.test(error.message || ''));
   function id(value) {
     if (typeof value === 'number' && !Number.isSafeInteger(value)) throw new Error('Assignment ID exceeds the browser safe integer range.');
     const result = String(value);
@@ -25,7 +28,8 @@
     }
     return { id: id(row.assignment_id), n: String(row.name ?? ''), c: 'Shared demo', d: due || '9999-12-31', noDue: !due,
       t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade),
-      p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), l: null, completed: row.completed, persisted: true };
+      p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), o: !!row.optional, l: null,
+      completed: row.completed, requestId: row.client_request_id || null, persisted: true };
   }
   function listName(value) {
     const name = String(value).trim();
@@ -38,8 +42,45 @@
   }
   function create(client, assignmentIds) {
     const allowed = [...new Set(assignmentIds.map(id))];
+    let visible = new Set(allowed);
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
+    function dueTimestamp(value) {
+      const check = new Date(value+'T12:00:00Z');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(check.valueOf()) || check.toISOString().slice(0, 10) !== value) throw new Error('Choose a valid due date.');
+      const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', timeZoneName: 'shortOffset' })
+        .formatToParts(new Date(value+'T12:00:00Z')).find(part => part.type === 'timeZoneName')?.value;
+      const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(offset || '');
+      if (!match) throw new Error('Could not determine the due date time zone.');
+      const minutes = (match[1] === '-' ? -1 : 1) * (+match[2] * 60 + +(match[3] || 0));
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(Date.UTC(year, month - 1, day, 23, 59) - minutes * 60000).toISOString();
+    }
+    function newAssignment(input) {
+      const name = String(input.n || '').trim();
+      if (!name || name.length > 200) throw new Error('Use an assignment name between 1 and 200 characters.');
+      if (input.t != null && (!Number.isSafeInteger(input.t) || input.t < 1 || input.t > 10080)) throw new Error('Estimated time must be between 1 minute and 7 days.');
+      if (!Number.isInteger(input.p) || input.p < 0 || input.p > 3) throw new Error('Invalid priority.');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId)) throw new Error('Invalid save request ID.');
+      return { name, due_date: dueTimestamp(input.d), est_time: input.t == null ? null : input.t+' minutes',
+        priority: input.p, optional: !!input.o, percentage_of_grade: null, completed: !!input.completed,
+        deleted: false, client_request_id: input.requestId };
+    }
     return {
+      async createAssignment(input) {
+        const patch = newAssignment(input);
+        const query = () => client.from('assignments').select(columns).eq('client_request_id', patch.client_request_id).single();
+        const { data, error } = await client.from('assignments').insert(patch).select(columns).single();
+        let row = data;
+        if (error?.code === '23505') {
+          const existing = await query();
+          if (existing.error || !existing.data) throw new Error('The assignment may have saved. Reload assignments before retrying.');
+          row = existing.data;
+        } else if (error) throw new Error(missingCreationColumns(error) ? 'Database setup pending: apply the assignment creation migration.' : error.message || 'Could not save assignment.');
+        if (!row) throw new Error('The assignment save was not confirmed. Reload assignments before retrying.');
+        const saved = record(row);
+        visible.add(saved.id);
+        return saved;
+      },
       async loadLists() {
         const { data, error } = await client.from('lists').select('id,name,priority_rules,ignore_user_rules').order('created_at').order('id');
         if (error) throw listError(error);
@@ -89,7 +130,7 @@
       },
       async addAssignmentToList(listId, assignmentId) {
         const key = id(assignmentId);
-        if (!allowed.includes(key)) throw new Error('This assignment is outside the demo.');
+        if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
         const { data, error } = await client.from('list_assignments').insert({ list_id: listId, assignment_id: key })
           .select('list_id,assignment_id').single();
         if (error) throw listError(error);
@@ -102,14 +143,17 @@
         return data;
       },
       async load() {
-        const { data, error } = await client.from('assignments').select(columns).in('assignment_id', allowed).eq('deleted', false).order('assignment_id');
+        let { data, error } = await client.from('assignments').select(columns).eq('deleted', false).order('assignment_id');
+        if (missingCreationColumns(error)) ({ data, error } = await client.from('assignments').select(legacyColumns).eq('deleted', false).order('assignment_id'));
         if (error) throw new Error(error.message || 'Database load failed.');
         if (!Array.isArray(data)) throw new Error('The database returned no assignment list.');
-        return data.map(record);
+        const tasks = data.map(record);
+        visible = new Set(tasks.map(task => task.id));
+        return tasks;
       },
       async save(assignmentId, previous, next) {
         const key = id(assignmentId);
-        if (!allowed.includes(key)) throw new Error('This assignment is outside the demo.');
+        if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
         const { data, error } = await client.from('assignments').update({ completed: next })
           .eq('assignment_id', key).eq('deleted', false).eq('completed', previous)
           .select('assignment_id,completed').single();

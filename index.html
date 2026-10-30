@@ -100,7 +100,7 @@ input[type=checkbox]{width:auto}
   <label>Estimated time (minutes)</label><input id="ct" placeholder="e.g. 45m or 1h 30m" value="45m"><div class="err" id="ce"></div>
   <div class="tg" style="border:0"><span>Let AI decide the time</span><input type="checkbox" id="ca" onchange="ct.disabled=this.checked"></div>
   <div class="tg" style="border:0"><span>Optional (lowest priority)</span><input type="checkbox" id="co"></div></div>
-  <div class="foot"><button class="btn" onclick="cancelC()">Cancel</button><button class="btn p" onclick="createA()">Create</button></div></div>
+  <div class="foot"><button class="btn" id="create-cancel" onclick="cancelC()">Cancel</button><button class="btn p" id="create-submit" onclick="createA()">Create</button></div></div>
 
  <div class="scr ov" id="panel"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2 id="pt"></h2></div><div class="body" id="pb"></div></div>
 
@@ -117,14 +117,14 @@ input[type=checkbox]{width:auto}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
-<script src="backend.js?v=20261028-priorities-1"></script>
+<script src="backend.js?v=20261030-create-1"></script>
 <script src="chat.js?v=20261030-1"></script>
 <script>
-const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
+const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
 const LOCAL_KEY='canvas-todo-local-assignments-v1';
 function readLocalAssignments(){try{const value=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]');return Array.isArray(value)?value.filter(a=>a&&typeof a.id==='string'&&a.id.startsWith('local-')&&typeof a.n==='string'&&typeof a.d==='string').map(a=>({...a,persisted:false})):[]}catch{return []}}
-function saveLocalAssignments(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(S.A.filter(a=>!a.persisted)))}catch(error){showError('Could not save this assignment on this device: '+error.message)}}
+function saveLocalAssignments(){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(S.A.filter(a=>!a.persisted)));return true}catch(error){showError('Could not save this assignment on this device: '+error.message);return false}}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const Priority=window.CanvasPriorities;
 function currentListPriorities(){
@@ -140,8 +140,8 @@ function srt(assignments,keys){
 }
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
-const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${(!S.ready&&a.persisted)||S.loading||S.prioritySaving||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
-<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g==null?'Grade weight not set':a.g+'% of grade'}</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}${!a.persisted?'<span class="chip">This device</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
+const card=a=>`<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${(!S.ready&&a.persisted)||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}></button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)">🗑</button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+<div class="chips"><span class="chip">⏱ ${ft(a.t)}</span><span class="chip">${a.g==null?'Grade weight not set':a.g+'% of grade'}</span><span class="chip pr">${'!'.repeat(a.p)||'–'}</span>${a.o?'<span class="chip">Optional</span>':''}${!a.persisted?'<span class="chip">This device</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${!a.persisted?`<button class="lk" data-import-assignment="${esc(a.id)}" ${S.createSaving||!S.ready?'disabled':''}>Save to Supabase →</button>`:''}${a.noDue?'':`<button class="lk" onclick="openCal('${a.d}')">See in calendar →</button>`}</div></div></div>`;
 function home(){
  $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" onclick="if(!S.listSaving&&!S.prioritySaving){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
  const t=S.lists[S.tab] || S.lists[0];let h='';
@@ -162,14 +162,14 @@ const showError=message=>{$('sync-error').textContent=message;$('sync-error').hi
 function paint(){home();if($('cal').classList.contains('on'))cal()}
 function showSession(){const signed=!!user;$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
 async function loadTasks(){
- if(!backend||!user||S.saving.size||S.listSaving||S.prioritySaving)return;
+ if(!backend||!user||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';$('reload-tasks').disabled=true;paint();
- try{const tasks=await backend.load();if(version!==loadVersion)return;const local=readLocalAssignments();S.A=[...tasks,...local];S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase${local.length?` · ${local.length} saved on this device`:''}`:local.length?`${local.length} assignments saved on this device · no demo assignments found`:'No demo assignments found. The team must add sample rows and check access policies.'}
+ try{const tasks=await backend.load();if(version!==loadVersion)return;const savedRequests=new Set(tasks.map(a=>a.requestId).filter(Boolean));const local=readLocalAssignments().filter(a=>!savedRequests.has(a.requestId));S.A=[...tasks,...local];saveLocalAssignments();S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase${local.length?` · ${local.length} saved on this device`:''}`:local.length?`${local.length} assignments saved on this device · no demo assignments found`:'No demo assignments found. The team must add sample rows and check access policies.'}
  catch(error){if(version!==loadVersion)return;S.A=readLocalAssignments();S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
  finally{if(version===loadVersion){S.loading=false;$('reload-tasks').disabled=false;paint()}}
 }
 async function tog(id){
- if(S.loading||S.prioritySaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
+ if(S.loading||S.prioritySaving||S.createSaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
  const assignment=S.A.find(a=>a.id===id);
  if(!assignment.persisted){S.done[id]=!S.done[id];assignment.completed=S.done[id];saveLocalAssignments();paint();return}
  if(!S.ready)return;
@@ -179,12 +179,13 @@ async function tog(id){
  finally{S.saving.delete(id);lockListControls();paint()}
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-complete]');if(button&&!button.disabled)tog(button.dataset.complete)});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-import-assignment]');if(button&&!button.disabled)importLocalAssignment(button.dataset.importAssignment)});
 async function signIn(){
  if(!db)return;$('signin').disabled=true;showError('');
  try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;showSession();await loadTasks()}
  catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this demo account in Supabase, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
 }
-async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
  try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db);const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
@@ -317,20 +318,32 @@ async function openChat(){
 }
 /* create */
 const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
-function openCreate(d){d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
-function createA(force){const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
+let pendingCreation=null;
+function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
+async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.loading||S.listSaving||S.prioritySaving)return;const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
  if(!n){$('cn').focus();return}
  if(!d||d<TODAY){$('cde').textContent="Due date can't be in the past.";return}
  let t=null;
  if($('ca').checked){t=EX.test(n)?60:/read/i.test(n)?30:/essay|paper|project/i.test(n)?120:/lab|hw|homework|problem/i.test(n)?45:null}
  else{t=parseT($('ct').value);if(isNaN(t)||t<1){$('ce').textContent='Use minutes or hours, like "45m", "1h 30m" or "2h".';return}
   if(t>600&&force!==1){$('ce').innerHTML='That is over 10 hours. Is that right? <button class="lk" onclick="createA(1)">Yes, confirm</button>';return}}
- const l=null,o=$('co').checked;
- const assignment={id:'local-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),n,c:$('cc').value,d,t,g:10,p:o?0:2,o,l,completed:false,persisted:false};
- S.A.push(assignment);S.done[assignment.id]=false;saveLocalAssignments();closeOv();
- toast('Assignment added · saved on this device only');
- if(EX.test(n))toast('Exam added on this device. Consider setting a study priority based on how comfortable you feel in this class.')}
-function cancelC(){const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
+ const o=$('co').checked,details={n,d,t,p:o?0:2,o,completed:false};
+ const signature=JSON.stringify(details);
+ if(!pendingCreation||pendingCreation.signature!==signature)pendingCreation={signature,requestId:crypto.randomUUID()};
+ S.createSaving=true;showError('');$('create-submit').disabled=$('create-cancel').disabled=true;$('create-submit').textContent='Saving…';lockListControls();
+ try{const assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId});S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;$('sync-status').textContent='Assignment saved to Supabase';ov();home();toast('Assignment saved to Supabase');if(EX.test(n))toast('Exam saved. Consider setting a study priority based on how comfortable you feel in this class.')}
+ catch(error){$('ce').textContent='Could not save: '+error.message}
+ finally{S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=false;$('create-submit').textContent='Create';lockListControls()}}
+async function importLocalAssignment(id){
+ if(!user||!backend||!S.ready||S.createSaving||S.loading||S.listSaving||S.prioritySaving)return;
+ const assignment=S.A.find(a=>a.id===id&&!a.persisted);if(!assignment)return;
+ if(!assignment.requestId){assignment.requestId=crypto.randomUUID();if(!saveLocalAssignments())return}
+ S.createSaving=true;showError('');lockListControls();$('sync-status').textContent='Saving assignment to Supabase…';home();
+ try{const saved=await backend.createAssignment({...assignment,requestId:assignment.requestId});S.A=S.A.filter(a=>a.id!==id);S.A.push(saved);delete S.done[id];S.done[saved.id]=saved.completed;saveLocalAssignments();$('sync-status').textContent='Assignment saved to Supabase';toast('Assignment saved to Supabase')}
+ catch(error){showError('Could not save assignment: '+error.message);$('sync-status').textContent='Assignment remains on this device'}
+ finally{S.createSaving=false;lockListControls();paint()}
+}
+function cancelC(){if(S.createSaving)return;pendingCreation=null;const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
 let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5000)}
 function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
 function undo(){if(S.last){S.A.push(S.last);S.last=null;home();$('toast').classList.remove('on')}}
@@ -386,13 +399,13 @@ function openListEditor(){
  lockListControls();
 }
 function lockListControls(){
- document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=S.listSaving||S.prioritySaving);
- $('reload-tasks').disabled=S.listSaving||S.prioritySaving||!!S.saving.size;
- $('signout').disabled=S.listSaving||S.prioritySaving||!!S.saving.size;
+ document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=S.listSaving||S.prioritySaving||S.createSaving);
+ $('reload-tasks').disabled=S.listSaving||S.prioritySaving||S.createSaving||!!S.saving.size;
+ $('signout').disabled=S.listSaving||S.prioritySaving||S.createSaving||!!S.saving.size;
 }
 // One operation at a time. A failed request leaves the last confirmed data intact.
 async function saveListChange(operation){
- if(!user||!S.listsReady||S.listSaving||S.prioritySaving||S.loading)return;
+ if(!user||!S.listsReady||S.listSaving||S.prioritySaving||S.createSaving||S.loading)return;
  const version=loadVersion;
  S.listSaving=true;lockListControls();$('list-message').textContent='Saving…';
  try{
