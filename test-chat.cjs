@@ -19,6 +19,7 @@ const context={document:{getElementById:id=>nodes[id]??=(element()),createElemen
  await ui.open();assert.equal(nodes.cb.children.length,2);
  await ui.newChat();assert.equal(nodes.cb.children.length,2);assert.equal(chats.length,2);
  fail=true;nodes.ci.value='Draft';await ui.send();const requestId=lastTurn.requestId;assert.equal(nodes.ci.value,'Draft');assert.equal(nodes['chat-status'].textContent,'Quota unavailable');assert.equal(nodes['chat-retry'].hidden,false);
+ assert.equal(chats[0].title,'Draft');assert.match(nodes['chat-history'].children[1].textContent,/Draft · Oct 30, 2026/);
  const previous=invokeCount;await ui.send();assert.equal(invokeCount,previous);
  fail=false;holdReply=true;const pending=ui.send(true);await new Promise(resolve=>setImmediate(resolve));assert.equal(nodes['chat-retry'].hidden,true);assert.equal(nodes['chat-status'].textContent,'Thinking…');releaseReply();await pending;assert.equal(lastTurn.requestId,requestId);assert.equal(nodes.cb.children.length,2);
  messages.push({chat_ID:lastTurn.chatId,role:'assistant',message:'Created assignment: Test. Saved to Supabase.',status:'complete'});await ui.selectChat(lastTurn.chatId);assert.ok(nodes.cb.children.some(node=>node.textContent==='Assignment successfully saved!'));

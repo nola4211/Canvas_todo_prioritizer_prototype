@@ -5,6 +5,8 @@
     let conversations=[],selected=null,messages=[],loading=false,sending=false,version=0,retry=null,draft=null;
     const el=id=>document.getElementById(id);
     const suggestions=['What should I work on first?','Help me plan today','What is due soon?','Create a new assignment'];
+    const defaultTitle=title=>/^(New chat|New conversation|Conversation\s+\d)/i.test(String(title||'').trim());
+    function shortTitle(text){return String(text||'').trim().replace(/[^\p{L}\p{N}%]+/gu,' ').trim().split(/\s+/).filter(Boolean).slice(0,5).join(' ')||'New chat'}
     function message(text,role){const node=document.createElement('div');node.className='msg '+(role==='user'?'me':'bot');node.textContent=text;return node}
     function status(text){el('chat-status').textContent=text}
     function chatLabel(chat){
@@ -13,6 +15,16 @@
       const storedTitle=String(chat.title||'').trim();
       const title=/^Conversation\s+\d/i.test(storedTitle)?'New chat':storedTitle.split(/\s+/).slice(0,5).join(' ')||'New chat';
       return title+(dateText?' · '+dateText:'');
+    }
+    async function nameChatFromFirstMessage(chatId){
+      const chat=conversations.find(item=>item.id===chatId);
+      const first=messages.find(item=>item.role==='user'&&item.message?.trim());
+      if(!chat||!first||!defaultTitle(chat.title))return;
+      chat.title=shortTitle(first.message);render();
+      try{
+        const title=await query(client.rpc('name_ai_chat',{p_chat_id:chatId,p_message:first.message}));
+        if(typeof title==='string'){chat.title=title;render()}
+      }catch{}
     }
     function renderWelcome(area){
       area.append(message('Hi! I can help you plan your work, understand your priorities, or add a new assignment. What would you like to do?','assistant'));
@@ -92,6 +104,8 @@
           const rows=await query(client.from('message').select('message_ID,role,message,status,request_id,sent_at').eq('chat_ID',selected).order('message_ID',{ascending:false}).limit(100));
           if(current!==version)return;
           messages=rows.reverse();
+          await nameChatFromFirstMessage(selected);
+          if(current!==version)return;
           if(backend){const loadedDraft=await backend.loadAssignmentDraft(selected);if(current!==version)return;draft=loadedDraft;}
           const last=messages[messages.length-1];
           if(last&&last.role==='user'&&last.status!=='complete')retry={requestId:last.request_id,message:last.message};
@@ -107,6 +121,18 @@
         const rows=await query(client.from('chat').select('chat_ID,title,created_at,updated_at').order('updated_at',{ascending:false}).limit(50));
         if(current!==version)return;
         conversations=rows.map(row=>({...row,id:root.CanvasBackend.id(row.chat_ID)}));
+        // Older chats may still have the placeholder title. Build their display
+        // names from the first student message and save the same title when possible.
+        try{
+          const firstMessages=await query(client.from('message').select('chat_ID,role,message,message_ID').eq('role','user').order('message_ID',{ascending:true}).limit(500));
+          const seen=new Set();
+          for(const item of firstMessages){
+            const id=root.CanvasBackend.id(item.chat_ID);if(seen.has(id))continue;seen.add(id);
+            const chat=conversations.find(value=>value.id===id);if(!chat||!defaultTitle(chat.title))continue;
+            chat.title=shortTitle(item.message);
+            Promise.resolve(client.rpc('name_ai_chat',{p_chat_id:id,p_message:item.message})).catch(()=>{});
+          }
+        }catch{}
         loading=false;
         await selectChat(conversations.some(chat=>chat.id===selected)?selected:conversations[0]?.id || null);
       }catch(error){if(current===version){loading=false;status('I couldn’t load your chats right now. Please try again.');render()}}
@@ -130,6 +156,15 @@
       const firstMessage=!messages.some(item=>item.role==='user');
       const current=version;const chatId=selected;sending=true;retry=turn;render();status('Thinking…');
       try{
+        // Name the chat as soon as its first message is sent. The title should not
+        // depend on the AI service successfully finishing its reply.
+        if(firstMessage){
+          const chat=conversations.find(item=>item.id===chatId);if(chat){chat.title=shortTitle(turn.message);render()}
+          try{
+            const title=await query(client.rpc('name_ai_chat',{p_chat_id:chatId,p_message:turn.message}));
+            if(chat&&typeof title==='string'){chat.title=title;render()}
+          }catch{}
+        }
         const {data:sessionData,error:sessionError}=await client.auth.getSession();
         if(sessionError||!sessionData.session)throw new Error('Sign in again before sending.');
         const {data,error}=await client.functions.invoke('study-assistant',{body:{chatId,requestId:turn.requestId,message:turn.message},headers:{Authorization:'Bearer '+sessionData.session.access_token}});
@@ -140,12 +175,6 @@
         }
         if(!data||typeof data.reply!=='string'||!data.reply.trim())throw new Error('Your reply isn’t ready. Please reopen this chat and try again.');
         if(current!==version)return;
-        if(firstMessage){
-          try{
-            const title=await query(client.rpc('name_ai_chat',{p_chat_id:chatId,p_message:turn.message}));
-            const chat=conversations.find(item=>item.id===chatId);if(chat&&typeof title==='string')chat.title=title;
-          }catch{}
-        }
         retry=null;el('ci').value='';sending=false;
         await selectChat(chatId);
       }catch(error){if(current===version){status(error.message);sending=false;render()}}
