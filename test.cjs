@@ -75,6 +75,6 @@ const client = {from(table){if(table==='lists'||table==='list_assignments'||tabl
   assert.equal(vm.runInContext('S.ready',context),false);
   assert.throws(()=>api.id(Number.MAX_SAFE_INTEGER+1));
   assert.throws(()=>api.id("1');alert(1)"));
-  await assert.rejects(backend.save('3',false,true),/outside the demo/);
+  await assert.rejects(backend.save('3',false,true),/not available to this account/);
   console.log('PASS: simulated confirmed saves, reload, reversal, row isolation, failed load/save, stale-value rejection, control locks, repeated clicks, unconfirmed response, escaping, ID validation. See README for live verification status.');
 })().catch(error=>{console.error(error);process.exitCode=1});

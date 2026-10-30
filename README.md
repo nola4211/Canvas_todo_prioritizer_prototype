@@ -1,5 +1,7 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
+**Assignment creation update — October 30, 2026:** the Add Assignment form now saves new tasks to Supabase. Existing device-only tasks have a **Save to Supabase** action. The migration was applied to the live project; a rollback-only database check passed creation, completion, and account isolation. Frontend creation in a signed-in browser has not yet been exercised against the live project. See [Database-backed assignment creation](#database-backed-assignment-creation).
+
 **AI update — October 30, 2026:** saved conversations, a read-only OpenAI backend, and account privacy are implemented. The migration and backend are deployed; automated and live database checks passed. After the API project was funded, real replies, follow-up context, refresh persistence, and advice-only behavior passed in the signed-in preview. See the AI study assistant section and `docs/chat-verification.md`. Frontend changes require merging/deploying this update. Earlier status notes below describe prior releases.
 
 **Priorities update — October 28, 2026:** per-account and per-list priorities now save to Supabase. The additive migration and rollback-only security checks passed on the live project. Local browser checks verified settings precedence, list overrides, ordered rules, cancellation, and refresh persistence. See `docs/priorities-verification.md`. The frontend change is pending merge/deployment.
@@ -146,11 +148,21 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 
 ### Prototype limits
 
-- Assignment creation is device-only; database assignment deletion is unavailable. Completion is persisted.
+- Database assignment creation requires the new migration below; database assignment deletion is unavailable. Completion is persisted.
 - Lists, their assignment connections, and prioritization rules use Supabase. Drafts and unrelated preferences remain temporary prototype state.
 - The assistant requires a funded OpenAI API project; see AI study assistant below.
 - Canvas connection/settings are prototype controls with no real Canvas integration.
 - Shared-account access is a class demo choice. Real student data requires a reviewed individual ownership model and policies.
+
+## Database-backed assignment creation
+
+**Applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026; do not rerun there.** The live table had three rows, identity IDs, and the expected original read/completion policies. `supabase/migrations/202610300002_assignment_creation.sql` adds creation without changing the seeded rows. On a different project, inspect its schema and policies before applying it once. The frontend loader can fall back to the older columns if that project has not been migrated, but creation requires the migration.
+
+The migration adds nullable `owner_id` and `client_request_id` fields and an `optional` flag. New rows get their owner from the signed-in Auth account. Row policies allow that account to read, create, and complete its own assignments; the browser receives insert access only for the fields used by the form. The existing demo rows remain available through their earlier policy. The shared demo login is one account, so everyone using it shares new tasks. Separate student privacy requires separate Auth accounts.
+
+The Create button saves the name, Denver due date, estimated minutes, priority, and optional flag, then displays the returned assignment ID. The form stays open on failure. Each attempt has a request ID so a retry can find an already-saved row instead of duplicating it. Existing device-only cards have **Save to Supabase**; they remain on the device until that action succeeds. Reload reconciles a device card with a saved row using its request ID after a lost response. New database assignments can join saved lists and appear in the assistant's database context. The class selector still has only **Shared demo** because the current `assignments` table has no verified class relation. The form has no grade-weight field, so new rows save a null weight.
+
+Run `node test-assignment-create.cjs` and `node test-local-assignments.cjs` for the simulated create, retry, import, and reload paths. `docs/verify-assignment-creation.sql` passed in SQL Editor with its test write rolled back. The follow-up browser check is to create a synthetic assignment, refresh, complete it, add it to a saved list, and ask the assistant about it. Confirm the inserted row and ownership in Supabase. See `docs/assignment-creation-verification.md` for the completed checks and current limit.
 
 ## Saved custom lists
 
@@ -240,7 +252,7 @@ A rules value is a small JSON array, for example:
 
 **Applied to project `uowlwdwrqceklbqjcnmc` on October 28, 2026; do not rerun there.** The schema change is recorded in `supabase/migrations/202610280001_priorities.sql`. Apply it once after the lists migration, and do not rerun either old migration against an already-updated project. It preserves assignments, list names, memberships, and existing policies. New columns default to no list rules and no override. A missing migration or failed priorities load shows an error and prevents editing unsafely.
 
-Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `node test-local-assignments.cjs`. The last check covers the newer device-only assignment creation working alongside saved priorities. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
+Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `node test-local-assignments.cjs`. The last check now covers database creation and explicit import of older device-only assignments alongside saved priorities. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
 
 ### Manual verification
 
