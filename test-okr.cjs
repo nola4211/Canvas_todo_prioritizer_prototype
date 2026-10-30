@@ -17,7 +17,7 @@ vm.createContext(context);vm.runInContext(fs.readFileSync('backend.js','utf8'),c
  assert.match(sql,/having count\(distinct activity_date\)=7/);
  assert.match(sql,/app_metadata.*role.*admin/s);
  const admin=fs.readFileSync('admin.html','utf8'),app=fs.readFileSync('index.html','utf8');
- assert.match(admin,/get_weekly_engagement_okr/);assert.match(admin,/app_metadata\?\.role==='admin'/);assert.match(admin,/replaceChildren/);
+ assert.match(admin,/get_weekly_engagement_okr/);assert.match(admin,/app_metadata\?\.role==='admin'/);assert.match(admin,/replaceChildren/);assert.match(admin,/username\+'@canvas-prioritizer\.local'/);
  assert.match(app,/location\.replace\('admin\.html'\)/);
  console.log('PASS: daily activity recording, protected OKR loading, seven-day calculation, and admin enforcement.');
 })().catch(error=>{console.error(error);process.exitCode=1});

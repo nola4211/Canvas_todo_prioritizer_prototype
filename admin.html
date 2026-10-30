@@ -21,7 +21,7 @@
   <main>
     <form id="login" class="hidden">
       <h2>Administrator sign in</h2><p class="muted">Use the Supabase account your team designated as an administrator.</p>
-      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+      <label for="username">Administrator username</label><input id="username" autocomplete="username" maxlength="40" required>
       <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
       <button class="primary" type="submit">Sign in</button><div id="login-error" class="error" role="alert"></div>
     </form>
@@ -50,7 +50,7 @@
       const trend=Array.isArray(data.daily_trend)?data.daily_trend:[],max=Math.max(1,...trend.map(item=>Number(item.users)||0));byId('bars').replaceChildren();
       for(const item of trend){const day=document.createElement('div');day.className='day';const bar=document.createElement('div');bar.className='bar';bar.style.height=Math.max(4,Math.round((Number(item.users)||0)/max*140))+'px';bar.title=item.users+' unique users';const label=document.createElement('span');label.textContent=date(item.date);day.append(bar,label);byId('bars').append(day)}
     }
-    byId('login').addEventListener('submit',async event=>{event.preventDefault();byId('login-error').textContent='';const {data,error}=await db.auth.signInWithPassword({email:byId('email').value.trim(),password:byId('password').value});byId('password').value='';if(error){showLogin('Could not sign in. Check the email and password.');return}await showDashboard(data.user)});
+    byId('login').addEventListener('submit',async event=>{event.preventDefault();byId('login-error').textContent='';const username=byId('username').value.trim().toLowerCase();if(!/^[a-z0-9_-]{3,40}$/.test(username)){showLogin('Use 3–40 letters, numbers, underscores, or hyphens.');return}const {data,error}=await db.auth.signInWithPassword({email:username+'@canvas-prioritizer.local',password:byId('password').value});byId('password').value='';if(error){showLogin('Could not sign in. Check the username and password.');return}await showDashboard(data.user)});
     byId('signout').onclick=async()=>{await db.auth.signOut();showLogin()};
     (async()=>{try{const config=window.APP_CONFIG;db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);const {data,error}=await db.auth.getSession();if(error)throw error;data.session?await showDashboard(data.session.user):showLogin()}catch(error){showLogin('The administrator dashboard could not start.')}})();
   </script>
