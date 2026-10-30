@@ -1,5 +1,7 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
+**Completed view demo — October 30, 2026:** Main now shows unfinished work, Completed shows finish time against the due date, and synthetic grades refresh from Supabase. The grade migration is applied and live checks passed. Finish times stay on this device. See [Completed view and demo grades](#completed-view-and-demo-grades).
+
 **Lists update — October 27, 2026:** the saved-list migration has been applied to the live Supabase project. Database operation and access checks passed with their test writes rolled back. Both simulated test suites pass. Authenticated browser checks passed for creating and renaming a list, adding/removing memberships, refresh persistence, and shared completion across lists. See `docs/lists-verification.md` for details. See Saved custom lists below for maintenance and setup details. Earlier Module 05 notes below describe the previous completion-only release.
 
 **Status:** the authenticated completion action is verified locally at `http://127.0.0.1:4182/`: save, database readback, refresh persistence, reversal, and rejection of a stale save all passed. The app is ready to record with three incomplete synthetic assignments. Recording and Canvas submission are pending. The newer `chat` and `message` tables still require sample rows and an access decision.
@@ -142,11 +144,19 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 
 ### Prototype limits
 
-- Creation/deletion are unavailable in this demo; only completion is persisted.
+- Creation/deletion are unavailable in this demo; completion syncs to Supabase, while finish times and locally created assignments stay on this device.
 - Sorting, rules, drafts, and preferences remain temporary prototype state. Custom lists and their assignment connections now use Supabase.
 - The assistant uses scripted replies and is not an AI service.
-- Canvas connection/settings are prototype controls with no real Canvas integration.
+- Demo grades come from `public.assignment_grades` in Supabase after its migration is applied; they are synthetic sample data, not a live Canvas connection.
 - Shared-account access is a class demo choice. Real student data requires a reviewed individual ownership model and policies.
+
+## Completed view and demo grades
+
+Main now shows assignments still in progress. The Completed tab shows checked assignments, newest finish time first. When a checkbox save succeeds, the browser records the click time and compares it with the assignment's exact due timestamp. Unchecking removes the recorded finish time. The boolean completion value remains in Supabase; finish times are stored in this browser's local storage under the signed-in demo account. A completion made on another device can appear without a known finish time. This finish time is a student action, not a verified Canvas submission time.
+
+The page reads `public.assignment_grades` through the signed-in Supabase client on assignment load and when **Refresh demo grades** is clicked. The migration in `supabase/migrations/202610300001_assignment_grades.sql` was applied to the shared project on October 30; do not rerun it there. For a fresh project, inspect the account and assignment IDs before running it once. The table has row-level security, three synthetic rows, and no browser write access. A row with `grade` and `graded_at` appears as a clearly labeled demo grade; a row with null values remains pending. [Live verification](docs/grades-verification.md) records the database and browser checks.
+
+To demonstrate a newly posted grade, an administrator can update the synthetic row for assignment 2 in Supabase with a grade and `graded_at`, then click **Refresh demo grades**. The browser cannot write grades. No Canvas token, student grade, or live submission is used. These synthetic grades are not evidence for either OKR key result.
 
 ## Saved custom lists
 

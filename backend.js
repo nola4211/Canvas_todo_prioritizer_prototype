@@ -1,4 +1,4 @@
-// This adapter uses the existing schema; it creates no tables or sample rows.
+// This adapter reads the Supabase schema; the grade table is created by its migration.
 (function (root) {
   'use strict';
   const columns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
@@ -23,7 +23,7 @@
       const part = type => parts.find(p => p.type === type).value;
       due = `${part('year')}-${part('month')}-${part('day')}`;
     }
-    return { id: id(row.assignment_id), n: String(row.name ?? ''), c: 'Shared demo', d: due || '9999-12-31', noDue: !due,
+    return { id: id(row.assignment_id), n: String(row.name ?? ''), c: 'Shared demo', d: due || '9999-12-31', dueAt: row.due_date ? new Date(row.due_date).toISOString() : null, noDue: !due,
       t: minutes(row.est_time), g: Number(row.percentage_of_grade) || 0,
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), l: null, completed: row.completed, persisted: true };
   }
@@ -84,6 +84,12 @@
         if (error) throw new Error(error.message || 'Database load failed.');
         if (!Array.isArray(data)) throw new Error('The database returned no assignment list.');
         return data.map(record);
+      },
+      async loadGrades() {
+        const { data, error } = await client.from('assignment_grades').select('assignment_id,grade,graded_at').in('assignment_id', allowed).order('assignment_id');
+        if (error) throw new Error(error.message || 'Grade load failed.');
+        if (!Array.isArray(data)) throw new Error('The database returned no grade list.');
+        return data.map(row => ({ assignment_id: id(row.assignment_id), grade: row.grade, graded_at: row.graded_at }));
       },
       async save(assignmentId, previous, next) {
         const key = id(assignmentId);
