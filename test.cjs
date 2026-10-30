@@ -19,6 +19,8 @@ const context = vm.createContext({console,setTimeout,clearTimeout,Intl,Date,
   localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},
   window:{APP_CONFIG:{publishableKey:'',demoAssignmentIds:['1','2']}},
   document:{getElementById:element,addEventListener(){},querySelectorAll:()=>[]}});
+const context = vm.createContext({console,setTimeout,clearTimeout,Intl,Date,window:{APP_CONFIG:{publishableKey:''}},document:{getElementById:element,addEventListener(){},querySelectorAll:()=>[]}});
+vm.runInContext(fs.readFileSync(__dirname+'/priorities.js','utf8'),context);
 vm.runInContext(fs.readFileSync(__dirname+'/backend.js','utf8'),context);
 context.CanvasBackend=context.window.CanvasBackend;
 vm.runInContext(inline,context);
@@ -27,6 +29,8 @@ const rows = [1,2].map(assignment_id=>({assignment_id,name:assignment_id===1?'<i
 const calls = [];
 let failure = false,gradeFailure = false,wrongResponse = false,release=null;
 const client = {from(table){if(table==='lists'||table==='list_assignments')return {select(){return this},order(){return this},then(resolve){return Promise.resolve({data:[],error:null}).then(resolve)}};assert.ok(table==='assignments'||table==='assignment_grades');let patch=null,filters=[];const query={
+let failure = false,wrongResponse = false,release=null;
+const client = {from(table){if(table==='lists'||table==='list_assignments'||table==='user_priorities')return {select(){return this},order(){return this},then(resolve){return Promise.resolve({data:[],error:null}).then(resolve)}};assert.equal(table,'assignments');let patch=null,filters=[];const query={
   select(){return query},in(key,values){filters.push(row=>values.includes(String(row[key])));return query},
   eq(key,value){filters.push(row=>String(row[key])===String(value));return query},
   order(){return query},update(value){patch=value;calls.push(value);return query},

@@ -10,6 +10,7 @@ function element(id) {
 }
 const context = vm.createContext({console,Date,Intl,setTimeout,clearTimeout,confirm:()=>true,
   window:{APP_CONFIG:{}},document:{getElementById:element,querySelectorAll:()=>[],addEventListener(){}}});
+vm.runInContext(fs.readFileSync(__dirname+'/priorities.js','utf8'),context);
 vm.runInContext(fs.readFileSync(__dirname+'/backend.js','utf8'),context);
 context.CanvasBackend=context.window.CanvasBackend;
 vm.runInContext([...fs.readFileSync(__dirname+'/index.html','utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1],context);

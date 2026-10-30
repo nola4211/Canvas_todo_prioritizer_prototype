@@ -25,6 +25,8 @@
     }
     return { id: id(row.assignment_id), n: String(row.name ?? ''), c: 'Shared demo', d: due || '9999-12-31', dueAt: row.due_date ? new Date(row.due_date).toISOString() : null, noDue: !due,
       t: minutes(row.est_time), g: Number(row.percentage_of_grade) || 0,
+    return { id: id(row.assignment_id), n: String(row.name ?? ''), c: 'Shared demo', d: due || '9999-12-31', noDue: !due,
+      t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade),
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), l: null, completed: row.completed, persisted: true };
   }
   function listName(value) {
@@ -41,7 +43,29 @@
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
     return {
       async loadLists() {
-        const { data, error } = await client.from('lists').select('id,name').order('created_at').order('id');
+        const { data, error } = await client.from('lists').select('id,name,priority_rules,ignore_user_rules').order('created_at').order('id');
+        if (error) throw listError(error);
+        return data;
+      },
+      async loadUserPriorities() {
+        const { data, error } = await client.from('user_priorities').select('scope,rules,ignore_user_rules');
+        if (error) throw listError(error);
+        return data;
+      },
+      async saveUserPriorities(scope, rules, ignoreUserRules = false) {
+        if (!['settings', 'main', 'classes'].includes(scope)) throw new Error('Unknown priority settings.');
+        if (typeof ignoreUserRules !== 'boolean' || (scope === 'settings' && ignoreUserRules)) throw new Error('Invalid priority override.');
+        const patch = { scope, rules: root.CanvasPriorities.validateRules(rules), ignore_user_rules: ignoreUserRules };
+        const { data, error } = await client.from('user_priorities').upsert(patch, { onConflict: 'owner_id,scope' })
+          .select('scope,rules,ignore_user_rules').single();
+        if (error) throw listError(error);
+        return data;
+      },
+      async saveListPriorities(listId, rules, ignoreUserRules) {
+        if (typeof ignoreUserRules !== 'boolean') throw new Error('Invalid priority override.');
+        const patch = { priority_rules: root.CanvasPriorities.validateRules(rules), ignore_user_rules: ignoreUserRules };
+        const { data, error } = await client.from('lists').update(patch).eq('id', listId)
+          .select('id,priority_rules,ignore_user_rules').single();
         if (error) throw listError(error);
         return data;
       },
