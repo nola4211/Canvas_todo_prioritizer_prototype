@@ -4,6 +4,8 @@ Agreed feature requirements, October 30, 2026. The teammate building manual crea
 
 **Status:** design and prompt handoff only. Manual database creation has not been implemented. The existing AI remains advice-only. Do not enable the new prompt by itself: it needs draft review, validation, and a working creation function first.
 
+The existing + button and manual form already work: `createA` adds an assignment and saves it in this browser's local storage. This can survive a refresh on the same device, but it is not a Supabase save. Reuse that form rather than building a second one. The remaining manual work is shared database saving and aligning the form with the agreed fields: it currently has no grade-weight input and substitutes 10%, and its class selector contains only the “Shared demo” label.
+
 ## The same assignment through two paths
 
 Manual: student fills in the form → validates → selects Create → saves.
