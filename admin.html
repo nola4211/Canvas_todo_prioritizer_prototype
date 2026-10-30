@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Canvas Prioritizer · Team Dashboard</title>
+  <style>
+    :root{--bg:#f4f6f8;--card:#fff;--text:#18202a;--muted:#667085;--blue:#2f6feb;--green:#238636;--line:#e4e7ec}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}body{margin:0;background:var(--bg);color:var(--text)}
+    header{background:var(--card);border-bottom:1px solid var(--line);padding:18px max(20px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}
+    header h1{font-size:20px;margin:0}main{max-width:1050px;margin:0 auto;padding:28px 20px}.muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+    .metric{font-size:48px;font-weight:750;color:var(--blue);line-height:1;margin:12px 0}.metric.met{color:var(--green)}.stats{display:flex;gap:28px;margin-top:18px}.stats b{font-size:24px;display:block}
+    .bars{height:180px;display:flex;align-items:flex-end;gap:12px;margin-top:20px}.day{flex:1;text-align:center;font-size:12px;color:var(--muted)}.bar{background:var(--blue);border-radius:7px 7px 2px 2px;min-height:4px;margin-bottom:8px}
+    button,input{font:inherit}button{border:0;border-radius:10px;padding:10px 15px;font-weight:650;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:var(--bg);color:var(--text)}
+    form{max-width:420px;margin:70px auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}label{display:block;margin:15px 0 6px;color:var(--muted);font-size:13px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}form button{width:100%;margin-top:18px}.error{color:#c62828;margin-top:12px}.hidden{display:none!important}
+  </style>
+</head>
+<body>
+  <header><div><h1>Team OKR Dashboard</h1><div class="muted">Canvas To-Do Prioritizer</div></div><button id="signout" class="secondary hidden">Sign out</button></header>
+  <main>
+    <form id="login" class="hidden">
+      <h2>Administrator sign in</h2><p class="muted">Use the Supabase account your team designated as an administrator.</p>
+      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+      <button class="primary" type="submit">Sign in</button><div id="login-error" class="error" role="alert"></div>
+    </form>
+    <section id="dashboard" class="hidden">
+      <p class="muted" id="range"></p>
+      <div class="grid">
+        <article class="card"><div class="muted">Opened the app every day</div><div id="percent" class="metric">—</div><strong>Goal: 75%</strong><div id="goal" class="muted"></div><div class="stats"><div><b id="daily-users">—</b><span class="muted">7-day daily users</span></div><div><b id="active-users">—</b><span class="muted">30-day active users</span></div></div></article>
+        <article class="card"><strong>Daily unique users</strong><div id="bars" class="bars"></div></article>
+      </div>
+      <p id="dashboard-error" class="error" role="alert"></p>
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const byId=id=>document.getElementById(id);let db;
+    const isAdmin=user=>user?.app_metadata?.role==='admin';
+    const date=value=>new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    function showLogin(message=''){byId('login').classList.remove('hidden');byId('dashboard').classList.add('hidden');byId('signout').classList.add('hidden');byId('login-error').textContent=message}
+    async function showDashboard(user){
+      if(!isAdmin(user)){showLogin('This account does not have administrator access.');return}
+      byId('login').classList.add('hidden');byId('dashboard').classList.remove('hidden');byId('signout').classList.remove('hidden');byId('dashboard-error').textContent='';
+      const {data,error}=await db.rpc('get_weekly_engagement_okr');if(error){byId('dashboard-error').textContent='Could not load the tracker: '+error.message;return}
+      byId('percent').textContent=data.engagement_percent+'%';byId('percent').classList.toggle('met',!!data.goal_met);byId('goal').textContent=data.goal_met?'Goal met':'Goal not met yet';
+      byId('daily-users').textContent=data.daily_users;byId('active-users').textContent=data.active_users;byId('range').textContent='Reporting period: '+date(data.week_start)+'–'+date(data.week_end);
+      const trend=Array.isArray(data.daily_trend)?data.daily_trend:[],max=Math.max(1,...trend.map(item=>Number(item.users)||0));byId('bars').replaceChildren();
+      for(const item of trend){const day=document.createElement('div');day.className='day';const bar=document.createElement('div');bar.className='bar';bar.style.height=Math.max(4,Math.round((Number(item.users)||0)/max*140))+'px';bar.title=item.users+' unique users';const label=document.createElement('span');label.textContent=date(item.date);day.append(bar,label);byId('bars').append(day)}
+    }
+    byId('login').addEventListener('submit',async event=>{event.preventDefault();byId('login-error').textContent='';const {data,error}=await db.auth.signInWithPassword({email:byId('email').value.trim(),password:byId('password').value});byId('password').value='';if(error){showLogin('Could not sign in. Check the email and password.');return}await showDashboard(data.user)});
+    byId('signout').onclick=async()=>{await db.auth.signOut();showLogin()};
+    (async()=>{try{const config=window.APP_CONFIG;db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);const {data,error}=await db.auth.getSession();if(error)throw error;data.session?await showDashboard(data.session.user):showLogin()}catch(error){showLogin('The administrator dashboard could not start.')}})();
+  </script>
+</body>
+</html>
