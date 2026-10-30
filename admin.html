@@ -20,7 +20,7 @@
   <header><div><h1>Team OKR Dashboard</h1><div class="muted">Canvas To-Do Prioritizer</div></div><button id="signout" class="secondary hidden">Sign out</button></header>
   <main>
     <form id="login" class="hidden">
-      <h2>Administrator sign in</h2><p class="muted">Use the Supabase account your team designated as an administrator.</p>
+      <h2>Administrator sign in</h2><p class="muted">Use your team administrator username and password.</p>
       <label for="username">Administrator username</label><input id="username" autocomplete="username" maxlength="40" required>
       <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
       <button class="primary" type="submit">Sign in</button><div id="login-error" class="error" role="alert"></div>
@@ -42,7 +42,7 @@
     const date=value=>new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
     function showLogin(message=''){byId('login').classList.remove('hidden');byId('dashboard').classList.add('hidden');byId('signout').classList.add('hidden');byId('login-error').textContent=message}
     async function showDashboard(user){
-      if(!isAdmin(user)){showLogin('This account does not have administrator access.');return}
+      if(!isAdmin(user)){showLogin('Sign in with your team administrator credentials.');return}
       byId('login').classList.add('hidden');byId('dashboard').classList.remove('hidden');byId('signout').classList.remove('hidden');byId('dashboard-error').textContent='';
       const {data,error}=await db.rpc('get_weekly_engagement_okr');if(error){byId('dashboard-error').textContent='Could not load the tracker: '+error.message;return}
       byId('percent').textContent=data.engagement_percent+'%';byId('percent').classList.toggle('met',!!data.goal_met);byId('goal').textContent=data.goal_met?'Goal met':'Goal not met yet';
