@@ -1,5 +1,7 @@
 # Shared assignment creation contract
 
+**Historical proposal:** the working implementation is documented in [AI assignment creation](ai-assignment-creation.md). It uses a class-name label because the prototype has no verified Class-table relation, and structured reply data rather than a separate prepare tool. Both paths call the shared `create_saved_assignment` database function. The original proposal below is retained as design context.
+
 Agreed feature requirements, October 30, 2026. The teammate building manual creation should use this contract so the AI can use the same saving function later.
 
 **Status:** design and prompt handoff only. Manual database creation has not been implemented. The existing AI remains advice-only. Do not enable the new prompt by itself: it needs draft review, validation, and a working creation function first.

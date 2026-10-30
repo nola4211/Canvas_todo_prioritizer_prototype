@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createAIHandler} from './supabase/functions/study-assistant/index.ts';
+import {createAIHandler,prepareDraft,assignmentResponseFormat} from './supabase/functions/study-assistant/index.ts';
 const env={SUPABASE_URL:'https://database.test',SUPABASE_ANON_KEY:'public',SUPABASE_SERVICE_ROLE_KEY:'server',OPENAI_API_KEY:'secret'};
 const turn={chatId:'1',requestId:'11111111-1111-4111-8111-111111111111',message:'What should I study?'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status});
@@ -10,7 +10,7 @@ function setup(options={}){
   if(url.endsWith('/auth/v1/user'))return json({id:'owner'},options.authStatus||200);
   if(url.includes('begin_ai_turn'))return options.beginError?json({message:options.beginError},400):json(options.cached?{cached:true,reply:'Already saved'}:{cached:false});
   if(url.includes('finish_ai_turn'))return options.saveError&&JSON.parse(init.body).p_reply?json({message:'private database details'},500):new Response(null,{status:204});
-  if(url==='https://api.openai.com/v1/responses')return options.providerError?json({error:{code:options.providerError==='credits'?'credit_balance_exhausted':'rate_limit_exceeded',message:'secret diagnostic'}},429):json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'Study the exam first.'}]}]});
+  if(url==='https://api.openai.com/v1/responses')return options.providerError?json({error:{code:options.providerError==='credits'?'credit_balance_exhausted':'rate_limit_exceeded',message:'secret diagnostic'}},429):json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({reply:'Study the exam first.',draft:options.draft||null})}]}]});
   if(url.includes('/message?'))return json([{role:'assistant',message:'Earlier advice'},{role:'user',message:'Earlier question'}]);
   if(url.includes('/assignments?'))return json([{name:'Exam',percentage_of_grade:25}]);
   return json([]);
@@ -34,6 +34,20 @@ for(const [options,body,headers,status] of [
  const s=setup({cached:true});assert.equal((await s.request()).status,200);assert.ok(!s.calls.some(c=>c.url.includes('api.openai.com')));
 }
 for(const options of [{providerError:true},{providerError:'credits'},{saveError:true}]){
- const s=setup(options);const r=await s.request();assert.equal(r.status,502);const text=await r.text();assert.doesNotMatch(text,/private database|secret diagnostic/);if(options.providerError==='credits')assert.match(text,/API quota/);assert.equal(JSON.parse(s.calls.at(-1).init.body).p_reply,null);
+ const s=setup(options);const r=await s.request();assert.equal(r.status,502);const text=await r.text();assert.doesNotMatch(text,/private database|secret diagnostic/);if(options.providerError==='credits')assert.match(text,/usage credit/);assert.equal(JSON.parse(s.calls.at(-1).init.body).p_reply,null);
 }
 console.log('Chat backend checks passed: auth, privacy headers, context, history, caching, limits, provider failure, and save failure.');
+
+const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
+const complete={name:'Exam',class_name:'IS 401',due_date:today,estimated_minutes:60,time_source:'student',estimate_allowed:false,optional:false,percentage_of_grade:null,grade_weight_answered:true};
+assert.equal(prepareDraft(complete,today).draft.status,'review');
+for(const patch of [{name:null},{class_name:null},{due_date:'2026-02-30'},{estimated_minutes:null},{optional:null},{grade_weight_answered:false},{percentage_of_grade:101},{time_source:'ai_estimate',estimate_allowed:false}])assert.equal(prepareDraft({...complete,...patch},today).draft.status,'collecting');
+assert.equal(prepareDraft({...complete,time_source:'ai_estimate',estimate_allowed:true},today).draft.status,'review');
+assert.match(prepareDraft({...complete,grade_weight_answered:false},today).reply,/I don’t know/);
+assert.equal(assignmentResponseFormat.strict,true);
+{
+ const s=setup({draft:complete});const r=await s.request();assert.equal(r.status,200);
+ const finish=JSON.parse(s.calls.at(-1).init.body);assert.equal(finish.p_draft.status,'review');assert.equal(finish.p_draft.percentage_of_grade,null);
+ assert.ok(!s.calls.some(c=>c.url.includes('create_saved_assignment')||c.url.includes('confirm_ai_assignment')));
+}
+console.log('PASS: complete/partial drafts, permission to estimate, unknown grade weight, strict output, and no AI-side assignment writes.');

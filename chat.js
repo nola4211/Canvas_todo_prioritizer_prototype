@@ -1,7 +1,8 @@
 // Browser-side chat state. The OpenAI key is never used here.
 (function(root){
-  function create(client){
-    let conversations=[],selected=null,messages=[],loading=false,sending=false,version=0,retry=null;
+  function create(client,options={}){
+    const backend=options.backend;
+    let conversations=[],selected=null,messages=[],loading=false,sending=false,version=0,retry=null,draft=null;
     const el=id=>document.getElementById(id);
     function message(text,role){const node=document.createElement('div');node.className='msg '+(role==='user'?'me':'bot');node.textContent=text;return node}
     function status(text){el('chat-status').textContent=text}
@@ -11,32 +12,77 @@
       for(const chat of conversations){const option=document.createElement('option');option.value=chat.id;option.textContent=chat.title;select.append(option)}
       select.value=selected || '';select.disabled=loading||sending;
       el('chat-new').disabled=loading||sending;el('chat-send').disabled=loading||sending||!selected;el('ci').disabled=loading||sending||!selected;
-      el('chat-retry').hidden=!retry;el('chat-retry').disabled=sending||loading;
+      el('chat-retry').hidden=!retry||sending||loading;el('chat-retry').disabled=sending||loading;
       const area=el('cb');area.replaceChildren();
       if(!selected)area.append(message('Start a new conversation to ask about your saved assignments, lists, and priorities.','assistant'));
       for(const item of messages){
-        const node=message(item.message,item.role);
-        if(item.status==='failed')node.append(document.createTextNode('\nReply failed. You can retry this message.'));
-        if(item.status==='pending')node.append(document.createTextNode('\nReply pending. Reload or wait before retrying.'));
+        const friendlyText=item.role==='assistant'&&/^Created assignment: .+\. Saved to Supabase\.$/.test(item.message)?'Assignment successfully saved!':item.message;
+        const node=message(friendlyText,item.role);
+        if(item.status==='failed'&&!sending)node.append(document.createTextNode('\nI couldn’t finish that reply. Please try again.'));
+        if(item.status==='pending'&&!sending)node.append(document.createTextNode('\nThis reply hasn’t finished yet. Please wait a moment before trying again.'));
         area.append(node);
       }
+      renderDraft(area);
       area.scrollTop=area.scrollHeight;
     }
-    async function query(result){const {data,error}=await result;if(error)throw new Error(error.message || 'Chat database request failed.');return data}
-    function reset(){version++;conversations=[];selected=null;messages=[];loading=false;sending=false;retry=null;status('');el('ci').value='';render()}
+    function renderDraft(area){
+      if(!draft||!['collecting','review'].includes(draft.status))return;
+      const box=document.createElement('div');box.className='card';box.id='assignment-review';
+      const heading=document.createElement('strong');heading.textContent=draft.status==='review'?'Review assignment':'Assignment draft';box.append(heading);
+      const fields=[['Name',draft.name],['Class',draft.class_name],['Due date',draft.due_date],
+        ['Estimated time',draft.estimated_minutes==null?null:draft.estimated_minutes+' minutes'+(draft.time_source==='ai_estimate'?' (AI estimate)':'')],
+        ['Optional',draft.optional===null?null:draft.optional?'Yes — lowest priority':'No'],
+        ['Grade weight',!draft.grade_weight_answered?null:draft.percentage_of_grade===null?'Unknown':draft.percentage_of_grade+'%']];
+      for(const [label,value] of fields){const line=document.createElement('p');line.className='sub';line.textContent=label+': '+(value??'Not answered');box.append(line)}
+      function button(id,text,action){const b=document.createElement('button');b.id=id;b.className='btn';b.textContent=text;b.disabled=sending||loading;b.onclick=action;box.append(b)}
+      if(draft.status==='review'){
+        if(draft.estimated_minutes>600){const label=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.id='chat-long-confirm';check.disabled=sending||loading;label.append(check,document.createTextNode(' I confirm this estimate is over 10 hours.'));box.append(label)}
+        button('chat-create-assignment','Create assignment',confirmDraft);
+        button('chat-edit-assignment','Edit details',()=>changeDraft('edit'));
+      }
+      button('chat-cancel-assignment','Cancel draft',()=>changeDraft('cancel'));
+      area.append(box);
+    }
+    async function confirmDraft(){
+      if(sending||loading||draft?.status!=='review'||!backend)return;
+      const longConfirmed=draft.estimated_minutes<=600||el('chat-long-confirm')?.checked;
+      if(!longConfirmed){status('Confirm the estimate over 10 hours before creating.');return}
+      const current=version,chatId=selected,requestId=draft.request_id;
+      sending=true;render();status('Saving assignment…');
+      try{
+        const saved=await backend.confirmAssignmentDraft(chatId,requestId,longConfirmed);
+        if(current!==version)return;
+        sending=false;await selectChat(chatId);
+        if(version!==current+1)return;
+        if(options.onSaved)await options.onSaved(saved);
+      }catch(error){if(current===version){sending=false;render();status('I couldn’t confirm the save. Please reopen this chat and try again.')}}
+    }
+    async function changeDraft(action){
+      if(sending||loading||!draft||!backend)return;
+      const current=version,chatId=selected;sending=true;render();status(action==='cancel'?'Cancelling draft…':'Opening draft for changes…');
+      try{
+        await backend.changeAssignmentDraft(chatId,draft.request_id,action);
+        if(current!==version)return;
+        sending=false;await selectChat(chatId);
+        if(action==='edit'){status('What would you like to change? I’ll show you the updated details before saving.');el('ci').focus()}
+      }catch(error){if(current===version){sending=false;render();status('I couldn’t update your draft right now. Please try again.')}}
+    }
+    async function query(result){const {data,error}=await result;if(error)throw new Error(error.message || 'I couldn’t reach your saved chats.');return data}
+    function reset(){version++;conversations=[];selected=null;messages=[];loading=false;sending=false;retry=null;draft=null;status('');el('ci').value='';render()}
     async function selectChat(id){
       if(sending)return;
-      const current=++version;selected=id || null;messages=[];retry=null;loading=true;render();status('Loading conversation…');
+      const current=++version;selected=id || null;messages=[];retry=null;draft=null;loading=true;render();status('Loading conversation…');
       try{
         if(selected){
           const rows=await query(client.from('message').select('message_ID,role,message,status,request_id,sent_at').eq('chat_ID',selected).order('message_ID',{ascending:false}).limit(100));
           if(current!==version)return;
           messages=rows.reverse();
+          if(backend){const loadedDraft=await backend.loadAssignmentDraft(selected);if(current!==version)return;draft=loadedDraft;}
           const last=messages[messages.length-1];
           if(last&&last.role==='user'&&last.status!=='complete')retry={requestId:last.request_id,message:last.message};
         }
-        if(current===version)status('History saved in Supabase. Advice only; tasks will not be changed.');
-      }catch(error){if(current===version){messages=[];status('Could not load this conversation: '+error.message)}}
+        if(current===version)status('Your chats and drafts are saved. Review the details before creating an assignment.');
+      }catch(error){if(current===version){messages=[];draft=null;status('I couldn’t open this chat right now. Please try again.')}}
       finally{if(current===version){loading=false;render()}}
     }
     async function open(){
@@ -48,7 +94,7 @@
         conversations=rows.map(row=>({...row,id:root.CanvasBackend.id(row.chat_ID)}));
         loading=false;
         await selectChat(conversations.some(chat=>chat.id===selected)?selected:conversations[0]?.id || null);
-      }catch(error){if(current===version){loading=false;status('Could not load chat history: '+error.message);render()}}
+      }catch(error){if(current===version){loading=false;status('I couldn’t load your chats right now. Please try again.');render()}}
     }
     async function newChat(){
       if(loading||sending)return;
@@ -58,11 +104,11 @@
         const chat=await query(client.rpc('create_ai_chat',{p_title:title}));
         if(current!==version)return;
         conversations.unshift(chat);loading=false;await selectChat(chat.id);
-      }catch(error){if(current===version){loading=false;status('Could not create conversation: '+error.message);render()}}
+      }catch(error){if(current===version){loading=false;status(error.message.includes('limit')?'You’ve reached the saved chat limit. Please use an existing chat.':'I couldn’t start a new chat right now. Please try again.');render()}}
     }
     async function send(useRetry=false){
       if(loading||sending||!selected)return;
-      if(retry&&!useRetry){status('Retry the unanswered message first, or start a new conversation.');return}
+      if(retry&&!useRetry){status('Please retry your last message first, or start a new chat.');return}
       const text=useRetry?retry?.message:el('ci').value.trim();
       if(!text||text.length>2000){status('Enter a message between 1 and 2000 characters.');return}
       const turn=useRetry?retry:{requestId:crypto.randomUUID(),message:text};
@@ -72,17 +118,17 @@
         if(sessionError||!sessionData.session)throw new Error('Sign in again before sending.');
         const {data,error}=await client.functions.invoke('study-assistant',{body:{chatId,requestId:turn.requestId,message:turn.message},headers:{Authorization:'Bearer '+sessionData.session.access_token}});
         if(error){
-          let detail='The assistant could not answer. Reload or retry.';
+          let detail='I couldn’t finish that reply. Please try again.';
           if(error.context){try{const body=await error.context.json();detail=body.error || detail}catch{}}
           throw new Error(detail);
         }
-        if(!data||typeof data.reply!=='string'||!data.reply.trim())throw new Error('No confirmed reply was returned. Reload the conversation.');
+        if(!data||typeof data.reply!=='string'||!data.reply.trim())throw new Error('Your reply isn’t ready. Please reopen this chat and try again.');
         if(current!==version)return;
         retry=null;el('ci').value='';sending=false;
         await selectChat(chatId);
       }catch(error){if(current===version){status(error.message);sending=false;render()}}
     }
-    return {open,newChat,selectChat,send,reset};
+    return {open,newChat,selectChat,send,confirmDraft,changeDraft,reset};
   }
   root.CanvasChat={create};
 })(typeof window==='undefined'?globalThis:window);

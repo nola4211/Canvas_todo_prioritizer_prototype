@@ -90,16 +90,16 @@ input[type=checkbox]{width:auto}
   <div class="grid" id="cg"></div><div id="dayp"></div></div></div>
 
  <div class="scr ov" id="chat"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2>AI Assistant</h2><button class="btn" id="chat-new" onclick="chatClient.newChat()">New chat</button></div>
-  <div style="padding:10px 14px"><label for="chat-history">Saved conversations</label><select id="chat-history" onchange="chatClient.selectChat(this.value)"></select><p class="sub">Uses your database-saved tasks. Device-only tasks are not included.</p></div>
+  <div style="padding:10px 14px"><label for="chat-history">Saved conversations</label><select id="chat-history" onchange="chatClient.selectChat(this.value)"></select><p class="sub">Ask about your assignments, or tell me about a new one you’d like to add.</p></div>
   <div class="body" id="cb"></div><p class="sub" id="chat-status" role="status" style="padding:0 14px"></p>
-  <button class="btn" id="chat-retry" onclick="chatClient.send(true)" hidden>Retry unanswered message</button>
+  <button class="btn" id="chat-retry" onclick="chatClient.send(true)" hidden>Try again</button>
   <div class="foot"><input id="ci" maxlength="2000" aria-label="Message the assistant" placeholder="Ask about your saved tasks…" onkeydown="if(event.key==='Enter')chatClient.send()"><button class="btn p" id="chat-send" style="flex:none" onclick="chatClient.send()">Send</button></div></div>
 
  <div class="scr ov" id="create"><div class="hd"><h2>New Assignment</h2></div>
-  <div class="body"><label>Name</label><input id="cn" placeholder="e.g. Lab report"><label>Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label>Class</label><select id="cc"></select>
+  <div class="body"><label>Name</label><input id="cn" placeholder="e.g. Lab report"><label>Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label for="cc">Class name</label><input id="cc" maxlength="100" placeholder="e.g. IS 401">
   <label>Estimated time (minutes)</label><input id="ct" placeholder="e.g. 45m or 1h 30m" value="45m"><div class="err" id="ce"></div>
-  <div class="tg" style="border:0"><span>Let AI decide the time</span><input type="checkbox" id="ca" onchange="ct.disabled=this.checked"></div>
-  <div class="tg" style="border:0"><span>Optional (lowest priority)</span><input type="checkbox" id="co"></div></div>
+  <div class="tg" style="border:0"><span>Suggest time from the title</span><input type="checkbox" id="ca" onchange="suggestAssignmentTime()"></div><p class="sub" id="time-note">Review the time estimate before selecting Create.</p>
+  <label for="cg-weight">Assignment % of course grade</label><input id="cg-weight" type="number" min="0" max="100" step="0.01" placeholder="0–100"><div class="tg" style="border:0"><span>I don’t know the grade weight</span><input type="checkbox" id="cg-unknown" onchange="document.getElementById('cg-weight').disabled=this.checked"></div><div class="tg" style="border:0"><span>Optional (lowest priority)</span><input type="checkbox" id="co"></div></div>
   <div class="foot"><button class="btn" id="create-cancel" onclick="cancelC()">Cancel</button><button class="btn p" id="create-submit" onclick="createA()">Create</button></div></div>
 
  <div class="scr ov" id="panel"><div class="hd"><button class="ib" onclick="closeOv()">‹</button><h2 id="pt"></h2></div><div class="body" id="pb"></div></div>
@@ -117,8 +117,9 @@ input[type=checkbox]{width:auto}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
-<script src="backend.js?v=20261030-create-1"></script>
-<script src="chat.js?v=20261030-1"></script>
+<script src="assignment-fields.js?v=20261030-ai-create-1"></script>
+<script src="backend.js?v=20261030-ai-create-1"></script>
+<script src="chat.js?v=20261030-ai-create-1"></script>
 <script>
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
@@ -151,7 +152,7 @@ function home(){
   const completed=srt(S.A.filter(a=>S.done[a.id]));
   h=incomplete.map(card).join('')+(completed.length?'<div class="gh">Completed</div>'+completed.map(card).join(''):'');
  }
- else if(t.id=='classes')h=CL.map(c=>{const x=srt(S.A.filter(a=>a.c==c));return x.length?`<div class="gh">${c}</div>`+x.map(card).join(''):''}).join('');
+ else if(t.id=='classes')h=[...new Set(S.A.map(a=>a.c))].sort().map(c=>{const x=srt(S.A.filter(a=>a.c==c));return x.length?`<div class="gh">${esc(c)}</div>`+x.map(card).join(''):''}).join('');
  else h='<button class="btn" onclick="openListEditor()">Edit list and assignments</button>'+ (srt(S.A.filter(a=>S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id))).map(card).join('')||'<div class="hint">This list is empty. Choose Edit list and assignments to add assignments.</div>');
  const config=currentListPriorities();
  const summary=config.ignore_user_rules?'This list ignores your settings priorities.':'Settings priorities first, then this list’s priorities.';
@@ -187,7 +188,7 @@ async function signIn(){
 }
 async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db);const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;showSession();if(user)await loadTasks();db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
@@ -319,19 +320,21 @@ async function openChat(){
 /* create */
 const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
 let pendingCreation=null;
-function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').innerHTML=CL.map(c=>`<option ${c==d.c?'selected':''}>${c}</option>`).join('');ov('create')}
+function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').value=d.c||'';$('cg-weight').value=d.g==null?'':d.g;$('cg-unknown').checked=false;$('cg-weight').disabled=false;ov('create')}
+function suggestAssignmentTime(){if(!$('ca').checked)return;const n=$('cn').value;const estimate=EX.test(n)?60:/read/i.test(n)?30:/essay|paper|project/i.test(n)?120:/lab|hw|homework|problem/i.test(n)?45:45;$('ct').value=estimate+'m';$('time-note').textContent='Suggested estimate: '+estimate+' minutes. Adjust it before creating if needed.'}
 async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.loading||S.listSaving||S.prioritySaving)return;const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
  if(!n){$('cn').focus();return}
  if(!d||d<TODAY){$('cde').textContent="Due date can't be in the past.";return}
  let t=null;
- if($('ca').checked){t=EX.test(n)?60:/read/i.test(n)?30:/essay|paper|project/i.test(n)?120:/lab|hw|homework|problem/i.test(n)?45:null}
- else{t=parseT($('ct').value);if(isNaN(t)||t<1){$('ce').textContent='Use minutes or hours, like "45m", "1h 30m" or "2h".';return}
+ {t=parseT($('ct').value);if(isNaN(t)||t<1){$('ce').textContent='Use minutes or hours, like "45m", "1h 30m" or "2h".';return}
   if(t>600&&force!==1){$('ce').innerHTML='That is over 10 hours. Is that right? <button class="lk" onclick="createA(1)">Yes, confirm</button>';return}}
- const o=$('co').checked,details={n,d,t,p:o?0:2,o,completed:false};
+ const o=$('co').checked,weight=$('cg-weight').value.trim();
+ if(!$('cg-unknown').checked&&!weight){$('ce').textContent='Enter the grade weight, or choose that you do not know it.';return}
+ let details;try{details={...AssignmentFields.validate({n,c:$('cc').value,d,t,o,g:$('cg-unknown').checked?null:Number(weight)}),completed:false}}catch(error){$('ce').textContent=error.message;return}
  const signature=JSON.stringify(details);
  if(!pendingCreation||pendingCreation.signature!==signature)pendingCreation={signature,requestId:crypto.randomUUID()};
  S.createSaving=true;showError('');$('create-submit').disabled=$('create-cancel').disabled=true;$('create-submit').textContent='Saving…';lockListControls();
- try{const assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId});S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;$('sync-status').textContent='Assignment saved to Supabase';ov();home();toast('Assignment saved to Supabase');if(EX.test(n))toast('Exam saved. Consider setting a study priority based on how comfortable you feel in this class.')}
+ try{const assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId,confirmLong:force===1});S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;$('sync-status').textContent='Assignment saved to Supabase';ov();home();toast('Assignment saved to Supabase');if(EX.test(n))toast('Exam saved. Consider setting a study priority based on how comfortable you feel in this class.')}
  catch(error){$('ce').textContent='Could not save: '+error.message}
  finally{S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=false;$('create-submit').textContent='Create';lockListControls()}}
 async function importLocalAssignment(id){
@@ -339,7 +342,7 @@ async function importLocalAssignment(id){
  const assignment=S.A.find(a=>a.id===id&&!a.persisted);if(!assignment)return;
  if(!assignment.requestId){assignment.requestId=crypto.randomUUID();if(!saveLocalAssignments())return}
  S.createSaving=true;showError('');lockListControls();$('sync-status').textContent='Saving assignment to Supabase…';home();
- try{const saved=await backend.createAssignment({...assignment,requestId:assignment.requestId});S.A=S.A.filter(a=>a.id!==id);S.A.push(saved);delete S.done[id];S.done[saved.id]=saved.completed;saveLocalAssignments();$('sync-status').textContent='Assignment saved to Supabase';toast('Assignment saved to Supabase')}
+ try{const saved=await backend.createAssignment({...assignment,g:null,c:assignment.c||'Shared demo',requestId:assignment.requestId});S.A=S.A.filter(a=>a.id!==id);S.A.push(saved);delete S.done[id];S.done[saved.id]=saved.completed;saveLocalAssignments();$('sync-status').textContent='Assignment saved to Supabase';toast('Assignment saved to Supabase')}
  catch(error){showError('Could not save assignment: '+error.message);$('sync-status').textContent='Assignment remains on this device'}
  finally{S.createSaving=false;lockListControls();paint()}
 }
