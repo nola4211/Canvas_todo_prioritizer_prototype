@@ -11,7 +11,7 @@ Ran `docs/verify-assignment-creation.sql` as simulated Auth roles. It returned *
 ## Local checks
 
 - `node test-assignment-create.cjs` passed assignment insertion, Denver date conversion, duplicate retry recovery, list membership, completion, and fallback loading against an older schema.
-- `node test-local-assignments.cjs` passed form save/retry, refresh loading, explicit import of an older device-only assignment, and retention of a local card on a failed import.
+- `node test-local-assignments.cjs` passes direct Supabase creation, retry after a failed save, refresh loading, and the absence of device-only assignment controls.
 - Existing completion, list, priority, and chat frontend suites passed. `git diff --check` passed.
 
-After the migration, a fresh authenticated local preview loaded the three Supabase assignments and two existing device-only assignments. No persistent assignment was created in the browser during verification, so the full browser create → refresh → list → assistant path remains to be checked. The shared demo login makes created rows visible to everyone using that account.
+The current app loads assignments from Supabase only. A failed save leaves the creation form open and does not create a device-only card. The shared demo login makes created rows visible to everyone using that account.

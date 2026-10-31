@@ -1,10 +1,10 @@
 // This adapter uses the existing schema; it creates no tables or sample rows.
 (function (root) {
   'use strict';
-  const columns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id';
+  const columns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
   const legacyColumns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
   const missingCreationColumns = error => error && (error.code === '42703' ||
-    /(?:optional|client_request_id).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id)/i.test(error.message || ''));
+    /(?:optional|client_request_id|class_name).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id|class_name)/i.test(error.message || ''));
   function id(value) {
     if (typeof value === 'number' && !Number.isSafeInteger(value)) throw new Error('Assignment ID exceeds the browser safe integer range.');
     const result = String(value);
@@ -26,7 +26,7 @@
       const part = type => parts.find(p => p.type === type).value;
       due = `${part('year')}-${part('month')}-${part('day')}`;
     }
-    return { id: id(row.assignment_id), n: String(row.name ?? ''), c: 'Shared demo', d: due || '9999-12-31', noDue: !due,
+    return { id: id(row.assignment_id), n: String(row.name ?? ''), c: row.class_name || 'Shared demo', d: due || '9999-12-31', noDue: !due,
       t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade),
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), o: !!row.optional, l: null,
       completed: row.completed, requestId: row.client_request_id || null, persisted: true };
@@ -44,42 +44,42 @@
     const allowed = [...new Set(assignmentIds.map(id))];
     let visible = new Set(allowed);
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
-    function dueTimestamp(value) {
-      const check = new Date(value+'T12:00:00Z');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(check.valueOf()) || check.toISOString().slice(0, 10) !== value) throw new Error('Choose a valid due date.');
-      const offset = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', timeZoneName: 'shortOffset' })
-        .formatToParts(new Date(value+'T12:00:00Z')).find(part => part.type === 'timeZoneName')?.value;
-      const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(offset || '');
-      if (!match) throw new Error('Could not determine the due date time zone.');
-      const minutes = (match[1] === '-' ? -1 : 1) * (+match[2] * 60 + +(match[3] || 0));
-      const [year, month, day] = value.split('-').map(Number);
-      return new Date(Date.UTC(year, month - 1, day, 23, 59) - minutes * 60000).toISOString();
-    }
-    function newAssignment(input) {
-      const name = String(input.n || '').trim();
-      if (!name || name.length > 200) throw new Error('Use an assignment name between 1 and 200 characters.');
-      if (input.t != null && (!Number.isSafeInteger(input.t) || input.t < 1 || input.t > 10080)) throw new Error('Estimated time must be between 1 minute and 7 days.');
-      if (!Number.isInteger(input.p) || input.p < 0 || input.p > 3) throw new Error('Invalid priority.');
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId)) throw new Error('Invalid save request ID.');
-      return { name, due_date: dueTimestamp(input.d), est_time: input.t == null ? null : input.t+' minutes',
-        priority: input.p, optional: !!input.o, percentage_of_grade: null, completed: !!input.completed,
-        deleted: false, client_request_id: input.requestId };
-    }
     return {
+      async recordAppOpen() {
+        const {data,error}=await client.rpc('record_app_open');
+        if(error)throw new Error(error.message || 'Could not record app activity.');
+        return data;
+      },
+      async loadWeeklyEngagementOKR() {
+        const {data,error}=await client.rpc('get_weekly_engagement_okr');
+        if(error)throw new Error(error.message || 'Could not load the weekly engagement tracker.');
+        return data;
+      },
       async createAssignment(input) {
-        const patch = newAssignment(input);
-        const query = () => client.from('assignments').select(columns).eq('client_request_id', patch.client_request_id).single();
-        const { data, error } = await client.from('assignments').insert(patch).select(columns).single();
-        let row = data;
-        if (error?.code === '23505') {
-          const existing = await query();
-          if (existing.error || !existing.data) throw new Error('The assignment may have saved. Reload assignments before retrying.');
-          row = existing.data;
-        } else if (error) throw new Error(missingCreationColumns(error) ? 'Database setup pending: apply the assignment creation migration.' : error.message || 'Could not save assignment.');
-        if (!row) throw new Error('The assignment save was not confirmed. Reload assignments before retrying.');
-        const saved = record(row);
-        visible.add(saved.id);
-        return saved;
+        const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g});
+        const {data,error}=await client.rpc('create_saved_assignment',{
+          p_name:fields.n,p_class_name:fields.c,p_due_date:fields.d,p_estimated_minutes:fields.t,
+          p_optional:fields.o,p_percentage_of_grade:fields.g,p_request_id:input.requestId,
+          p_completed:!!input.completed,p_confirm_long:!!input.confirmLong
+        });
+        if(error)throw new Error(error.message || 'Could not save assignment.');
+        if(!data)throw new Error('The assignment save was not confirmed. Reload assignments before retrying.');
+        const saved=record(data);visible.add(saved.id);return saved;
+      },
+      async loadAssignmentDraft(chatId) {
+        const {data,error}=await client.from('chat').select('assignment_draft').eq('chat_ID',chatId).single();
+        if(error)throw new Error(error.message || 'Could not load the assignment draft.');
+        return data.assignment_draft;
+      },
+      async confirmAssignmentDraft(chatId,requestId,confirmLong) {
+        const {data,error}=await client.rpc('confirm_ai_assignment',{p_chat_id:chatId,p_request_id:requestId,p_confirm_long:!!confirmLong});
+        if(error)throw new Error(error.message || 'Could not create assignment.');
+        if(!data)throw new Error('The assignment save was not confirmed. Reload before retrying.');
+        const saved=record(data);visible.add(saved.id);return saved;
+      },
+      async changeAssignmentDraft(chatId,requestId,action) {
+        const {error}=await client.rpc('change_ai_assignment_draft',{p_chat_id:chatId,p_request_id:requestId,p_action:action});
+        if(error)throw new Error(error.message || 'Could not change the draft.');
       },
       async loadLists() {
         const { data, error } = await client.from('lists').select('id,name,priority_rules,ignore_user_rules').order('created_at').order('id');

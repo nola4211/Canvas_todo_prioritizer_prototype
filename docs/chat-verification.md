@@ -24,17 +24,14 @@ After the key owner added API credits:
 - Read-only database confirmation returned 2 conversations, 4 messages, 0 unfinished messages, and all three assignments still incomplete. The two earlier failed API attempts did not duplicate the saved user question.
 - The separate empty conversation remained available in the selector.
 
-<<<<<<< Updated upstream
-=======
 ## Chat-page UX update
 
 - New chats show a white welcome message and four blue suggested-question bubbles.
 - Selecting a suggested question uses the same saved send flow as typed text.
 - The history selector is a compact dropdown. Each entry shows a title of no more than five words and a date without a time.
-- The frontend derives a title from the first student message. A later catalog check found `name_ai_chat` absent, so `202610300005_chat_titles.sql` was applied to the live project. The migration verifies ownership before changing a title.
+- `202610300005_chat_titles.sql` was applied to the live project. It names a chat from its first student message and verifies ownership before changing a title.
 - Older empty timestamp-named conversations display as **New chat** because they have no question to summarize.
 
->>>>>>> Stashed changes
 Separate-account privacy was tested with actual database RLS under another Auth subject, rather than signing into a second browser account. No other student's real data was used. The frontend is verified in the local preview; GitHub Pages needs the frontend change merged/deployed.
 
 ## Live function repair — October 30, 2026

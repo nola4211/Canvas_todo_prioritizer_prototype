@@ -1,6 +1,8 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
-**Assignment creation update — October 30, 2026:** the Add Assignment form now saves new tasks to Supabase. Existing device-only tasks have a **Save to Supabase** action. The migration was applied to the live project; a rollback-only database check passed creation, completion, and account isolation. Frontend creation in a signed-in browser has not yet been exercised against the live project. See [Database-backed assignment creation](#database-backed-assignment-creation).
+**AI assignment creation update — October 30, 2026:** the chatbot now collects assignment details into a saved draft, asks for missing answers, and offers a review before creation. The manual form and reviewed chat draft use one database creation function. See [AI assignment creation](docs/ai-assignment-creation.md) for setup, the system prompt, limits, and verification. This update supersedes the earlier advice-only behavior below.
+
+**Assignment creation update — October 30, 2026:** the Add Assignment form saves new tasks directly to Supabase. The app displays database assignments only; it does not create or load device-only assignments. The migration was applied to the live project, and a rollback-only database check passed creation, completion, and account isolation. See [Database-backed assignment creation](#database-backed-assignment-creation).
 
 **AI update — October 30, 2026:** saved conversations, a read-only OpenAI backend, and account privacy are implemented. The migration and backend are deployed; automated and live database checks passed. After the API project was funded, real replies, follow-up context, refresh persistence, and advice-only behavior passed in the signed-in preview. See the AI study assistant section and `docs/chat-verification.md`. Frontend changes require merging/deploying this update. Earlier status notes below describe prior releases.
 
@@ -93,7 +95,7 @@ Use Node.js from its official distribution. From this repository folder run:
 node serve.cjs
 ```
 
-Open `http://127.0.0.1:4183/`, sign in with the shared account, and wait for **assignments loaded from Supabase**. The AI Edge Function allows this local origin. If port 4183 is in use, choose another port with `node serve.cjs PORT` and add its origin to the function's `ALLOWED_ORIGINS` setting. Internet is required for the client CDN and Supabase.
+Open `http://127.0.0.1:4183/`, sign in with the shared account, and wait for **assignments loaded from Supabase**. If port 4183 is in use, choose another port with `node serve.cjs PORT` and add its origin to the function's `ALLOWED_ORIGINS` setting. Internet is required for the client CDN and Supabase.
 
 GitHub Pages deployment should be checked separately after publishing source changes; local verification does not establish deployment. Missing configuration shows **Demo setup pending**. Failed loads show an error and no fixture cards. An empty successful load indicates sample rows or their access policies need checking.
 
@@ -160,7 +162,7 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 
 The migration adds nullable `owner_id` and `client_request_id` fields and an `optional` flag. New rows get their owner from the signed-in Auth account. Row policies allow that account to read, create, and complete its own assignments; the browser receives insert access only for the fields used by the form. The existing demo rows remain available through their earlier policy. The shared demo login is one account, so everyone using it shares new tasks. Separate student privacy requires separate Auth accounts.
 
-The Create button saves the name, Denver due date, estimated minutes, priority, and optional flag, then displays the returned assignment ID. The form stays open on failure. Each attempt has a request ID so a retry can find an already-saved row instead of duplicating it. Existing device-only cards have **Save to Supabase**; they remain on the device until that action succeeds. Reload reconciles a device card with a saved row using its request ID after a lost response. New database assignments can join saved lists and appear in the assistant's database context. The class selector still has only **Shared demo** because the current `assignments` table has no verified class relation. The form has no grade-weight field, so new rows save a null weight.
+The Create button saves the name, Denver due date, estimated minutes, priority, optional flag, class label, and grade weight, then displays the returned assignment ID. The form stays open on failure. Each attempt has a request ID so a retry can find an already-saved row instead of duplicating it. Assignments appear only after Supabase confirms the save, and reload reads them back from the database. Saved assignments can join lists and appear in the assistant's database context.
 
 **Suggest time from the title** calls the existing `study-assistant` Edge Function with the signed-in account's token. The function sends only the assignment title to OpenAI and returns a rough 5–600 minute estimate; it does not save or create an assignment. Changing the title while the checkbox is on requests a new estimate after a short pause. Unchecking restores the previous manual time, and editing the time switches back to manual entry. If AI is unavailable, the form keeps the manual estimate and explains the failure. `202610300007_ai_time_suggestions.sql` adds an authenticated, per-account limit of 20 suggestions per hour. It and the updated Edge Function were applied to the current demo on October 30, 2026; do not rerun the migration there.
 
@@ -254,7 +256,7 @@ A rules value is a small JSON array, for example:
 
 **Applied to project `uowlwdwrqceklbqjcnmc` on October 28, 2026; do not rerun there.** The schema change is recorded in `supabase/migrations/202610280001_priorities.sql`. Apply it once after the lists migration, and do not rerun either old migration against an already-updated project. It preserves assignments, list names, memberships, and existing policies. New columns default to no list rules and no override. A missing migration or failed priorities load shows an error and prevents editing unsafely.
 
-Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `node test-local-assignments.cjs`. The last check now covers database creation and explicit import of older device-only assignments alongside saved priorities. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
+Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `node test-local-assignments.cjs`. The last check covers direct database creation, failed-save retry, reload persistence, and the absence of device-only assignment controls. `docs/verify-priorities.sql` checks the real database constraints, saving/readback, and private access, with all its test writes rolled back.
 
 ### Manual verification
 
@@ -269,26 +271,23 @@ Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `nod
 
 ## AI study assistant
 
-The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It cannot edit tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
+The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It can prepare new assignments for review and confirmation; it cannot edit, delete, or complete existing tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
 
-Choose **New chat**, enter a question, and send it. The history selector switches between conversations. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
+Choose **New chat** to see a welcome message and four blue suggested-question bubbles. Selecting a suggestion sends it like a typed question. The compact history selector shows a five-word-or-shorter summary and creation date, without a timestamp. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
 
 ### Tables and functions
 
 - Existing `chat` holds one row per conversation: its Auth `owner_id`, title, timestamps, and a short request lock. The older nullable `user_ID` is left alone; it is not the Auth owner.
 - Existing `message` holds individual user/assistant messages linked by `chat_ID`, with a request ID and pending/complete/failed status. The conversation lives in `chat`; its text lives in `message`.
 - `create_ai_chat` creates a conversation for the signed-in account (maximum 50 per account).
+- `name_ai_chat` gives a new conversation a title made from the first five words of its first student message. It verifies the conversation belongs to the signed-in account.
 - `begin_ai_turn` saves/reserves a user question, checks ownership and limits, and returns a cached answer for completed retries.
 - `finish_ai_turn` saves the reply and updates the user message status together. Only the backend service role can call it.
 - `chat.js` handles the history selector, New chat, loading, sending, retries, and sign-out clearing. `supabase/functions/study-assistant/index.ts` verifies sign-in, loads data using the caller's permissions, calls OpenAI, and saves the answer. Ordinary browser accounts can read only their own conversations and cannot write fake assistant replies.
 
 ### Setup
 
-<<<<<<< Updated upstream
-The migration `supabase/migrations/202610300001_ai_chat.sql` was applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026. **Do not rerun it there.** For a different project, inspect the existing chat/message tables first, then apply this migration once in SQL Editor. It deliberately refuses to run if either table already contains data; existing conversations need ownership reviewed before migration. Do not rerun the old demo setup.
-=======
-The migrations `supabase/migrations/202610300001_ai_chat.sql` and `supabase/migrations/202610300005_chat_titles.sql` were applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026. **Do not rerun them there.** The title migration followed a later check that found `name_ai_chat` absent; its postflight confirmed authenticated execute access, no anonymous execute access, and existing titles updated. For a different project, inspect the existing chat/message tables first, then apply each migration once in SQL Editor. The first migration deliberately refuses to run if either table already contains data; existing conversations need ownership reviewed before migration. Do not rerun the old demo setup.
->>>>>>> Stashed changes
+The migrations `supabase/migrations/202610300001_ai_chat.sql` and `supabase/migrations/202610300005_chat_titles.sql` were applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026. **Do not rerun them there.** For a different project, inspect the existing chat/message tables first, then apply each migration once in SQL Editor. The first migration deliberately refuses to run if either table already contains data; existing conversations need ownership reviewed before migration. Do not rerun the old demo setup.
 
 Deploy `supabase/functions/study-assistant/index.ts` as the Edge Function **study-assistant**, keeping JWT verification enabled (`supabase/config.toml`). In Dashboard, use Edge Functions → Deploy a new function → Via Editor, replace `index.ts`, and use that exact name. Later changes use the function's Code tab → Deploy updates.
 
@@ -298,7 +297,7 @@ Default allowed website origins are `https://nola4211.github.io`, `http://127.0.
 
 ### Limits and checks
 
-Each question allows 2,000 characters. The function sends at most 20 previous completed messages, 50 database tasks, 50 lists, and 500 memberships, with a size guard. This prototype may not see every item in larger accounts. Each reply is capped at 900 output tokens. Accounts allow 30 attempts per hour, up to three attempts per request. A 90-second lock prevents overlapping replies within a conversation. Requests set `store: false` at OpenAI; the app's own history remains in Supabase. These limits bound prototype usage but do not replace OpenAI project spending limits.
+Each question allows 2,000 characters. The function sends at most 20 previous completed messages, 50 database tasks, 50 lists, and 500 memberships, with a size guard. This prototype may not see every item in larger accounts. Each reply, including its draft data, is capped at 1,400 output tokens. Accounts allow 30 attempts per hour, up to three attempts per request. A 90-second lock prevents overlapping replies within a conversation. Requests set `store: false` at OpenAI; the app's own history remains in Supabase. These limits bound prototype usage but do not replace OpenAI project spending limits.
 
 Run `node test-chat-backend.mjs` (Node 22.18+ or another runtime supporting `.ts` imports) and `node test-chat.cjs`, plus the four existing test commands above. Run `docs/verify-chat.sql` in SQL Editor to test privacy, write restrictions, request locking, atomic saving, retry caching, and duplicate prevention. Its test writes roll back.
 
@@ -307,8 +306,49 @@ Manual checks:
 1. Sign in, open Assistant, create a chat, and ask which saved task to start. Check assignment names and priorities against the app.
 2. Ask a follow-up referring to the previous answer. Refresh, reopen Assistant, and confirm both turns remain.
 3. Create another chat. It should start empty. Switch back to the first conversation to confirm separation.
-4. Ask the assistant to complete an assignment. It should explain it can only advise; task data should stay unchanged.
+4. Ask the assistant to complete an existing assignment. It should explain it cannot change existing tasks; task data should stay unchanged.
 5. A failed API request should show an error, retain the draft, and allow a retry. Check that retrying does not duplicate the user question in saved history.
 6. Sign out and sign in as a different account; the first account's conversations must not appear. The shared demo login is the same account on every device.
 
 See `docs/chat-verification.md` for completed live checks and any remaining external blockers.
+
+## Weekly engagement OKR tracker
+
+The OKR is measured as: **accounts that opened the app on every one of the last 7 Denver calendar days ÷ accounts that opened it at least once in the last 30 days**. The goal is 75%. This definition keeps the weekly result comparable while giving “active user” a clear meaning.
+
+`app_daily_activity` stores one row per Supabase Auth account per day. Opening or refreshing the signed-in app calls `record_app_open`; another open on the same day updates its timestamp and count instead of creating a duplicate. `get_weekly_engagement_okr` returns only aggregate counts, the percentage, and seven daily totals. It never returns account IDs or emails. Only a user whose Auth `app_metadata.role` is `admin` can call the report function or see **OKR Tracker** in the app menu.
+
+The migration `supabase/migrations/202610300006_weekly_engagement_okr.sql` was applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026; **do not rerun it there**. Apply it once on another project. To designate a team administrator, set that person's immutable Auth app metadata to `{ "role": "admin" }` with an administrator-controlled Supabase tool, then have them sign out and back in so their access token refreshes. Do not give the role to a shared public demo account in production. Every student needs a separate Auth account for the metric to represent individual users; a shared login always counts as one account.
+
+The tracker shows the current percentage against the 75% goal, the qualifying and active-account counts, and a seven-day unique-user bar chart. Run `node test-okr.cjs` to check the browser adapter and the migration's key privacy and calculation rules.
+
+Administrators choose **Team administrator** on the prototype login or open `admin.html`. The visible form accepts a username; internally the app maps it to a Supabase Auth identity in the same project. Administrators never need the Supabase dashboard for normal sign-in. The page checks the signed session and the protected database function checks the role again, so changing browser code cannot grant access. Never hardcode an administrator password in HTML or JavaScript. Add future team OKRs as additional aggregate cards on this dashboard.
+
+### Administrator login and maintenance
+
+The live prototype administrator was created on October 30, 2026 with username `admin`. Its password is shared with the project team separately and is intentionally excluded from this public repository.
+
+The automated suites and live administrator flows were verified on October 30, 2026. See [`docs/okr-verification.md`](docs/okr-verification.md) for the results and the limits of a metric that needs seven real days of activity.
+
+To use the administrator dashboard:
+
+1. Open the prototype and choose **Team administrator**, or open `admin.html` directly.
+2. Enter the administrator username and password. The app converts a username such as `admin` to the internal Auth identity `admin@canvas-prioritizer.local`; users never see or enter that internal address.
+3. After authentication, the page loads the protected aggregate OKR report. Choose **Sign out** when finished.
+
+To create or replace an administrator:
+
+1. In Supabase Authentication → Users, create and auto-confirm an internal user named `<username>@canvas-prioritizer.local`. Set its password there; never add the password to source code, SQL files, issues, or the README.
+2. In the SQL Editor, assign the protected role to that exact account:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+  || '{"role":"admin"}'::jsonb
+where email = '<username>@canvas-prioritizer.local';
+```
+
+3. Have the administrator sign out and sign in again so the refreshed session contains the new role.
+4. Verify that `admin.html` displays the OKR dashboard and that a regular account receives no aggregate report.
+
+To revoke access, remove the `role` key from that Auth user's app metadata or delete the dedicated administrator user. Keep administrator accounts separate from the shared student demo login.
