@@ -24,4 +24,21 @@ After the key owner added API credits:
 - Read-only database confirmation returned 2 conversations, 4 messages, 0 unfinished messages, and all three assignments still incomplete. The two earlier failed API attempts did not duplicate the saved user question.
 - The separate empty conversation remained available in the selector.
 
+<<<<<<< Updated upstream
+=======
+## Chat-page UX update
+
+- New chats show a white welcome message and four blue suggested-question bubbles.
+- Selecting a suggested question uses the same saved send flow as typed text.
+- The history selector is a compact dropdown. Each entry shows a title of no more than five words and a date without a time.
+- The frontend derives a title from the first student message. A later catalog check found `name_ai_chat` absent, so `202610300005_chat_titles.sql` was applied to the live project. The migration verifies ownership before changing a title.
+- Older empty timestamp-named conversations display as **New chat** because they have no question to summarize.
+
+>>>>>>> Stashed changes
 Separate-account privacy was tested with actual database RLS under another Auth subject, rather than signing into a second browser account. No other student's real data was used. The frontend is verified in the local preview; GitHub Pages needs the frontend change merged/deployed.
+
+## Live function repair — October 30, 2026
+
+The shared function later returned HTTP 503 to CORS preflight requests. Supabase runtime logs identified a startup `SyntaxError`: `assignmentInstructions` had been declared twice. A downloaded deployment contained the current 191-line source followed by an older second copy. Replacing the deployed `index.ts` with the repository source removed the duplicate. A fresh download matched the repository file byte for byte, and a signed-in retry at `http://127.0.0.1:4183/` returned a saved AI answer. The preview server now defaults to port 4183, which is in the function's origin allowlist.
+
+The browser also reported a 404 for `name_ai_chat`; a read-only catalog query confirmed the function was absent from the shared database. With user approval, `202610300005_chat_titles.sql` was applied once. Preflight found seven chats, all with placeholder titles. Postflight found seven chats and two placeholders (the empty conversations), plus execute permission for authenticated users only on `name_ai_chat` and no direct execute permission for `ai_chat_summary`. A refreshed browser displayed a persisted title and AI reply.
