@@ -95,7 +95,7 @@ Use Node.js from its official distribution. From this repository folder run:
 node serve.cjs
 ```
 
-Open `http://127.0.0.1:4181/`, sign in with the shared account, and wait for **assignments loaded from Supabase**. Use `node serve.cjs 4182` if port 4181 is in use. Internet is required for the client CDN and Supabase.
+Open `http://127.0.0.1:4183/`, sign in with the shared account, and wait for **assignments loaded from Supabase**. If port 4183 is in use, choose another port with `node serve.cjs PORT` and add its origin to the function's `ALLOWED_ORIGINS` setting. Internet is required for the client CDN and Supabase.
 
 GitHub Pages deployment should be checked separately after publishing source changes; local verification does not establish deployment. Missing configuration shows **Demo setup pending**. Failed loads show an error and no fixture cards. An empty successful load indicates sample rows or their access policies need checking.
 
@@ -163,6 +163,8 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 The migration adds nullable `owner_id` and `client_request_id` fields and an `optional` flag. New rows get their owner from the signed-in Auth account. Row policies allow that account to read, create, and complete its own assignments; the browser receives insert access only for the fields used by the form. The existing demo rows remain available through their earlier policy. The shared demo login is one account, so everyone using it shares new tasks. Separate student privacy requires separate Auth accounts.
 
 The Create button saves the name, Denver due date, estimated minutes, priority, optional flag, class label, and grade weight, then displays the returned assignment ID. The form stays open on failure. Each attempt has a request ID so a retry can find an already-saved row instead of duplicating it. Assignments appear only after Supabase confirms the save, and reload reads them back from the database. Saved assignments can join lists and appear in the assistant's database context.
+
+**Suggest time from the title** calls the existing `study-assistant` Edge Function with the signed-in account's token. The function sends only the assignment title to OpenAI and returns a rough 5–600 minute estimate; it does not save or create an assignment. Changing the title while the checkbox is on requests a new estimate after a short pause. Unchecking restores the previous manual time, and editing the time switches back to manual entry. If AI is unavailable, the form keeps the manual estimate and explains the failure. `202610300007_ai_time_suggestions.sql` adds an authenticated, per-account limit of 20 suggestions per hour. It and the updated Edge Function were applied to the current demo on October 30, 2026; do not rerun the migration there.
 
 Run `node test-assignment-create.cjs` and `node test-local-assignments.cjs` for the simulated create, retry, import, and reload paths. `docs/verify-assignment-creation.sql` passed in SQL Editor with its test write rolled back. The follow-up browser check is to create a synthetic assignment, refresh, complete it, add it to a saved list, and ask the assistant about it. Confirm the inserted row and ownership in Supabase. See `docs/assignment-creation-verification.md` for the completed checks and current limit.
 

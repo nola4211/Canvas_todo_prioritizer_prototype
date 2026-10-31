@@ -19,6 +19,13 @@ vm.runInContext(inline,context);
 const run=code=>vm.runInContext(code,context);
 const rows=[{id:'1',n:'Database task',g:25,t:60,d:'2026-10-01',c:'Shared demo',p:1,persisted:true,completed:false}];
 let failCreate=false,priorityLoads=0,createCalls=0;
+let estimateMinutes=90,estimateCalls=0,holdEstimate=false,releaseEstimate=null;
+context.testDb={auth:{getSession:async()=>({data:{session:{access_token:'demo-token'}}})},functions:{invoke:async(name,options)=>{
+  assert.equal(name,'study-assistant');assert.equal(options.body.action,'suggest_time');estimateCalls++;
+  if(holdEstimate)await new Promise(resolve=>{releaseEstimate=resolve});
+  return {data:{minutes:estimateMinutes},error:null};
+}}};
+
 context.testBackend={
   async load(){return rows.map(row=>({...row}))},
   async loadLists(){return []},async loadListAssignments(){return []},
@@ -29,8 +36,22 @@ context.testBackend={
   async save(id,previous,next){return next}
 };
 (async()=>{
-  run("backend=testBackend;user={id:'demo'}");await run('loadTasks()');
+  run("backend=testBackend;db=testDb;user={id:'demo'}");await run('loadTasks()');
   run('openCreate()');assert.equal(element('cd').value,run('TODAY'));
+  element('ct').value='75m';element('cn').value='Lab report';element('ca').checked=true;run('suggestAssignmentTime()');
+  assert.equal(element('ct').value,'75m');assert.equal(element('ct').disabled,false);
+  await run("requestTimeSuggestion('Lab report',timeSuggestionVersion)");assert.equal(element('ct').value,'90m');
+  estimateMinutes=135;element('cn').value='Lab report (2h 15m)';run('updateTitleSuggestion()');
+  await run("requestTimeSuggestion('Lab report (2h 15m)',timeSuggestionVersion)");assert.equal(element('ct').value,'135m');
+  assert.equal(estimateCalls,2);
+  element('ca').checked=false;run('suggestAssignmentTime()');assert.equal(element('ct').value,'75m');
+  element('ca').checked=true;run('suggestAssignmentTime()');holdEstimate=true;
+  const pending=run("requestTimeSuggestion('Lab report (2h 15m)',timeSuggestionVersion)");
+  for(let i=0;i<5&&!releaseEstimate;i++)await Promise.resolve();assert.ok(releaseEstimate);
+  element('ct').value='100m';run('editEstimatedTime()');releaseEstimate();await pending;holdEstimate=false;
+  assert.equal(element('ca').checked,false);element('cn').value='Final exam';run('updateTitleSuggestion()');assert.equal(element('ct').value,'100m');
+  run('openCreate()');assert.equal(element('ca').checked,false);assert.equal(element('ct').value,'45m');
+  element('cn').value='Local exam';element('cd').value=run('TODAY');element('cc').value='Shared demo';element('ct').value='45m';element('cg-unknown').checked=true;
   element('cn').value='Local exam';element('cd').value=run('TODAY');element('cc').value='Shared demo';element('ct').value='45m';element('cg-unknown').checked=true;
   failCreate=true;await run('createA()');
   assert.equal(run('S.A.length'),1);assert.ok(element('ce').textContent.includes('Network unavailable'));
@@ -44,5 +65,5 @@ context.testBackend={
   assert.ok(!element('list').innerHTML.includes('This device'));
   await run('loadTasks()');assert.equal(run('S.A.length'),2);assert.equal(run('S.A.every(a=>a.persisted)'),true);
   run("S.A[0].c='History <script>';S.tab=1;home()");assert.ok(element('list').innerHTML.includes('History &lt;script&gt;'));assert.ok(!element('list').innerHTML.includes('<script>'));
-  console.log('PASS: database-only creation, failed save retry, reload, and no device-only assignment controls.');
+  console.log('PASS: AI time suggestions, database-only creation, failed save retry, reload, and no device-only assignment controls.');
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -114,9 +114,9 @@ input[type=checkbox]{width:auto}
   <div class="foot"><input id="ci" maxlength="2000" aria-label="Message the assistant" placeholder="Ask about your saved tasks…" onkeydown="if(event.key==='Enter')chatClient.send()"><button class="btn p with-icon" id="chat-send" style="flex:none" onclick="chatClient.send()"><i class="fi fi-rr-paper-plane" aria-hidden="true"></i>Send</button></div></div>
 
  <div class="scr ov" id="create"><div class="hd"><h2>New Assignment</h2></div>
-  <div class="body"><label>Name</label><input id="cn" placeholder="e.g. Lab report"><label>Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label for="cc">Class name</label><input id="cc" maxlength="100" placeholder="e.g. IS 401">
-  <label>Estimated time (minutes)</label><input id="ct" placeholder="e.g. 45m or 1h 30m" value="45m"><div class="err" id="ce"></div>
-  <div class="tg" style="border:0"><span>Suggest time from the title</span><input type="checkbox" id="ca" onchange="suggestAssignmentTime()"></div><p class="sub" id="time-note">Review the time estimate before selecting Create.</p>
+  <div class="body"><label for="cn">Name</label><input id="cn" placeholder="e.g. Lab report" oninput="updateTitleSuggestion()"><label for="cd">Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label for="cc">Class name</label><input id="cc" maxlength="100" placeholder="e.g. IS 401">
+  <label for="ct">Estimated time</label><input id="ct" placeholder="e.g. 45m or 1h 30m" value="45m" oninput="editEstimatedTime()"><div class="err" id="ce"></div>
+  <label class="tg" style="border:0" for="ca"><span>Suggest time from the title</span><input type="checkbox" id="ca" onchange="suggestAssignmentTime()"></label><p class="sub" id="time-note">Review the time estimate before selecting Create.</p>
   <label for="cg-weight">Assignment % of course grade</label><input id="cg-weight" type="number" min="0" max="100" step="0.01" placeholder="0–100"><div class="tg" style="border:0"><span>I don’t know the grade weight</span><input type="checkbox" id="cg-unknown" onchange="document.getElementById('cg-weight').disabled=this.checked"></div><div class="tg" style="border:0"><span>Optional (lowest priority)</span><input type="checkbox" id="co"></div></div>
   <div class="foot"><button class="btn with-icon" id="create-cancel" onclick="cancelC()"><i class="fi fi-rr-cross" aria-hidden="true"></i>Cancel</button><button class="btn p with-icon" id="create-submit" onclick="createA()"><i class="fi fi-rr-check" aria-hidden="true"></i>Create</button></div></div>
 
@@ -214,9 +214,9 @@ async function signIn(){
  try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
  catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this demo account in Supabase, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
 }
-async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
@@ -348,9 +348,27 @@ async function openChat(){
 /* create */
 const parseT=x=>{x=x.trim().toLowerCase();let m=x.match(/^(\d+)\s*(m|min|mins)?$/);if(m)return +m[1];m=x.match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);return m&&(m[1]||m[2])?(+m[1]||0)*60+(+m[2]||0):NaN};
 let pendingCreation=null;
-function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';$('ct').disabled=$('ca').checked=$('co').checked=false;$('ce').textContent=$('cde').textContent='';$('cc').value=d.c||'';$('cg-weight').value=d.g==null?'':d.g;$('cg-unknown').checked=false;$('cg-weight').disabled=false;ov('create')}
-function suggestAssignmentTime(){if(!$('ca').checked)return;const n=$('cn').value;const estimate=EX.test(n)?60:/read/i.test(n)?30:/essay|paper|project/i.test(n)?120:/lab|hw|homework|problem/i.test(n)?45:45;$('ct').value=estimate+'m';$('time-note').textContent='Suggested estimate: '+estimate+' minutes. Adjust it before creating if needed.'}
-async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.loading||S.listSaving||S.prioritySaving)return;const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
+let manualEstimatedTime='45m';
+let timeSuggestionVersion=0,timeSuggestionTimer=null,timeSuggestionLoading=false;
+function stopTimeSuggestion(){++timeSuggestionVersion;clearTimeout(timeSuggestionTimer);timeSuggestionTimer=null;timeSuggestionLoading=false}
+function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';manualEstimatedTime=$('ct').value;$('ct').disabled=false;$('ca').checked=$('co').checked=false;$('time-note').textContent='Review the time estimate before selecting Create.';$('ce').textContent=$('cde').textContent='';$('cc').value=d.c||'';$('cg-weight').value=d.g==null?'':d.g;$('cg-unknown').checked=false;$('cg-weight').disabled=false;ov('create')}
+async function requestTimeSuggestion(title,version){
+ timeSuggestionLoading=true;$('time-note').textContent='Asking the AI for a time estimate…';
+ try{
+  const {data:sessionData,error:sessionError}=await db.auth.getSession();
+  if(sessionError||!sessionData.session)throw new Error('Sign in again to use AI suggestions.');
+  const {data,error}=await db.functions.invoke('study-assistant',{body:{action:'suggest_time',title},headers:{Authorization:'Bearer '+sessionData.session.access_token}});
+  if(error){let message='The AI estimate is unavailable. Enter your own time.';if(error.context){try{const detail=await error.context.json();message=detail.error||message}catch{}}throw new Error(message)}
+  if(!data||!Number.isSafeInteger(data.minutes)||data.minutes<1||data.minutes>600)throw new Error('The AI returned an invalid estimate. Enter your own time.');
+  if(version!==timeSuggestionVersion||!$('ca').checked||$('cn').value.trim()!==title)return;
+  $('ct').value=data.minutes+'m';$('time-note').textContent='AI suggests '+data.minutes+' minutes from the title. Review and edit if needed.';
+ }catch(error){if(version===timeSuggestionVersion){$('ca').checked=false;$('ct').value=manualEstimatedTime;$('time-note').textContent=error.message}}
+ finally{if(version===timeSuggestionVersion)timeSuggestionLoading=false}
+}
+function updateTitleSuggestion(){if(!$('ca').checked)return;stopTimeSuggestion();const title=$('cn').value.trim();if(!title){$('ct').value=manualEstimatedTime;$('time-note').textContent='Enter a title to get an AI estimate.';return}const version=timeSuggestionVersion;$('time-note').textContent='Waiting for the title…';timeSuggestionLoading=true;timeSuggestionTimer=setTimeout(()=>requestTimeSuggestion(title,version),700)}
+function suggestAssignmentTime(){if($('ca').checked){manualEstimatedTime=$('ct').value;updateTitleSuggestion()}else{stopTimeSuggestion();$('ct').value=manualEstimatedTime;$('time-note').textContent='Manual estimate restored.'}}
+function editEstimatedTime(){manualEstimatedTime=$('ct').value;if($('ca').checked){$('ca').checked=false;stopTimeSuggestion();$('time-note').textContent='Using your edited estimate.'}}
+async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.loading||S.listSaving||S.prioritySaving)return;if(timeSuggestionLoading){$('ce').textContent='Wait for the AI estimate, or enter your own time.';return}const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
  if(!n){$('cn').focus();return}
  if(!d||d<TODAY){$('cde').textContent="Due date can't be in the past.";return}
  let t=null;
@@ -365,7 +383,7 @@ async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.lo
  try{const assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId,confirmLong:force===1});S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;$('sync-status').textContent='Assignment saved to Supabase';ov();home();toast('Assignment saved to Supabase');if(EX.test(n))toast('Exam saved. Consider setting a study priority based on how comfortable you feel in this class.')}
  catch(error){$('ce').textContent='Could not save: '+error.message}
  finally{S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=false;$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Create';lockListControls()}}
-function cancelC(){if(S.createSaving)return;pendingCreation=null;const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
+function cancelC(){if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
 let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5000)}
 function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
 function undo(){if(S.last){S.A.push(S.last);S.last=null;home();$('toast').classList.remove('on')}}
