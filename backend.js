@@ -1,7 +1,8 @@
 // This adapter uses the existing schema; it creates no tables or sample rows.
 (function (root) {
   'use strict';
-  const columns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
+  const columns = 'assignment_id,name,description,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
+  const columnsWithoutDescription = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
   const legacyColumns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
   const missingCreationColumns = error => error && (error.code === '42703' ||
     /(?:optional|client_request_id|class_name).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id|class_name)/i.test(error.message || ''));
@@ -26,7 +27,7 @@
       const part = type => parts.find(p => p.type === type).value;
       due = `${part('year')}-${part('month')}-${part('day')}`;
     }
-    return { id: id(row.assignment_id), n: String(row.name ?? ''), c: row.class_name || 'Shared demo', d: due || '9999-12-31', noDue: !due,
+    return { id: id(row.assignment_id), n: String(row.name ?? ''), description: String(row.description ?? ''), c: row.class_name || 'Shared demo', d: due || '9999-12-31', noDue: !due,
       t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade),
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), o: !!row.optional, l: null,
       completed: row.completed, requestId: row.client_request_id || null, persisted: true };
@@ -56,13 +57,19 @@
         return data;
       },
       async createAssignment(input) {
-        const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g});
-        const {data,error}=await client.rpc('create_saved_assignment',{
+        const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',description:input.description,d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g});
+        const args={
           p_name:fields.n,p_class_name:fields.c,p_due_date:fields.d,p_estimated_minutes:fields.t,
           p_optional:fields.o,p_percentage_of_grade:fields.g,p_request_id:input.requestId,
           p_completed:!!input.completed,p_confirm_long:!!input.confirmLong
-        });
-        if(error)throw new Error(error.message || 'Could not save assignment.');
+        };
+        if(fields.description)args.p_description=fields.description;
+        const {data,error}=await client.rpc('create_saved_assignment',args);
+        if(error){
+          if(fields.description && (error.code==='PGRST202'||/Could not find the function public\.create_saved_assignment.*p_description/i.test(error.message||'')))
+            throw new Error('Description saving is not available on the server yet. Ask the project owner to apply the pending database update.');
+          throw new Error(error.message || 'Could not save assignment.');
+        }
         if(!data)throw new Error('The assignment save was not confirmed. Reload assignments before retrying.');
         const saved=record(data);visible.add(saved.id);return saved;
       },
@@ -143,8 +150,12 @@
         return data;
       },
       async load() {
-        let { data, error } = await client.from('assignments').select(columns).eq('deleted', false).order('assignment_id');
+        const query = selected => client.from('assignments').select(selected).eq('deleted', false).order('assignment_id');
+        let { data, error } = await query(columns);
         if (missingCreationColumns(error)) ({ data, error } = await client.from('assignments').select(legacyColumns).eq('deleted', false).order('assignment_id'));
+        // Older deployments may not yet grant SELECT on description. Keep the
+        // rest of the assignment list usable until its additive migration lands.
+        if (error?.code === '42501') ({ data, error } = await query(columnsWithoutDescription));
         if (error) throw new Error(error.message || 'Database load failed.');
         if (!Array.isArray(data)) throw new Error('The database returned no assignment list.');
         const tasks = data.map(record);

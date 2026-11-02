@@ -39,7 +39,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .btn.p{background:var(--ac);border-color:var(--ac);color:#fff}
 .foot{display:flex;gap:10px;padding:12px 14px 16px;border-top:1px solid var(--ln);background:var(--card)}
 label{display:block;font-size:12px;color:var(--mu);margin:14px 0 5px}
-input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:15px}
+input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:15px}
+textarea{resize:vertical;min-height:76px}
+.assignment-description{white-space:pre-wrap;overflow-wrap:anywhere}
 input[type=checkbox]{width:auto}
 .scrim{position:absolute;inset:0;background:#0006;z-index:8;display:none}.scrim.on{display:block}
 #menu{position:absolute;top:0;bottom:0;left:0;width:78%;background:var(--card);z-index:9;transform:translateX(-105%);transition:.25s;padding:50px 8px 10px;box-shadow:4px 0 20px #0003}
@@ -114,9 +116,9 @@ input[type=checkbox]{width:auto}
   <div class="foot"><input id="ci" maxlength="2000" aria-label="Message the assistant" placeholder="Ask about your saved tasks…" onkeydown="if(event.key==='Enter')chatClient.send()"><button class="btn p with-icon" id="chat-send" style="flex:none" onclick="chatClient.send()"><i class="fi fi-rr-paper-plane" aria-hidden="true"></i>Send</button></div></div>
 
  <div class="scr ov" id="create"><div class="hd"><h2>New Assignment</h2></div>
-  <div class="body"><label for="cn">Name</label><input id="cn" placeholder="e.g. Lab report" oninput="updateTitleSuggestion()"><label for="cd">Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label for="cc">Class name</label><input id="cc" maxlength="100" placeholder="e.g. IS 401">
+  <div class="body"><label for="cn">Name</label><input id="cn" placeholder="e.g. Lab report"><label for="cdescription">Description</label><textarea id="cdescription" maxlength="2000" rows="3" placeholder="Add instructions or other useful details" oninput="updateDescriptionSuggestion()"></textarea><label for="cd">Due date</label><input id="cd" type="date"><div class="err" id="cde"></div><label for="cc">Class name</label><input id="cc" maxlength="100" placeholder="e.g. IS 401">
   <label for="ct">Estimated time</label><input id="ct" placeholder="e.g. 45m or 1h 30m" value="45m" oninput="editEstimatedTime()"><div class="err" id="ce"></div>
-  <label class="tg" style="border:0" for="ca"><span>Suggest time from the title</span><input type="checkbox" id="ca" onchange="suggestAssignmentTime()"></label><p class="sub" id="time-note">Review the time estimate before selecting Create.</p>
+  <label class="tg" style="border:0" for="ca"><span>Suggest time from the description</span><input type="checkbox" id="ca" onchange="suggestAssignmentTime()"></label><p class="sub" id="time-note">Review the time estimate before selecting Create.</p>
   <label for="cg-weight">Assignment % of course grade</label><input id="cg-weight" type="number" min="0" max="100" step="0.01" placeholder="0–100"><div class="tg" style="border:0"><span>I don’t know the grade weight</span><input type="checkbox" id="cg-unknown" onchange="document.getElementById('cg-weight').disabled=this.checked"></div><div class="tg" style="border:0"><span>Optional (lowest priority)</span><input type="checkbox" id="co"></div></div>
   <div class="foot"><button class="btn with-icon" id="create-cancel" onclick="cancelC()"><i class="fi fi-rr-cross" aria-hidden="true"></i>Cancel</button><button class="btn p with-icon" id="create-submit" onclick="createA()"><i class="fi fi-rr-check" aria-hidden="true"></i>Create</button></div></div>
 
@@ -136,8 +138,8 @@ input[type=checkbox]{width:auto}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
-<script src="assignment-fields.js?v=20261030-ai-create-1"></script>
-<script src="backend.js?v=20261030-okr-1"></script>
+<script src="assignment-fields.js?v=20261101-description-1"></script>
+<script src="backend.js?v=20261101-description-3"></script>
 <script src="chat.js?v=20261030-chat-ux-2"></script>
 <script>
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
@@ -158,7 +160,7 @@ function srt(assignments,keys){
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
 const priorityNames=['Low','Normal','High','Urgent'];
-const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)"><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div><div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)"><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div>${a.description?`<div class="sub assignment-description">${esc(a.description)}</div>`:''}<div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
 <div class="chips"><span class="chip"><i class="fi fi-rr-clock" aria-hidden="true"></i> ${ft(a.t)}</span><span class="chip"><i class="fi fi-rr-percentage" aria-hidden="true"></i> ${a.g==null?'Grade weight not set':a.g+' of grade'}</span><span class="chip pr pr-${priorityName.toLowerCase()}"><i class="fi fi-rr-flag" aria-hidden="true"></i> ${priorityName}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk with-icon" onclick="openCal('${a.d}')"><i class="fi fi-rr-calendar-arrow-up" aria-hidden="true"></i>See in calendar</button>`}</div></div></div>`};
 const completedSection=html=>html?'<div class="gh completed-heading">Completed</div>'+html:'';
 function separatedCards(assignments){
@@ -351,22 +353,24 @@ let pendingCreation=null;
 let manualEstimatedTime='45m';
 let timeSuggestionVersion=0,timeSuggestionTimer=null,timeSuggestionLoading=false;
 function stopTimeSuggestion(){++timeSuggestionVersion;clearTimeout(timeSuggestionTimer);timeSuggestionTimer=null;timeSuggestionLoading=false}
-function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';manualEstimatedTime=$('ct').value;$('ct').disabled=false;$('ca').checked=$('co').checked=false;$('time-note').textContent='Review the time estimate before selecting Create.';$('ce').textContent=$('cde').textContent='';$('cc').value=d.c||'';$('cg-weight').value=d.g==null?'':d.g;$('cg-unknown').checked=false;$('cg-weight').disabled=false;ov('create')}
-async function requestTimeSuggestion(title,version){
+function openCreate(d){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;d=d||{};$('cn').value=d.n||'';$('cdescription').value=d.description||'';$('cd').value=d.d||TODAY;$('ct').value=d.t||'45m';manualEstimatedTime=$('ct').value;$('ct').disabled=false;$('ca').checked=$('co').checked=false;$('time-note').textContent='Review the time estimate before selecting Create.';$('ce').textContent=$('cde').textContent='';$('cc').value=d.c||'';$('cg-weight').value=d.g==null?'':d.g;$('cg-unknown').checked=false;$('cg-weight').disabled=false;ov('create')}
+async function requestTimeSuggestion(description,version){
  timeSuggestionLoading=true;$('time-note').textContent='Asking the AI for a time estimate…';
  try{
   const {data:sessionData,error:sessionError}=await db.auth.getSession();
   if(sessionError||!sessionData.session)throw new Error('Sign in again to use AI suggestions.');
-  const {data,error}=await db.functions.invoke('study-assistant',{body:{action:'suggest_time',title},headers:{Authorization:'Bearer '+sessionData.session.access_token}});
+  // The deployed function still accepts `title` (max 200 characters). Send
+  // description text there until its description-aware version is deployed.
+  const {data,error}=await db.functions.invoke('study-assistant',{body:{action:'suggest_time',description,title:description.slice(0,200)},headers:{Authorization:'Bearer '+sessionData.session.access_token}});
   if(error){let message='The AI estimate is unavailable. Enter your own time.';if(error.context){try{const detail=await error.context.json();message=detail.error||message}catch{}}throw new Error(message)}
   if(!data||!Number.isSafeInteger(data.minutes)||data.minutes<1||data.minutes>600)throw new Error('The AI returned an invalid estimate. Enter your own time.');
-  if(version!==timeSuggestionVersion||!$('ca').checked||$('cn').value.trim()!==title)return;
-  $('ct').value=data.minutes+'m';$('time-note').textContent='AI suggests '+data.minutes+' minutes from the title. Review and edit if needed.';
+  if(version!==timeSuggestionVersion||!$('ca').checked||$('cdescription').value.trim()!==description)return;
+  $('ct').value=data.minutes+'m';$('time-note').textContent='AI suggests '+data.minutes+' minutes from the description. Review and edit if needed.';
  }catch(error){if(version===timeSuggestionVersion){$('ca').checked=false;$('ct').value=manualEstimatedTime;$('time-note').textContent=error.message}}
  finally{if(version===timeSuggestionVersion)timeSuggestionLoading=false}
 }
-function updateTitleSuggestion(){if(!$('ca').checked)return;stopTimeSuggestion();const title=$('cn').value.trim();if(!title){$('ct').value=manualEstimatedTime;$('time-note').textContent='Enter a title to get an AI estimate.';return}const version=timeSuggestionVersion;$('time-note').textContent='Waiting for the title…';timeSuggestionLoading=true;timeSuggestionTimer=setTimeout(()=>requestTimeSuggestion(title,version),700)}
-function suggestAssignmentTime(){if($('ca').checked){manualEstimatedTime=$('ct').value;updateTitleSuggestion()}else{stopTimeSuggestion();$('ct').value=manualEstimatedTime;$('time-note').textContent='Manual estimate restored.'}}
+function updateDescriptionSuggestion(){if(!$('ca').checked)return;stopTimeSuggestion();const description=$('cdescription').value.trim();if(!description){$('ct').value=manualEstimatedTime;$('time-note').textContent='Enter a description to get an AI estimate.';return}const version=timeSuggestionVersion;$('time-note').textContent='Waiting for the description…';timeSuggestionLoading=true;timeSuggestionTimer=setTimeout(()=>requestTimeSuggestion(description,version),700)}
+function suggestAssignmentTime(){if($('ca').checked){manualEstimatedTime=$('ct').value;updateDescriptionSuggestion()}else{stopTimeSuggestion();$('ct').value=manualEstimatedTime;$('time-note').textContent='Manual estimate restored.'}}
 function editEstimatedTime(){manualEstimatedTime=$('ct').value;if($('ca').checked){$('ca').checked=false;stopTimeSuggestion();$('time-note').textContent='Using your edited estimate.'}}
 async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.loading||S.listSaving||S.prioritySaving)return;if(timeSuggestionLoading){$('ce').textContent='Wait for the AI estimate, or enter your own time.';return}const n=$('cn').value.trim(),d=$('cd').value;$('ce').textContent=$('cde').textContent='';
  if(!n){$('cn').focus();return}
@@ -376,14 +380,14 @@ async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.lo
   if(t>600&&force!==1){$('ce').innerHTML='That is over 10 hours. Is that right? <button class="lk" onclick="createA(1)">Yes, confirm</button>';return}}
  const o=$('co').checked,weight=$('cg-weight').value.trim();
  if(!$('cg-unknown').checked&&!weight){$('ce').textContent='Enter the grade weight, or choose that you do not know it.';return}
- let details;try{details={...AssignmentFields.validate({n,c:$('cc').value,d,t,o,g:$('cg-unknown').checked?null:Number(weight)}),completed:false}}catch(error){$('ce').textContent=error.message;return}
+ let details;try{details={...AssignmentFields.validate({n,c:$('cc').value,description:$('cdescription').value,d,t,o,g:$('cg-unknown').checked?null:Number(weight)}),completed:false}}catch(error){$('ce').textContent=error.message;return}
  const signature=JSON.stringify(details);
  if(!pendingCreation||pendingCreation.signature!==signature)pendingCreation={signature,requestId:crypto.randomUUID()};
  S.createSaving=true;showError('');$('create-submit').disabled=$('create-cancel').disabled=true;$('create-submit').innerHTML='Saving…';lockListControls();
  try{const assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId,confirmLong:force===1});S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;$('sync-status').textContent='Assignment saved to Supabase';ov();home();toast('Assignment saved to Supabase');if(EX.test(n))toast('Exam saved. Consider setting a study priority based on how comfortable you feel in this class.')}
  catch(error){$('ce').textContent='Could not save: '+error.message}
  finally{S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=false;$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Create';lockListControls()}}
-function cancelC(){if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;const n=$('cn').value.trim();if(n){S.drafts.push({n,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
+function cancelC(){if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;const n=$('cn').value.trim();if(n){S.drafts.push({n,description:$('cdescription').value,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
 let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5000)}
 function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
 function undo(){if(S.last){S.A.push(S.last);S.last=null;home();$('toast').classList.remove('on')}}
