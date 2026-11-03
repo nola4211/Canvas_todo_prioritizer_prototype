@@ -150,7 +150,7 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 
 ### Prototype limits
 
-- Database assignment creation requires the new migration below; database assignment deletion is unavailable. Completion is persisted.
+- Database assignment creation and removal require their respective migrations. Completion and removal are persisted.
 - Lists, their assignment connections, and prioritization rules use Supabase. Drafts and unrelated preferences remain temporary prototype state.
 - The assistant requires a funded OpenAI API project; see AI study assistant below.
 - Canvas connection/settings are prototype controls with no real Canvas integration.
@@ -163,6 +163,8 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 The migration adds nullable `owner_id` and `client_request_id` fields and an `optional` flag. New rows get their owner from the signed-in Auth account. Row policies allow that account to read, create, and complete its own assignments; the browser receives insert access only for the fields used by the form. The existing demo rows remain available through their earlier policy. The shared demo login is one account, so everyone using it shares new tasks. Separate student privacy requires separate Auth accounts.
 
 The optional assignment description is stored in the existing `assignments.description` column. `supabase/migrations/202611010001_assignment_description.sql` was applied to project `uowlwdwrqceklbqjcnmc` on November 1, 2026; do not rerun it there. It updates the shared database writer while keeping the AI creation call compatible. Apply it once after the assignment-creation migrations on another project, before deploying the updated form.
+
+Assignment removal uses `supabase/migrations/202611020001_assignment_removal.sql`, followed by `supabase/migrations/202611020002_assignment_hard_removal.sql`; both were applied to project `uowlwdwrqceklbqjcnmc` on November 2, 2026. The second migration permanently deletes authorized assignments and linked records through foreign-key cascades. On another project, apply them in order after assignment creation. The previously hidden “500 page essay” row (ID 14) was separately deleted after user approval; verification found zero remaining rows with that ID.
 
 The Create button saves the name, optional description, Denver due date, estimated minutes, priority, optional flag, class label, and grade weight, then displays the returned assignment ID. The form stays open on failure. Each attempt has a request ID so a retry can find an already-saved row instead of duplicating it. Assignments appear only after Supabase confirms the save, and reload reads them back from the database. Saved assignments can join lists and appear in the assistant's database context.
 
