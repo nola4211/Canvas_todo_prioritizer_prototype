@@ -63,6 +63,9 @@ input[type=checkbox]{width:auto}
 .okr-number{font-size:42px;font-weight:750;line-height:1;margin:8px 0;color:var(--ac)}.okr-number.met{color:#238636}.okr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.okr-stat{background:var(--bg);border-radius:10px;padding:10px}.okr-stat b{display:block;font-size:20px}.okr-bars{height:110px;display:flex;align-items:flex-end;gap:7px;margin:14px 0 6px}.okr-day{flex:1;text-align:center;font-size:10px;color:var(--mu)}.okr-bar{min-height:3px;background:var(--ac);border-radius:5px 5px 2px 2px;margin-bottom:5px}
 .sync{padding:8px 14px;border-bottom:1px solid var(--ln);font-size:12px;background:var(--card)}
 .sync p{margin:4px 0}.sync button{font-size:12px;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:5px 8px}.sync button:disabled{opacity:.5;cursor:wait}.chk:disabled{opacity:.5;cursor:wait}
+.remove-backdrop{position:absolute;inset:0;z-index:10;background:#0008;display:flex;align-items:center;justify-content:center;padding:18px}
+.remove-dialog{width:100%;max-width:340px;background:var(--card);border:1px solid var(--ln);border-radius:18px;box-shadow:0 12px 36px #0004;padding:20px}
+.remove-dialog h2{font-size:18px;margin:0 0 10px}.remove-dialog p{font-size:14px;line-height:1.45;margin:0 0 18px;overflow-wrap:anywhere}.remove-actions{display:flex;gap:10px}.remove-actions .btn{min-width:0}.remove-actions .btn:disabled{opacity:.6;cursor:wait}
 #login{padding:18px;border-bottom:1px solid var(--ln);background:var(--card)}
 #login h2{font-size:18px;margin:0}#login .btn{margin-top:14px;width:100%}
 #home.signed-out{justify-content:center;background:var(--card)}
@@ -124,6 +127,7 @@ input[type=checkbox]{width:auto}
 
  <div class="scr ov" id="panel"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2 id="pt"></h2></div><div class="body" id="pb"></div></div>
 
+ <div class="remove-backdrop" id="remove-backdrop" hidden><div class="remove-dialog" role="dialog" aria-modal="true" aria-labelledby="remove-title" aria-describedby="remove-message"><h2 id="remove-title">Remove assignment?</h2><p id="remove-message"></p><p class="err" id="remove-error" role="alert" hidden></p><div class="remove-actions"><button class="btn" id="remove-cancel" onclick="cancelRemoval()">Cancel</button><button class="btn p with-icon" id="remove-confirm" onclick="confirmRemoval()"><i class="fi fi-rr-trash" aria-hidden="true"></i>Remove</button></div></div></div>
  <div class="toast" id="toast"></div>
  <div class="scrim" id="scrim" onclick="menu(0)"></div>
  <div id="menu">
@@ -139,7 +143,7 @@ input[type=checkbox]{width:auto}
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
 <script src="assignment-fields.js?v=20261101-description-1"></script>
-<script src="backend.js?v=20261101-description-3"></script>
+<script src="backend.js?v=20261102-removal-1"></script>
 <script src="chat.js?v=20261030-chat-ux-2"></script>
 <script>
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
@@ -160,7 +164,7 @@ function srt(assignments,keys){
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
 const priorityNames=['Low','Normal','High','Urgent'];
-const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" disabled style="font-size:14px;margin:-6px -6px 0 0" title="Deletion is outside this demo" aria-label="Delete (unavailable in demo)"><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div>${a.description?`<div class="sub assignment-description">${esc(a.description)}</div>`:''}<div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><button class="ib" data-remove="${esc(a.id)}" style="font-size:14px;margin:-6px -6px 0 0" title="Remove assignment" aria-label="Remove ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div>${a.description?`<div class="sub assignment-description">${esc(a.description)}</div>`:''}<div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
 <div class="chips"><span class="chip"><i class="fi fi-rr-clock" aria-hidden="true"></i> ${ft(a.t)}</span><span class="chip"><i class="fi fi-rr-percentage" aria-hidden="true"></i> ${a.g==null?'Grade weight not set':a.g+' of grade'}</span><span class="chip pr pr-${priorityName.toLowerCase()}"><i class="fi fi-rr-flag" aria-hidden="true"></i> ${priorityName}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub">${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk with-icon" onclick="openCal('${a.d}')"><i class="fi fi-rr-calendar-arrow-up" aria-hidden="true"></i>See in calendar</button>`}</div></div></div>`};
 const completedSection=html=>html?'<div class="gh completed-heading">Completed</div>'+html:'';
 function separatedCards(assignments){
@@ -211,6 +215,7 @@ async function tog(id){
  finally{S.saving.delete(id);lockListControls();paint()}
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-complete]');if(button&&!button.disabled)tog(button.dataset.complete)});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-remove]');if(button&&!button.disabled)del(button.dataset.remove)});
 async function signIn(){
  if(!db)return;$('signin').disabled=true;showError('');
  try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
@@ -389,8 +394,33 @@ async function createA(force){if(!user||!backend||!S.ready||S.createSaving||S.lo
  finally{S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=false;$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Create';lockListControls()}}
 function cancelC(){if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;const n=$('cn').value.trim();if(n){S.drafts.push({n,description:$('cdescription').value,c:$('cc').value,d:$('cd').value,t:$('ct').value});toast('Saved to Drafts (see menu)')}closeOv()}
 let tt;function toast(m,u){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5000)}
-function del(id){const i=S.A.findIndex(a=>a.id==id);S.last=S.A.splice(i,1)[0];home();toast('Moved to trash (removed after 30 days)','undo()')}
-function undo(){if(S.last){S.A.push(S.last);S.last=null;home();$('toast').classList.remove('on')}}
+let pendingRemoval=null,removalFocus=null,removalSaving=false;
+function del(id){
+ const assignment=S.A.find(a=>a.id===id);
+ if(!assignment||!S.ready||S.loading||S.createSaving||S.saving.size)return;
+ pendingRemoval=id;removalFocus=document.activeElement;
+ $('remove-message').textContent='Remove “'+assignment.n+'” from your assignments?';$('remove-error').hidden=true;$('remove-error').textContent='';
+ $('remove-backdrop').hidden=false;$('remove-cancel').focus();
+}
+function cancelRemoval(){if(removalSaving)return;pendingRemoval=null;$('remove-backdrop').hidden=true;removalFocus?.focus();removalFocus=null}
+document.addEventListener('keydown',event=>{
+ if($('remove-backdrop').hidden)return;
+ if(event.key==='Escape'){event.preventDefault();cancelRemoval()}
+ if(event.key==='Tab'){
+  const first=$('remove-cancel'),last=$('remove-confirm');
+  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+ }
+});
+async function confirmRemoval(){
+ const id=pendingRemoval;
+ if(!id||removalSaving)return;
+ removalSaving=true;$('remove-cancel').disabled=$('remove-confirm').disabled=true;
+ S.saving.add(id);showError('');$('reload-tasks').disabled=$('signout').disabled=true;paint();
+ try{await backend.removeAssignment(id);S.A=S.A.filter(a=>a.id!==id);delete S.done[id];S.memberships=S.memberships.filter(m=>m.assignment_id!==id);$('sync-status').textContent='Assignment removed from Supabase';removalSaving=false;cancelRemoval();toast('Assignment removed')}
+ catch(error){$('remove-error').textContent='Could not remove assignment: '+error.message;$('remove-error').hidden=false;$('sync-status').textContent='Removal was not confirmed. Reload to check the database.'}
+ finally{removalSaving=false;S.saving.delete(id);$('remove-cancel').disabled=$('remove-confirm').disabled=false;lockListControls();paint();if(!$('remove-backdrop').hidden)$('remove-confirm').focus()}
+}
 function resume(i){openCreate(S.drafts.splice(i,1)[0])}
 let sx=null;const sw=x=>{if(sx==null||S.listSaving||S.prioritySaving)return;const dx=x-sx;sx=null;if(Math.abs(dx)>60){S.tab=Math.max(0,Math.min(S.lists.length-1,S.tab+(dx<0?1:-1)));home()}};
 $('list').addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});$('list').addEventListener('touchend',e=>sw(e.changedTouches[0].clientX));

@@ -171,6 +171,15 @@
         if (error) throw new Error('Save was not confirmed. Reload assignments and try again.');
         if (!data || id(data.assignment_id) !== key || data.completed !== next) throw new Error('The database did not confirm the requested completion value. Reload to check its state.');
         return data.completed;
+      },
+      async removeAssignment(assignmentId) {
+        const key = id(assignmentId);
+        if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
+        const { data, error } = await client.rpc('remove_saved_assignment', { p_assignment_id: key });
+        if (error) throw new Error(error.message || 'Could not remove assignment.');
+        if (id(data) !== key) throw new Error('Removal was not confirmed. Reload assignments to check its state.');
+        visible.delete(key);
+        return key;
       }
     };
   }
