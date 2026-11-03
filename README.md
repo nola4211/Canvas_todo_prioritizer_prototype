@@ -356,3 +356,17 @@ where email = '<username>@canvas-prioritizer.local';
 4. Verify that `admin.html` displays the OKR dashboard and that a regular account receives no aggregate report.
 
 To revoke access, remove the `role` key from that Auth user's app metadata or delete the dedicated administrator user. Keep administrator accounts separate from the shared student demo login.
+
+## Responsive laptop workspace (local review)
+
+See [responsive verification and screenshots](docs/responsive-verification.md) for the isolated layout preview, measured viewport checks, and remaining acceptance steps. These statuses describe the layout implementation; they do not imply deployment or full Definition of Done.
+
+| Behavioral requirement | Status |
+| --- | --- |
+| At laptop widths, show persistent navigation and a wider single-column assignment list. | Complete |
+| At wide laptop widths, show calendar month beside selected-day assignments. | Complete |
+| Keep compact navigation on phone/tablet and hide navigation when signed out. | Complete |
+| Wrap long assignment text and provide 44px assignment action targets. | Complete |
+| Keep form actions and chat composer reachable across the five verified viewport sizes. | Complete |
+| Verify native browser zoom at 200%. | Not complete |
+| Live authenticated smoke test, Lighthouse, deployment, and PO acceptance. | Not complete |

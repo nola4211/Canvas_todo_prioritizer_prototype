@@ -76,6 +76,93 @@ input[type=checkbox]{width:auto}
 .login-fields input{padding:15px;font-size:16px}.login-fields .btn{padding:15px;margin-top:24px}
 .login-admin{margin-top:auto}.login-admin .btn{padding:15px;margin:0}
 [hidden]{display:none!important}
+/* Responsive workspace: shared controls and data, different available space. */
+html,body{overflow:hidden}
+body{font-size:16px;line-height:1.5;background:var(--bg)}
+#app{width:100%;height:100%;height:100dvh;border:0;border-radius:0;box-shadow:none}
+.scr,.body,.tabs,.row>div,.hd h2{min-width:0;min-height:0}
+.body{overscroll-behavior:contain;padding:20px}
+.top,.hd,.foot,.bar,.sync,.chat-history-bar{flex-shrink:0}
+.top{align-items:center;padding:12px 12px 0;gap:8px}
+/* Keep wheel, touch, and keyboard scrolling without extra navigation chrome. */
+.tabs,#menu{scrollbar-width:none}
+.tabs::-webkit-scrollbar,#menu::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;min-height:44px;font-size:14px;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.ib,.plus,.bb,.lk,.mi,.btn,.sug button,.sync button{min-height:44px;min-width:44px}
+.ib{flex-shrink:0;margin:0;padding:10px}
+.plus{width:44px;height:44px;flex-shrink:0;margin:0 0 8px}
+.bb{padding:4px 12px;font-size:14px}
+.card{padding:18px;margin-bottom:14px}
+.card .row{gap:12px}
+.nm{font-size:18px;line-height:1.4;overflow-wrap:anywhere}
+.sub,.gh,label,.chip,.lk,.sync,.sync button,.err,.toast,.sug button{font-size:14px}
+.sub{line-height:1.55;overflow-wrap:anywhere}
+.chip{padding:4px 10px;max-width:100%;overflow-wrap:anywhere}
+.lk{padding:8px 4px;max-width:100%;text-align:left}
+.card [data-remove]{margin:0!important;font-size:18px!important}
+/* A 22px completion circle inside a 44px hit target. */
+.chk{width:44px;height:44px;border:0;border-radius:10px;position:relative;margin:0;display:inline-flex;align-items:center;justify-content:center}
+.chk::before{content:'';position:absolute;inset:11px;border:2px solid var(--ac);border-radius:50%}
+.chk.d{background:none;color:#fff}.chk.d::before{background:var(--ac)}.chk.d .fi{position:relative;z-index:1}
+.hd{padding:12px 20px;gap:12px}.hd h2{font-size:22px;line-height:1.3;overflow-wrap:anywhere}
+.hd .btn{flex:0 1 auto}
+.foot{padding:12px 20px max(16px,env(safe-area-inset-bottom));align-items:center}
+.foot .btn{min-width:0}.foot input{min-width:0}
+input,select,textarea{font-size:16px;min-width:0;max-width:100%}
+input:not([type=checkbox]),select{min-height:44px}
+input[type=checkbox]{flex-shrink:0;width:24px;height:24px}
+.tg{gap:16px;min-height:44px}.tg span{min-width:0;overflow-wrap:anywhere}
+.msg{font-size:16px;line-height:1.6;overflow-wrap:anywhere;max-width:85%}
+.chat-history-bar,.hd,.foot{overflow-wrap:anywhere}
+.grid{gap:6px}.dy{min-height:44px;aspect-ratio:auto;padding:10px 0}
+.calendar-month{min-width:0}.calendar-toolbar{align-items:center;justify-content:space-between;margin-bottom:12px}
+.calendar-layout{display:grid;gap:24px;align-content:start;align-items:start}
+#dayp{min-width:0}#dayp>.row{flex-wrap:wrap}#dayp select{max-width:100%}
+#menu{visibility:hidden;overflow-y:auto;width:min(320px,85%);padding:24px 12px;transition:transform .25s,visibility .25s}
+#menu.on{visibility:visible}.workspace-brand{display:none}
+#menu .mi{margin-bottom:4px}#menu .mi[aria-current=page]{background:var(--bg);color:var(--ac);font-weight:700}
+#app:has(.ov.on) #home{visibility:hidden}
+#app:has(#home.signed-out) #menu,#app:has(#home.signed-out) .scrim{display:none}
+#app:has(#home.signed-out) .ov{display:none}
+#home.signed-out{overflow-y:auto;visibility:visible!important}
+#home.signed-out #login{height:auto;min-height:100%;max-width:440px;width:100%;margin:auto;padding:32px 24px;gap:32px;flex-shrink:0}
+.login-fields{margin:0}.login-admin{margin-top:0}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
+@media(min-width:600px){
+ #list{padding:24px max(24px,calc((100% - 1040px)/2))}
+ #create>.body,#sort>.body,#panel>.body{padding:24px max(24px,calc((100% - 720px)/2))}
+ #create>.foot,#sort>.foot{padding-left:max(24px,calc((100% - 720px)/2));padding-right:max(24px,calc((100% - 720px)/2))}
+ #chat>.body,#chat>.foot,#chat>.chat-history-bar{padding-left:max(24px,calc((100% - 840px)/2));padding-right:max(24px,calc((100% - 840px)/2))}
+ #cal>.body{padding:24px max(24px,calc((100% - 1120px)/2))}
+ .calendar-month{width:100%;max-width:520px;margin-inline:auto}
+ #home.signed-out #login{min-height:0;border:1px solid var(--ln);border-radius:18px;padding:36px;gap:40px}
+}
+@media(min-width:900px){
+ #app{--sidebar-width:224px}
+ .scr{left:var(--sidebar-width)}
+ #app:has(#home.signed-out) .scr{left:0}
+ #home>.top>.ib,#home>.bar{display:none}
+ #menu,#menu.on{width:var(--sidebar-width);transform:none;visibility:visible;transition:none;box-shadow:none;border-right:1px solid var(--ln);padding:24px 14px;z-index:6}
+ .workspace-brand{display:block;font-size:20px;line-height:1.3;font-weight:750;margin:0 10px 24px}
+ .workspace-brand span{display:block;font-size:14px;font-weight:400;color:var(--mu);margin-top:6px}
+ .scrim.on{display:none}
+ .top{padding:20px 24px 0}
+ .sync{padding:12px 24px}.sync p{margin:0 0 8px}
+ #cal .hd>.ib,#chat .hd>.ib{display:none}
+ #chat-status,#priority-message{padding-left:24px!important;padding-right:24px!important}
+ .toast{left:calc(var(--sidebar-width) + 24px);right:24px;bottom:24px;max-width:720px}
+}
+@media(min-width:1100px){
+ .calendar-layout{grid-template-columns:minmax(280px,420px) minmax(0,1fr);gap:28px}
+ .calendar-month{position:sticky;top:0}.dy{min-height:48px}
+ #dayp>.row{margin-top:0!important}
+}
+@media(max-width:420px){
+ .body{padding:14px}.card{padding:12px}.card .row{gap:8px}
+ .hd{padding:12px}.hd h2{font-size:20px}.hd .btn{padding:10px}
+ .foot{padding-inline:12px}.msg{max-width:92%}
+}
+@media(prefers-reduced-motion:reduce){#menu{transition:none}}
 </style></head><body>
 <div id="app">
  <div class="scr signed-out" id="home">
@@ -109,8 +196,8 @@ input[type=checkbox]{width:auto}
  </div>
 
  <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>Calendar</h2></div>
-  <div class="body"><div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px"><button class="ib" onclick="mv(-1)" aria-label="Previous month"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><b id="mt"></b><button class="ib" onclick="mv(1)" aria-label="Next month"><i class="fi fi-rr-angle-right" aria-hidden="true"></i></button></div>
-  <div class="grid" id="cg"></div><div id="dayp"></div></div></div>
+  <div class="body calendar-layout"><div class="calendar-month"><div class="row calendar-toolbar"><button class="ib" onclick="mv(-1)" aria-label="Previous month"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><b id="mt"></b><button class="ib" onclick="mv(1)" aria-label="Next month"><i class="fi fi-rr-angle-right" aria-hidden="true"></i></button></div>
+  <div class="grid" id="cg"></div></div><div id="dayp" aria-label="Selected day assignments"></div></div></div>
 
  <div class="scr ov" id="chat"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>AI Assistant</h2><button class="btn with-icon" id="chat-new" onclick="chatClient.newChat()"><i class="fi fi-rr-comment-alt-medical" aria-hidden="true"></i>New chat</button></div>
   <div class="chat-history-bar"><div class="history-picker"><select id="chat-history" aria-label="Saved conversations" onchange="chatClient.selectChat(this.value)"></select><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></div></div>
@@ -130,11 +217,15 @@ input[type=checkbox]{width:auto}
  <div class="remove-backdrop" id="remove-backdrop" hidden><div class="remove-dialog" role="dialog" aria-modal="true" aria-labelledby="remove-title" aria-describedby="remove-message"><h2 id="remove-title">Remove assignment?</h2><p id="remove-message"></p><p class="err" id="remove-error" role="alert" hidden></p><div class="remove-actions"><button class="btn" id="remove-cancel" onclick="cancelRemoval()">Cancel</button><button class="btn p with-icon" id="remove-confirm" onclick="confirmRemoval()"><i class="fi fi-rr-trash" aria-hidden="true"></i>Remove</button></div></div></div>
  <div class="toast" id="toast"></div>
  <div class="scrim" id="scrim" onclick="menu(0)"></div>
- <div id="menu">
-  <button class="mi" onclick="pan('settings')"><i class="fi fi-rr-settings" aria-hidden="true"></i>Settings</button><button class="mi" onclick="pan('profile')"><i class="fi fi-rr-user" aria-hidden="true"></i>Profile</button>
-  <button class="mi" onclick="pan('classes')"><i class="fi fi-rr-graduation-cap" aria-hidden="true"></i>Classes</button><button class="mi" onclick="pan('newlist')"><i class="fi fi-rr-list" aria-hidden="true"></i>New List</button><button class="mi" onclick="pan('drafts')"><i class="fi fi-rr-file-edit" aria-hidden="true"></i>Drafts</button>
-  <button class="mi" id="okr-menu" onclick="pan('okr')" hidden><i class="fi fi-rr-chart-histogram" aria-hidden="true"></i>OKR Tracker</button>
-  <button class="mi" onclick="menu(0);openChat()"><i class="fi fi-rr-robot" aria-hidden="true"></i>AI Assistant</button>
+ <div id="menu" role="navigation" aria-label="Workspace">
+  <div class="workspace-brand">Student To-Do<span>Your academic workspace</span></div>
+  <button class="mi" data-view="home" aria-current="page" onclick="navigateWorkspace('home')"><i class="fi fi-rr-list" aria-hidden="true"></i>Assignments</button>
+  <button class="mi" data-view="cal" onclick="navigateWorkspace('cal')"><i class="fi fi-rr-calendar" aria-hidden="true"></i>Calendar</button>
+  <button class="mi" data-view="chat" onclick="navigateWorkspace('chat')"><i class="fi fi-rr-robot" aria-hidden="true"></i>AI Assistant</button>
+  <button class="mi" data-view="sort" onclick="navigateWorkspace('sort')"><i class="fi fi-rr-sort-alt" aria-hidden="true"></i>Sort by</button>
+  <button class="mi" data-view="settings" onclick="navigateWorkspace('settings')"><i class="fi fi-rr-settings" aria-hidden="true"></i>Settings</button><button class="mi" data-view="profile" onclick="navigateWorkspace('profile')"><i class="fi fi-rr-user" aria-hidden="true"></i>Profile</button>
+  <button class="mi" data-view="classes" onclick="navigateWorkspace('classes')"><i class="fi fi-rr-graduation-cap" aria-hidden="true"></i>Classes</button><button class="mi" data-view="newlist" onclick="navigateWorkspace('newlist')"><i class="fi fi-rr-list" aria-hidden="true"></i>New List</button><button class="mi" data-view="drafts" onclick="navigateWorkspace('drafts')"><i class="fi fi-rr-file-edit" aria-hidden="true"></i>Drafts</button>
+  <button class="mi" data-view="okr" id="okr-menu" onclick="navigateWorkspace('okr')" hidden><i class="fi fi-rr-chart-histogram" aria-hidden="true"></i>OKR Tracker</button>
   <div class="sub" style="padding:14px">Shared Supabase demo · Canvas sync is a prototype</div>
  </div>
 </div>
@@ -226,7 +317,17 @@ async function boot(){
  try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
-const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on')};
+function workspaceView(view){document.querySelectorAll('#menu [data-view]').forEach(button=>{if(button.dataset.view===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')})}
+function navigateWorkspace(view){
+ if(!user||S.listSaving||S.prioritySaving||S.createSaving||S.saving.size||S.removingId)return;
+ if(view==='home')return closeOv();
+ menu(0);
+ if(view==='cal')return openCal();
+ if(view==='chat')return openChat();
+ if(view==='sort')return openSort();
+ return pan(view);
+}
+const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on');workspaceView(id||'home')};
 const closeOv=()=>{if(S.listSaving||S.prioritySaving)return;ov();menu(0);home()};
 function menu(o){$('menu').classList.toggle('on',!!o);$('scrim').classList.toggle('on',!!o)}
 /* Saved priorities. Draft edits do not change the list until Save succeeds. */
@@ -426,7 +527,7 @@ let sx=null;const sw=x=>{if(sx==null||S.listSaving||S.prioritySaving)return;cons
 $('list').addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});$('list').addEventListener('touchend',e=>sw(e.changedTouches[0].clientX));
 $('list').addEventListener('mousedown',e=>sx=e.clientX);$('list').addEventListener('mouseup',e=>sw(e.clientX));
 /* menu panels */
-async function pan(k){if(S.listSaving||S.prioritySaving)return;menu(0);ov('panel');const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts',okr:'Weekly engagement'};$('pt').textContent=T[k];let h='';
+async function pan(k){if(S.listSaving||S.prioritySaving)return;menu(0);ov('panel');workspaceView(k);const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts',okr:'Weekly engagement'};$('pt').textContent=T[k];let h='';
  if(k=='settings')h=['Push notifications','Sync with Canvas','Dark mode'].map((text,i)=>`<div class="tg"><span>${text}</span><input type="checkbox" ${i<2?'checked':''} ${i==2?'onchange="document.documentElement.dataset.theme=this.checked?\'dark\':\'light\'"':''}></div>`).join('')+
   '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" onclick="openPriorityEditor(\'settings\')">Edit settings priorities</button><p class="sub" style="margin-top:22px">Icons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon Uicons</a>.</p>';
  if(k=='profile')h='<div class="card"><div class="nm">Shared demo account</div><div class="sub">Canvas sync is a prototype.</div></div>';
