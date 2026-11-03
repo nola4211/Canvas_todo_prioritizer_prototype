@@ -1,0 +1,433 @@
+{
+  "layouts": [
+    {
+      "actual": [
+        1367,
+        767
+      ],
+      "contentOverflow": false,
+      "controls44": true,
+      "pageOverflow": false,
+      "screen": "assignments",
+      "sidebarOnscreen": true,
+      "target": [
+        1366,
+        768
+      ],
+      "titleOverflow": false
+    },
+    {
+      "actual": [
+        1367,
+        767
+      ],
+      "contentOverflow": false,
+      "screen": "calendar",
+      "sideBySide": true,
+      "target": [
+        1366,
+        768
+      ]
+    },
+    {
+      "actual": [
+        1440,
+        900
+      ],
+      "contentOverflow": false,
+      "controls44": true,
+      "pageOverflow": false,
+      "screen": "assignments",
+      "sidebarOnscreen": true,
+      "target": [
+        1440,
+        900
+      ],
+      "titleOverflow": false
+    },
+    {
+      "actual": [
+        1440,
+        900
+      ],
+      "contentOverflow": false,
+      "screen": "calendar",
+      "sideBySide": true,
+      "target": [
+        1440,
+        900
+      ]
+    },
+    {
+      "actual": [
+        1024,
+        767
+      ],
+      "contentOverflow": false,
+      "controls44": true,
+      "pageOverflow": false,
+      "screen": "assignments",
+      "sidebarOnscreen": true,
+      "target": [
+        1024,
+        768
+      ],
+      "titleOverflow": false
+    },
+    {
+      "actual": [
+        1024,
+        767
+      ],
+      "contentOverflow": false,
+      "screen": "calendar",
+      "sideBySide": false,
+      "target": [
+        1024,
+        768
+      ]
+    },
+    {
+      "actual": [
+        767,
+        1024
+      ],
+      "contentOverflow": false,
+      "controls44": true,
+      "pageOverflow": false,
+      "screen": "assignments",
+      "sidebarOnscreen": false,
+      "target": [
+        768,
+        1024
+      ],
+      "titleOverflow": false
+    },
+    {
+      "actual": [
+        767,
+        1024
+      ],
+      "contentOverflow": false,
+      "screen": "calendar",
+      "sideBySide": false,
+      "target": [
+        768,
+        1024
+      ]
+    },
+    {
+      "actual": [
+        390,
+        844
+      ],
+      "contentOverflow": false,
+      "controls44": true,
+      "pageOverflow": false,
+      "screen": "assignments",
+      "sidebarOnscreen": false,
+      "target": [
+        390,
+        844
+      ],
+      "titleOverflow": false
+    },
+    {
+      "actual": [
+        390,
+        844
+      ],
+      "contentOverflow": false,
+      "screen": "calendar",
+      "sideBySide": false,
+      "target": [
+        390,
+        844
+      ]
+    },
+    {
+      "actual": [
+        1367,
+        767
+      ],
+      "contentOverflow": false,
+      "fieldsContained": true,
+      "footerReachable": true,
+      "screen": "create",
+      "target": [
+        1366,
+        768
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "screen": "settings",
+      "target": [
+        1366,
+        768
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "footerReachable": true,
+      "screen": "priorities",
+      "target": [
+        1366,
+        768
+      ]
+    },
+    {
+      "composerReachable": true,
+      "contentOverflow": false,
+      "screen": "chat",
+      "target": [
+        1366,
+        768
+      ]
+    },
+    {
+      "actual": [
+        1440,
+        900
+      ],
+      "contentOverflow": false,
+      "fieldsContained": true,
+      "footerReachable": true,
+      "screen": "create",
+      "target": [
+        1440,
+        900
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "screen": "settings",
+      "target": [
+        1440,
+        900
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "footerReachable": true,
+      "screen": "priorities",
+      "target": [
+        1440,
+        900
+      ]
+    },
+    {
+      "composerReachable": true,
+      "contentOverflow": false,
+      "screen": "chat",
+      "target": [
+        1440,
+        900
+      ]
+    },
+    {
+      "actual": [
+        1024,
+        767
+      ],
+      "contentOverflow": false,
+      "fieldsContained": true,
+      "footerReachable": true,
+      "screen": "create",
+      "target": [
+        1024,
+        768
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "screen": "settings",
+      "target": [
+        1024,
+        768
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "footerReachable": true,
+      "screen": "priorities",
+      "target": [
+        1024,
+        768
+      ]
+    },
+    {
+      "composerReachable": true,
+      "contentOverflow": false,
+      "screen": "chat",
+      "target": [
+        1024,
+        768
+      ]
+    },
+    {
+      "actual": [
+        767,
+        1024
+      ],
+      "contentOverflow": false,
+      "fieldsContained": true,
+      "footerReachable": true,
+      "screen": "create",
+      "target": [
+        768,
+        1024
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "screen": "settings",
+      "target": [
+        768,
+        1024
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "footerReachable": true,
+      "screen": "priorities",
+      "target": [
+        768,
+        1024
+      ]
+    },
+    {
+      "composerReachable": true,
+      "contentOverflow": false,
+      "screen": "chat",
+      "target": [
+        768,
+        1024
+      ]
+    },
+    {
+      "actual": [
+        390,
+        844
+      ],
+      "contentOverflow": false,
+      "fieldsContained": true,
+      "footerReachable": true,
+      "screen": "create",
+      "target": [
+        390,
+        844
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "screen": "settings",
+      "target": [
+        390,
+        844
+      ]
+    },
+    {
+      "contentOverflow": false,
+      "footerReachable": true,
+      "screen": "priorities",
+      "target": [
+        390,
+        844
+      ]
+    },
+    {
+      "composerReachable": true,
+      "contentOverflow": false,
+      "screen": "chat",
+      "target": [
+        390,
+        844
+      ]
+    }
+  ],
+  "signedOut": [
+    {
+      "actual": [
+        1367,
+        767
+      ],
+      "bottomHidden": true,
+      "loginVisible": true,
+      "navigationHidden": true,
+      "overflow": false,
+      "screen": "signed-out",
+      "tabsHidden": true,
+      "target": [
+        1366,
+        768
+      ]
+    },
+    {
+      "actual": [
+        1440,
+        900
+      ],
+      "bottomHidden": true,
+      "loginVisible": true,
+      "navigationHidden": true,
+      "overflow": false,
+      "screen": "signed-out",
+      "tabsHidden": true,
+      "target": [
+        1440,
+        900
+      ]
+    },
+    {
+      "actual": [
+        1024,
+        767
+      ],
+      "bottomHidden": true,
+      "loginVisible": true,
+      "navigationHidden": true,
+      "overflow": false,
+      "screen": "signed-out",
+      "tabsHidden": true,
+      "target": [
+        1024,
+        768
+      ]
+    },
+    {
+      "actual": [
+        767,
+        1024
+      ],
+      "bottomHidden": true,
+      "loginVisible": true,
+      "navigationHidden": true,
+      "overflow": false,
+      "screen": "signed-out",
+      "tabsHidden": true,
+      "target": [
+        768,
+        1024
+      ]
+    },
+    {
+      "actual": [
+        390,
+        844
+      ],
+      "bottomHidden": true,
+      "loginVisible": true,
+      "navigationHidden": true,
+      "overflow": false,
+      "screen": "signed-out",
+      "tabsHidden": true,
+      "target": [
+        390,
+        844
+      ]
+    }
+  ],
+  "keyboard": "Name -> Description; Email -> Password; visible focus outline",
+  "reflow": "682 x 384 CSS px passed (200% laptop zoom equivalent); native 200% browser zoom not independently verified"
+}
