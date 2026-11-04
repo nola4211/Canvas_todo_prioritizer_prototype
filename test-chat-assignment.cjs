@@ -9,7 +9,7 @@ const context={document:{getElementById:id=>find(nodes.cb,id)|| (nodes[id]??=ele
 (async()=>{
  const ui=context.CanvasChat.create(client,{backend,onSaved:async()=>{refreshes++}});await ui.open();assert.ok(find(nodes.cb,'chat-create-assignment'));
  fail=true;await ui.confirmDraft();assert.equal(saves,1);assert.equal(refreshes,0);assert.match(nodes['chat-status'].textContent,/couldn’t confirm the save/);assert.ok(find(nodes.cb,'chat-create-assignment'));
- fail=false;await ui.confirmDraft();assert.equal(refreshes,1);assert.equal(find(nodes.cb,'chat-create-assignment'),undefined);await ui.confirmDraft();assert.equal(saves,2);
+ fail=false;await ui.confirmDraft();assert.equal(refreshes,1);assert.equal(nodes['chat-status'].textContent,'✓ Assignment saved');assert.equal(find(nodes.cb,'chat-create-assignment'),undefined);await ui.confirmDraft();assert.equal(saves,2);
  savedDraft=structuredClone(draft);savedDraft.estimated_minutes=601;await ui.open();await ui.confirmDraft();assert.equal(saves,2);assert.match(nodes['chat-status'].textContent,/10 hours/);
  find(nodes.cb,'chat-long-confirm').checked=true;await ui.confirmDraft();assert.equal(saves,3);
  savedDraft=structuredClone(draft);await ui.open();await ui.changeDraft('edit');assert.equal(savedDraft.status,'collecting');assert.equal(find(nodes.cb,'chat-create-assignment'),undefined);
