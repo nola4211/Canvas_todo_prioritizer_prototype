@@ -5,7 +5,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const fixture = `
-user={id:'layout-fixture'};backend={};
+user={id:'layout-fixture'};
+const fixtureSave=async()=>{await new Promise(resolve=>setTimeout(resolve,250));if(window.layoutSaveFailure)throw Error('Preview connection unavailable')};
+backend={
+ async load(){await fixtureSave();return S.A.slice()},
+ async loadLists(){return S.lists.slice(2)},
+ async loadListAssignments(){return S.memberships.slice()},
+ async loadUserPriorities(){return [{scope:'settings',rules:S.userRules,ignore_user_rules:false}]},
+ async saveUserPriorities(scope,rules,ignore_user_rules){await fixtureSave();return {rules,ignore_user_rules}},
+ async saveListPriorities(id,priority_rules,ignore_user_rules){await fixtureSave();return {id,priority_rules,ignore_user_rules}},
+ async createAssignment(input){await fixtureSave();return {...input,id:'fixture-'+Date.now(),persisted:false}}
+};
 db={auth:{signOut:async()=>({error:null})}};
 S.ready=S.listsReady=S.prioritiesReady=true;
 const fixtureDate=TODAY;
@@ -36,7 +46,7 @@ http.createServer((req,res)=>{
   let content=fs.readFileSync(file,'utf8');
   if(fixtureRoute){
    content=content.replace('<script src="config.js"></script>','').replace(/<script src="https:\/\/cdn.jsdelivr.net\/npm\/@supabase[^<]+<\/script>/,'');
-   content=content.replace(/home\(\);\s*boot\(\);\s*<\/script>/,url.pathname==='/signed-out'?'home();showSession();</script>':fixture+'\n</script>');
+   content=content.replace(/home\(\);\s*boot\(\);\s*<\/script>/,url.pathname==='/signed-out'?'home();showSession();</script>':'window.layoutSaveFailure='+JSON.stringify(url.searchParams.get('save')==='fail')+';'+fixture+'\n</script>');
   }
   res.writeHead(200,{'Content-Type':path.extname(file)==='.html'?'text/html; charset=utf-8':path.extname(file)==='.css'?'text/css':'text/javascript','Cache-Control':'no-store'});res.end(content);
  }catch{res.writeHead(404);res.end('Not found')}

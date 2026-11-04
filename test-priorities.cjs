@@ -70,9 +70,12 @@ context.testBackend=context.CanvasBackend.create(client,['1','2','3','4']);conte
  run("openPriorityEditor('settings');S.priorityDraft.rules=[{type:'title',text:'readings'}]");
  assert.equal(run('S.userRules.length'),0); // drafts are separate
  await run('savePriorityRules()');assert.equal(tables.user_priorities[0].rules[0].text,'readings');
+ assert.equal(element('priority-message').textContent,'✓ Rule saved');
+ run('addPriorityRule()');assert.equal(element('priority-message').textContent,'');
  run("openPriorityEditor('list');S.priorityDraft.rules=[{type:'grade'}]");
  hold=true;const saving=run('savePriorityRules()');
  assert.equal(run('S.prioritySaving'),true);assert.equal(controls[0].disabled,true);
+ assert.equal(element('priority-message').textContent,'Saving…');
  assert.equal(element('signout').disabled,true);
  const before=writes;await run('savePriorityRules()');assert.equal(writes,before);
  const release=hold;hold=null;release();await saving;
