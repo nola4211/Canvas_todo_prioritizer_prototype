@@ -41,6 +41,16 @@
     if (error.code === '23505') return new Error('That list name or assignment entry already exists.');
     return new Error(error.message || 'The list change could not be saved.');
   }
+  function userSettings(value) {
+    const input = value || {};
+    const settings = {
+      push_notifications: input.push_notifications ?? true,
+      sync_with_canvas: input.sync_with_canvas ?? true,
+      dark_mode: input.dark_mode ?? false
+    };
+    if (Object.values(settings).some(item => typeof item !== 'boolean')) throw new Error('Settings must be turned on or off.');
+    return settings;
+  }
   function create(client, assignmentIds) {
     const allowed = [...new Set(assignmentIds.map(id))];
     let visible = new Set(allowed);
@@ -97,6 +107,19 @@
         const { data, error } = await client.from('user_priorities').select('scope,rules,ignore_user_rules');
         if (error) throw listError(error);
         return data;
+      },
+      async loadUserSettings() {
+        const { data, error } = await client.from('user_settings').select('push_notifications,sync_with_canvas,dark_mode');
+        if (error) throw new Error(error.message || 'Could not load settings.');
+        if (!Array.isArray(data) || data.length > 1) throw new Error('The database returned invalid settings.');
+        return userSettings(data[0]);
+      },
+      async saveUserSettings(value) {
+        const patch = userSettings(value);
+        const { data, error } = await client.from('user_settings').upsert(patch, { onConflict: 'owner_id' })
+          .select('push_notifications,sync_with_canvas,dark_mode').single();
+        if (error) throw new Error(error.message || 'Could not save settings.');
+        return userSettings(data);
       },
       async saveUserPriorities(scope, rules, ignoreUserRules = false) {
         if (!['settings', 'main', 'classes'].includes(scope)) throw new Error('Unknown priority settings.');
@@ -183,5 +206,5 @@
       }
     };
   }
-  root.CanvasBackend = { create, record, minutes, id, listName };
+  root.CanvasBackend = { create, record, minutes, id, listName, userSettings };
 })(typeof window === 'undefined' ? globalThis : window);

@@ -237,7 +237,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <script src="backend.js?v=20261102-removal-1"></script>
 <script src="chat.js?v=20261030-chat-ux-2"></script>
 <script>
-const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
+const DEFAULT_USER_SETTINGS={push_notifications:true,sync_with_canvas:true,dark_mode:false};
+const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,userSettings:{...DEFAULT_USER_SETTINGS},settingsReady:false,settingsSaving:false,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const Priority=window.CanvasPriorities;
@@ -289,11 +290,13 @@ const showError=message=>{['sync-error','login-error'].forEach(id=>{const target
 function paint(){home();if($('cal').classList.contains('on'))cal()}
 function isOkrAdmin(){return user?.app_metadata?.role==='admin'}
 function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
+function applyUserSettings(){document.documentElement.dataset.theme=S.userSettings.dark_mode?'dark':'light'}
+function resetUserSettings(){S.userSettings={...DEFAULT_USER_SETTINGS};S.settingsReady=false;S.settingsSaving=false;document.documentElement.removeAttribute('data-theme')}
 async function recordAppOpen(){if(!backend||!user)return;try{await backend.recordAppOpen()}catch(error){console.warn('Daily activity could not be recorded:',error.message)}}
 async function loadTasks(){
- if(!backend||!user||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;
+ if(!backend||!user||S.saving.size||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving)return;
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';$('reload-tasks').disabled=true;paint();
- try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase`:'No demo assignments found. The team must add sample rows and check access policies.'}
+ try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedUserSettings(version);await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded from Supabase`:'No demo assignments found. The team must add sample rows and check access policies.'}
  catch(error){if(version!==loadVersion)return;S.A=[];S.done={};resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
  finally{if(version===loadVersion){S.loading=false;$('reload-tasks').disabled=false;paint()}}
 }
@@ -312,14 +315,14 @@ async function signIn(){
  try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
  catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this demo account in Supabase, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
 }
-async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function signOut(){if(!db||S.saving.size||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();resetUserSettings();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The Supabase client could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;S.A=[];S.done={};resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 function workspaceView(view){document.querySelectorAll('#menu [data-view]').forEach(button=>{if(button.dataset.view===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')})}
 function navigateWorkspace(view){
- if(!user||S.listSaving||S.prioritySaving||S.createSaving||S.saving.size||S.removingId)return;
+ if(!user||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||S.saving.size||S.removingId)return;
  if(view==='home')return closeOv();
  menu(0);
  if(view==='cal')return openCal();
@@ -328,8 +331,52 @@ function navigateWorkspace(view){
  return pan(view);
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));if(id)$(id).classList.add('on');workspaceView(id||'home')};
-const closeOv=()=>{if(S.listSaving||S.prioritySaving)return;ov();menu(0);home()};
+const closeOv=()=>{if(S.listSaving||S.prioritySaving||S.settingsSaving)return;ov();menu(0);home()};
 function menu(o){$('menu').classList.toggle('on',!!o);$('scrim').classList.toggle('on',!!o)}
+/* Ordinary account settings. Priority rules keep using their existing table and editor. */
+async function loadSavedUserSettings(version){
+ if(version!==loadVersion)return;
+ S.settingsReady=false;
+ try{
+  const saved=await backend.loadUserSettings();
+  if(version!==loadVersion)return;
+  S.userSettings=saved;S.settingsReady=true;applyUserSettings();
+ }catch(error){
+  if(version!==loadVersion)return;
+  console.warn('Settings could not be loaded:',error.message);
+  S.userSettings={...DEFAULT_USER_SETTINGS};applyUserSettings();showError('Your settings are temporarily unavailable. Please reload and try again.');
+ }
+}
+function userSettingsPanel(){
+ if(!S.settingsReady)return '<div class="hint">Settings are unavailable. Reload after checking the user settings migration.</div>';
+ const labels={push_notifications:'Push notifications',sync_with_canvas:'Sync with Canvas',dark_mode:'Dark mode'};
+ return Object.entries(labels).map(([name,label])=>`<label class="tg"><span>${label}</span><input type="checkbox" data-user-setting="${name}" ${S.userSettings[name]?'checked':''} onchange="changeUserSetting(this)"></label>`).join('')+
+  '<p class="sub" id="settings-message" role="status"></p>';
+}
+function lockUserSettingControls(){
+ document.querySelectorAll('[data-user-setting], #settings-priority-button').forEach(control=>control.disabled=S.settingsSaving);
+ $('reload-tasks').disabled=S.settingsSaving||S.listSaving||S.prioritySaving||S.createSaving||!!S.saving.size;
+ $('signout').disabled=S.settingsSaving||S.listSaving||S.prioritySaving||S.createSaving||!!S.saving.size;
+}
+async function changeUserSetting(input){
+ const name=input.dataset.userSetting,previous=S.userSettings[name];
+ if(!user||!S.settingsReady||S.settingsSaving||!(name in DEFAULT_USER_SETTINGS)){input.checked=!!previous;return}
+ const requested=input.checked,version=loadVersion;
+ input.checked=previous;S.settingsSaving=true;lockUserSettingControls();
+ if($('settings-message'))$('settings-message').textContent='Saving…';
+ try{
+  const saved=await backend.saveUserSettings({...S.userSettings,[name]:requested});
+  if(version!==loadVersion)return;
+  S.userSettings=saved;applyUserSettings();input.checked=saved[name];
+  if($('settings-message'))$('settings-message').textContent='Setting saved.';
+ }catch(error){
+  console.warn('Setting could not be saved:',error.message);
+  if(version===loadVersion&&$('settings-message'))$('settings-message').textContent='Could not save this setting. Please try again.';
+ }finally{
+  S.settingsSaving=false;
+  if(version===loadVersion){input.checked=S.userSettings[name];lockUserSettingControls()}
+ }
+}
 /* Saved priorities. Draft edits do not change the list until Save succeeds. */
 async function loadSavedPriorities(version){
  if(version!==loadVersion)return;
@@ -527,9 +574,9 @@ let sx=null;const sw=x=>{if(sx==null||S.listSaving||S.prioritySaving)return;cons
 $('list').addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});$('list').addEventListener('touchend',e=>sw(e.changedTouches[0].clientX));
 $('list').addEventListener('mousedown',e=>sx=e.clientX);$('list').addEventListener('mouseup',e=>sw(e.clientX));
 /* menu panels */
-async function pan(k){if(S.listSaving||S.prioritySaving)return;menu(0);ov('panel');workspaceView(k);const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts',okr:'Weekly engagement'};$('pt').textContent=T[k];let h='';
- if(k=='settings')h=['Push notifications','Sync with Canvas','Dark mode'].map((text,i)=>`<div class="tg"><span>${text}</span><input type="checkbox" ${i<2?'checked':''} ${i==2?'onchange="document.documentElement.dataset.theme=this.checked?\'dark\':\'light\'"':''}></div>`).join('')+
-  '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" onclick="openPriorityEditor(\'settings\')">Edit settings priorities</button><p class="sub" style="margin-top:22px">Icons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon Uicons</a>.</p>';
+async function pan(k){if(S.listSaving||S.prioritySaving||S.settingsSaving)return;menu(0);ov('panel');workspaceView(k);const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts',okr:'Weekly engagement'};$('pt').textContent=T[k];let h='';
+ if(k=='settings')h=userSettingsPanel()+
+  '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" id="settings-priority-button" onclick="openPriorityEditor(\'settings\')">Edit settings priorities</button><p class="sub">The Canvas switch saves your preference; Canvas synchronization is still a prototype.</p><p class="sub" style="margin-top:22px">Icons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon Uicons</a>.</p>';
  if(k=='profile')h='<div class="card"><div class="nm">Shared demo account</div><div class="sub">Canvas sync is a prototype.</div></div>';
  if(k=='classes')h='<div class="sub">The current database has no direct assignment-to-class field. Demo assignments appear under Shared demo.</div>';
  if(k=='drafts')h=S.drafts.map((d,i)=>`<div class="card"><div class="nm">${d.n}</div><div class="sub">${d.c} · unfinished</div><button class="lk" onclick="resume(${i})">Resume</button></div>`).join('')||'<div class="hint">No drafts.</div>';
@@ -539,6 +586,7 @@ async function pan(k){if(S.listSaving||S.prioritySaving)return;menu(0);ov('panel
  }
  if(k=='okr')h='<div class="hint">Loading the weekly tracker…</div>';
  $('pb').innerHTML=h;
+ if(k=='settings')lockUserSettingControls();
  if(k=='okr')await loadOkrTracker()}
 function okrDate(value){return new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 async function loadOkrTracker(){
@@ -586,9 +634,9 @@ function openListEditor(){
  lockListControls();
 }
 function lockListControls(){
- document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=S.listSaving||S.prioritySaving||S.createSaving);
- $('reload-tasks').disabled=S.listSaving||S.prioritySaving||S.createSaving||!!S.saving.size;
- $('signout').disabled=S.listSaving||S.prioritySaving||S.createSaving||!!S.saving.size;
+ document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving);
+ $('reload-tasks').disabled=S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||!!S.saving.size;
+ $('signout').disabled=S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||!!S.saving.size;
 }
 // One operation at a time. A failed request leaves the last confirmed data intact.
 async function saveListChange(operation){

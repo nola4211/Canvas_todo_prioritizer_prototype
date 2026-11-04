@@ -151,7 +151,7 @@ One Canvas text entry per team needs the **actual demo-video link** and **reposi
 ### Prototype limits
 
 - Database assignment creation and removal require their respective migrations. Completion and removal are persisted.
-- Lists, their assignment connections, and prioritization rules use Supabase. Drafts and unrelated preferences remain temporary prototype state.
+- Lists, their assignment connections, prioritization rules, and the three Settings switches use Supabase. Drafts remain temporary prototype state.
 - The assistant requires a funded OpenAI API project; see AI study assistant below.
 - Canvas connection/settings are prototype controls with no real Canvas integration.
 - Shared-account access is a class demo choice. Real student data requires a reviewed individual ownership model and policies.
@@ -225,6 +225,18 @@ The section marked `Saved lists` in `index.html` handles the interface. `S.lists
 9. Sign out. Personal list tabs should disappear. Check privacy using `docs/verify-lists.sql`; a separate browser tab using the same login is the same account, not a privacy test.
 
 Run the simulated checks with `node test.cjs` and `node test-lists.cjs`. These check adapter and interface behavior, while the SQL check verifies actual database constraints and policies.
+
+## Saved account settings
+
+The Settings page saves **Push notifications**, **Sync with Canvas**, and **Dark mode** for the signed-in Supabase Auth account. A refresh, sign-out/sign-in, or another device using that same account loads the same values. The shared demo login therefore shares one settings row. The Canvas switch records the user's preference; it does not add real Canvas synchronization.
+
+`user_settings` contains one row per account. Its `owner_id` comes from `auth.uid()` and is the primary key. Row-level security allows each authenticated account to read and change only its own row. New or existing accounts without a row use the original defaults: notifications on, Canvas sync on, and dark mode off. The first successful setting change creates the row.
+
+`backend.js` keeps database work in `loadUserSettings` and `saveUserSettings`. The page waits for a confirmed save before applying a changed value, disables the settings controls while saving, and leaves the last confirmed value visible if the request fails. Saved dark mode is applied when the account loads; signing out clears that account-specific theme from the login page.
+
+`supabase/migrations/202611030001_user_settings.sql` was applied to the prototype Supabase project on November 3, 2026. Do not rerun it there. For a fresh project, apply it once after the earlier migrations. The migration creates no user rows and does not change assignments, lists, priorities, chats, or activity history.
+
+Run `docs/verify-user-settings.sql` in the Supabase SQL editor to check save/readback, account privacy, and signed-out access; every test change is rolled back. Run `node test-settings.cjs` for defaults, validation, confirmed saves, failure rollback, refresh loading, theme application, and sign-out clearing. To check manually, change each switch one at a time, wait for **Setting saved**, refresh, and reopen Settings. Sign out and back in and confirm the same values return. A failed save should keep the old value.
 
 ## Saved prioritization rules
 
