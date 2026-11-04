@@ -27,4 +27,4 @@ Screenshots:
 - `save-feedback-screenshots/assignment-saved-desktop.png`
 - `save-feedback-screenshots/rule-saved-phone.png`
 
-Not committed, pushed, merged, or deployed as part of this change. Native screen-reader announcement behavior and live authenticated saves remain manual follow-up checks.
+Native screen-reader announcement behavior and live authenticated saves remain manual follow-up checks. Commit, PR, and deployment state are recorded in GitHub.

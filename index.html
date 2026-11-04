@@ -135,6 +135,7 @@ input[type=checkbox]{flex-shrink:0;width:24px;height:24px}
 #app:has(#home.signed-out) #menu,#app:has(#home.signed-out) .scrim{display:none}
 #app:has(#home.signed-out) .ov{display:none}
 #home.signed-out{overflow-y:auto;visibility:visible!important}
+#home.signed-out:has(#login:not([hidden]))>#sync-error{display:none}
 #home.signed-out #login{height:auto;min-height:100%;max-width:440px;width:100%;margin:auto;padding:32px 24px;gap:32px;flex-shrink:0}
 .login-fields{margin:0}.login-admin{margin-top:0}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
