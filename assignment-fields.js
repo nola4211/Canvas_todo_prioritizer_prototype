@@ -10,7 +10,7 @@
     if(description.length>2000)throw new Error('Keep the description under 2,000 characters.');
     const date=new Date(input.d+'T12:00:00Z');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(input.d)||Number.isNaN(date.valueOf())||date.toISOString().slice(0,10)!==input.d)throw new Error('Choose a valid due date.');
-    if(input.d<today())throw new Error("Due date can't be in the past.");
+    if(input.d<today()&&!input.allowPast)throw new Error("Due date can't be in the past.");
     if(!Number.isSafeInteger(input.t)||input.t<1||input.t>10080)throw new Error('Estimated time must be between 1 minute and 7 days.');
     if(typeof input.o!=='boolean')throw new Error('Choose whether this assignment is optional.');
     if(input.g!==null&&(typeof input.g!=='number'||!Number.isFinite(input.g)||input.g<0||input.g>100))throw new Error('Enter a grade weight from 0 to 100, or choose unknown.');
