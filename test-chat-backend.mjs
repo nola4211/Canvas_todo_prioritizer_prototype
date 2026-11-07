@@ -3,6 +3,9 @@ import {createAIHandler,prepareDraft,mergeDraftUpdates,assignmentResponseFormat,
 const env={SUPABASE_URL:'https://database.test',SUPABASE_ANON_KEY:'public',SUPABASE_SERVICE_ROLE_KEY:'server',OPENAI_API_KEY:'secret'};
 const turn={chatId:'1',requestId:'11111111-1111-4111-8111-111111111111',message:'What should I study?'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status});
+const tokenFor=claims=>'header.'+Buffer.from(JSON.stringify(claims)).toString('base64url')+'.signature';
+const browserToken=tokenFor({sub:'owner',aud:'authenticated'});
+const agentToken=tokenFor({sub:'owner',aud:'https://database.test/functions/v1/student-mcp',client_id:'synthetic-agent'});
 function setup(options={}){
  const calls=[];
  const handler=createAIHandler({...env,...options.env},async(url,init={})=>{
@@ -16,14 +19,14 @@ function setup(options={}){
   if(url.includes('/assignments?'))return json([{name:'Exam',percentage_of_grade:25}]);
   return json([]);
  });
- const request=(body=turn,headers={})=>handler(new Request('https://edge.test',{method:'POST',headers:{origin:'http://127.0.0.1:4183',authorization:'Bearer user-token',...headers},body:JSON.stringify(body)}));
+ const request=(body=turn,headers={})=>handler(new Request('https://edge.test',{method:'POST',headers:{origin:'http://127.0.0.1:4183',authorization:'Bearer '+browserToken,...headers},body:JSON.stringify(body)}));
  return {calls,request};
 }
 {
  const s=setup();const result=await s.request();assert.equal(result.status,200);assert.equal((await result.json()).reply,'Study the exam first.');
  const ai=s.calls.find(c=>c.url.includes('api.openai.com'));const payload=JSON.parse(ai.init.body);
  assert.equal(payload.store,false);assert.equal(payload.model,'gpt-6-luna');assert.match(payload.instructions,/Exam/);assert.deepEqual(payload.input.map(x=>x.content),['Earlier question','Earlier advice',turn.message]);
- for(const c of s.calls.filter(c=>c.url.includes('/rest/v1/'))){assert.equal(c.init.headers.Authorization,c.url.includes('finish_ai_turn')?'Bearer server':'Bearer user-token')}
+ for(const c of s.calls.filter(c=>c.url.includes('/rest/v1/'))){assert.equal(c.init.headers.Authorization,c.url.includes('finish_ai_turn')?'Bearer server':'Bearer '+browserToken)}
  assert.equal(JSON.parse(s.calls.at(-1).init.body).p_reply,'Study the exam first.');
 }
 for(const [options,body,headers,status] of [
@@ -31,6 +34,11 @@ for(const [options,body,headers,status] of [
  [{},turn,{origin:'https://evil.test'},403],[{},turn,{authorization:''},401],
  [{beginError:'Conversation unavailable'},turn,{},409],[{beginError:'Hourly message limit reached. Try again later.'},turn,{},429]
 ]){const s=setup(options);assert.equal((await s.request(body,headers)).status,status);assert.ok(!s.calls.some(c=>c.url.includes('api.openai.com')))}
+{
+ const s=setup();const response=await s.request({...turn,message:'This OAuth-agent message must not reach history.'},{authorization:'Bearer '+agentToken});
+ assert.equal(response.status,403);assert.equal(s.calls.length,1,'only the Auth user-verification request may run before the OAuth-client denial');
+ assert.ok(!s.calls.some(call=>call.url.includes('/rest/v1/')||call.url.includes('api.openai.com')));
+}
 {
  const s=setup({cached:true});assert.equal((await s.request()).status,200);assert.ok(!s.calls.some(c=>c.url.includes('api.openai.com')));
 }

@@ -9,10 +9,11 @@
    if(!gesture)return;
    gesture.lastX=x;gesture.lastY=y;
    const dy=y-gesture.y,dx=x-gesture.x;
-   if(!gesture.pull||dy<=8||Math.abs(dx)>dy)return;
+   if(!gesture.pull)return;
+   if(dy<=8||Math.abs(dx)>dy){if(gesture.vertical)onStatus('');return;}
    gesture.vertical=true;
    if(event.cancelable)event.preventDefault();
-   onStatus(dy>=64?'Release to refresh':'Pull down to refresh');
+   onStatus(dy>=64?'Release to refresh':'Pull down to refresh',Math.min(1,Math.max(0,dy/64)));
   }
   function end(x,y){
    if(!gesture)return;
