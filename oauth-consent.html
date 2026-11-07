@@ -192,6 +192,7 @@ $('allow').addEventListener('click',async()=>{
     p_client_id:selected.client_id,p_client_name:String($('client-name').textContent||'Connected agent'),
   });}catch{}
   const savedId=saved?.data?.data?.id;
+  const limitReached=String(saved?.error?.message||'').includes('AGENT_LIMIT_REACHED');
   if(!savedErrorIsSuccess(saved,savedId,selected.client_id)){
     const after=await readAppGrants();
     if(after.ok&&after.grants.some(row=>row.client_id===selected.client_id)){
@@ -206,7 +207,7 @@ $('allow').addEventListener('click',async()=>{
     const providerRevoked=await revokeProviderGrant(selected.client_id);
     if(appGrantDeactivated){
       fail(providerRevoked
-        ?'The app approval could not be saved. The app grant was confirmed inactive and the provider sign-in grant was revoked. No callback was sent. Try again.'
+        ?(limitReached?'Your agent connection limit has been reached. This agent was not connected. Disconnect an agent in Settings or request permission for more.':'The app approval could not be saved. The app grant was confirmed inactive and the provider sign-in grant was revoked. No callback was sent. Try again.')
         :'The app approval could not be saved. The app grant was confirmed inactive, but provider-grant cleanup failed. No callback was sent; Supabase consent may remain. Revoke it before retrying.');
     }else{
       fail(providerRevoked

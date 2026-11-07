@@ -58,7 +58,7 @@ try {
     MCP_LOCAL_TEST_PORT: String(port),
     MCP_LOCAL_TEST_PSQL: psql,
   };
-  for (const script of ['verify.cjs', 'concurrency.cjs', 'cleanup.cjs', 'regression.cjs']) {
+  for (const script of ['verify.cjs', 'concurrency.cjs', 'cleanup.cjs', 'regression.cjs', 'agent-limits.cjs']) {
     process.stdout.write(`Running ${script}\n`);
     const result = childProcess.spawnSync(node, [path.join(tests, script)], { cwd: root, env, encoding: 'utf8', windowsHide: true, shell: false });
     if (result.stdout) process.stdout.write(result.stdout);
