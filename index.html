@@ -234,7 +234,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
    <p class="sub">When rules tie, earliest due date comes first. Tasks without a due date go last.</p>
   </div>
   <p id="priority-message" class="save-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
-  <div class="foot"><button class="btn with-icon" data-priority-control onclick="closeOv()"><i class="fi fi-rr-cross" aria-hidden="true"></i>Cancel</button><button class="btn p with-icon" data-priority-control onclick="savePriorityRules()"><i class="fi fi-rr-check" aria-hidden="true"></i>Save priorities</button></div>
+  <div class="foot"><button class="btn with-icon" data-priority-control onclick="closeOv()"><i class="fi fi-rr-cross" aria-hidden="true"></i>Cancel</button><button class="btn p with-icon" data-priority-control id="priority-save-button" onclick="savePriorityRules()"><i class="fi fi-rr-check" aria-hidden="true"></i>Save priorities</button></div>
  </div>
 
  <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>Calendar</h2></div>
@@ -492,6 +492,7 @@ function openPriorityEditor(scope){
  const config=scope==='settings'?{rules:S.userRules,ignore_user_rules:false}:currentListPriorities();
  // Capture the target now, rather than reading whichever tab is selected when saving finishes.
  S.priorityDraft={scope:scope==='settings'?'settings':list.id,rules:config.rules.map(rule=>({...rule})),ignoreUserRules:config.ignore_user_rules};
+ S.prioritySavedSnapshot=priorityDraftSnapshot();
  $('priority-heading').textContent=scope==='settings'?'Settings priorities':list.name+' priorities';
  priorityMessage('');
  menu(0);ov('sort');renderPriorityRules();
@@ -516,6 +517,7 @@ function renderPriorityRules(){
     <button class="btn with-icon" data-priority-control onclick="removePriorityRule(${i})"><i class="fi fi-rr-trash" aria-hidden="true"></i>Remove</button>
    </div>
   </div>`).join('') || '<p class="sub">No rules here yet. Add a rule, or save an empty list of rules to use the fallback order.</p>';
+ renderPrioritySaveButton();
 }
 function addPriorityRule(){
  if(S.prioritySaving)return;
@@ -540,6 +542,9 @@ function removePriorityRule(index){
  S.priorityDraft.rules.splice(index,1);priorityMessage('');renderPriorityRules();
 }
 function priorityMessage(message,state){const area=$('priority-message');area.textContent=message;area.classList.remove('saved','failed');if(state)area.classList.add(state)}
+function priorityDraftSnapshot(){return JSON.stringify({scope:S.priorityDraft?.scope,rules:S.priorityDraft?.rules,ignoreUserRules:S.priorityDraft?.ignoreUserRules})}
+function priorityDraftChanged(){return priorityDraftSnapshot()!==S.prioritySavedSnapshot}
+function renderPrioritySaveButton(){const button=$('priority-save-button');if(!button)return;const done=!priorityDraftChanged();button.innerHTML=done?'<i class="fi fi-rr-check" aria-hidden="true"></i>Done':'<i class="fi fi-rr-check" aria-hidden="true"></i>Save priorities';button.onclick=done?()=>{if(S.listSaving||S.prioritySaving||S.settingsSaving)return;closeOv()}:savePriorityRules;button.style.flex='1';const cancel=button.parentElement.querySelector('button[onclick="closeOv()"]');if(cancel){cancel.hidden=done;cancel.style.flex=done?'0':'1'}}
 async function savePriorityRules(){
  if(!user||!S.prioritiesReady||!S.priorityDraft||S.prioritySaving||S.listSaving||S.saving.size||S.loading)return;
  const draft=S.priorityDraft,version=loadVersion;
@@ -560,7 +565,8 @@ async function savePriorityRules(){
    const list=S.lists.find(list=>list.id===saved.id);
    if(list){list.priority_rules=saved.priority_rules;list.ignore_user_rules=saved.ignore_user_rules}
   }
-  priorityMessage('✓ Rule saved','saved');paint();
+  S.prioritySavedSnapshot=priorityDraftSnapshot();
+  priorityMessage('✓ Rule saved','saved');paint();renderPrioritySaveButton();
  }catch(error){
   if(version===loadVersion)priorityMessage('Could not save rule: '+error.message+' Reload before retrying if the connection was lost.','failed');
  }finally{
