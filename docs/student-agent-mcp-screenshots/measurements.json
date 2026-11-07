@@ -1,0 +1,167 @@
+{
+  "captured_at": "2026-11-05T20:30:17.998Z",
+  "synthetic_data_only": true,
+  "hosted_auth": false,
+  "measurements": [
+    {
+      "screen": "assignments",
+      "url": "/layout-fixture?screen=assignments",
+      "size": "1366x768",
+      "png": "1366x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1366
+    },
+    {
+      "screen": "assignments",
+      "url": "/layout-fixture?screen=assignments",
+      "size": "1024x768",
+      "png": "1024x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1024
+    },
+    {
+      "screen": "assignments",
+      "url": "/layout-fixture?screen=assignments",
+      "size": "768x1024",
+      "png": "768x1024",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 768
+    },
+    {
+      "screen": "assignments",
+      "url": "/layout-fixture?screen=assignments",
+      "size": "390x844",
+      "png": "390x844",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 390
+    },
+    {
+      "screen": "calendar",
+      "url": "/layout-fixture?screen=calendar",
+      "size": "1366x768",
+      "png": "1366x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1366
+    },
+    {
+      "screen": "calendar",
+      "url": "/layout-fixture?screen=calendar",
+      "size": "1024x768",
+      "png": "1024x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1024
+    },
+    {
+      "screen": "calendar",
+      "url": "/layout-fixture?screen=calendar",
+      "size": "768x1024",
+      "png": "768x1024",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 768
+    },
+    {
+      "screen": "calendar",
+      "url": "/layout-fixture?screen=calendar",
+      "size": "390x844",
+      "png": "390x844",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 390
+    },
+    {
+      "screen": "session-form",
+      "url": "/layout-fixture?screen=session",
+      "size": "1366x768",
+      "png": "1366x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1366
+    },
+    {
+      "screen": "session-form",
+      "url": "/layout-fixture?screen=session",
+      "size": "1024x768",
+      "png": "1024x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1024
+    },
+    {
+      "screen": "session-form",
+      "url": "/layout-fixture?screen=session",
+      "size": "768x1024",
+      "png": "768x1024",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 768
+    },
+    {
+      "screen": "session-form",
+      "url": "/layout-fixture?screen=session",
+      "size": "390x844",
+      "png": "390x844",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 390
+    },
+    {
+      "screen": "connected-agents",
+      "url": "/layout-fixture?screen=settings",
+      "size": "1366x768",
+      "png": "1366x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1366
+    },
+    {
+      "screen": "connected-agents",
+      "url": "/layout-fixture?screen=settings",
+      "size": "1024x768",
+      "png": "1024x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1024
+    },
+    {
+      "screen": "connected-agents",
+      "url": "/layout-fixture?screen=settings",
+      "size": "768x1024",
+      "png": "768x1024",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 768
+    },
+    {
+      "screen": "connected-agents",
+      "url": "/layout-fixture?screen=settings",
+      "size": "390x844",
+      "png": "390x844",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 390
+    },
+    {
+      "screen": "consent",
+      "url": "/oauth-consent-preview?authorization_id=synthetic-preview-authorization",
+      "size": "1366x768",
+      "png": "1366x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1366
+    },
+    {
+      "screen": "consent",
+      "url": "/oauth-consent-preview?authorization_id=synthetic-preview-authorization",
+      "size": "1024x768",
+      "png": "1024x768",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 1024
+    },
+    {
+      "screen": "consent",
+      "url": "/oauth-consent-preview?authorization_id=synthetic-preview-authorization",
+      "size": "768x1024",
+      "png": "768x1024",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 768
+    },
+    {
+      "screen": "consent",
+      "url": "/oauth-consent-preview?authorization_id=synthetic-preview-authorization",
+      "size": "390x844",
+      "png": "390x844",
+      "horizontalOverflow": false,
+      "pageScrollWidth": 390
+    }
+  ]
+}

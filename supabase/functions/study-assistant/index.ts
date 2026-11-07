@@ -131,6 +131,21 @@ export function createAIHandler(env, fetchRequest = fetch) {
       if (!auth.ok) return reply(401,{error:'Please sign in again to continue our chat.'});
       owner = (await auth.json()).id;
       if (!owner) return reply(401,{error:'Please sign in to chat with me.'});
+      // OAuth-connected agents are limited to the dedicated MCP tools. The
+      // Auth request above verifies this same bearer token before we inspect
+      // its client_id claim. Reject before reading a body, querying history,
+      // reserving AI usage, or contacting the model.
+      let verifiedClaims;
+      try {
+        const encoded=authorization.slice(7).split('.')[1];
+        if(!encoded)throw new Error('Invalid token');
+        const base64=encoded.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(encoded.length/4)*4,'=');
+        verifiedClaims=JSON.parse(atob(base64));
+      } catch {
+        return reply(401,{error:'Please sign in again to continue our chat.'});
+      }
+      if(typeof verifiedClaims.client_id==='string'&&verifiedClaims.client_id.length>0)
+        return reply(403,{error:'Connected agents can use saved assignments and study sessions through their approved tools, not the chat assistant.'});
       if (!env.OPENAI_API_KEY) return reply(503,{error:'Your team still needs to configure the AI service.'});
       const text = await request.text();
       if (text.length > 8000) return reply(413,{error:'Message is too large.'});

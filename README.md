@@ -326,6 +326,12 @@ The migration `supabase/migrations/202610300006_weekly_engagement_okr.sql` was a
 
 The tracker shows the current percentage against the 75% goal, the qualifying and active-account counts, and a seven-day unique-user bar chart. Run `node test-okr.cjs` to check the browser adapter and the migration's key privacy and calculation rules.
 
+## Student MCP connection (local implementation)
+
+The hosted OAuth server is currently disabled, and no production migration, Auth configuration, or Edge Function has been deployed for this feature. See [the Claude and Codex connection guide](docs/student-agent-mcp-setup.md), [security review and disable runbook](docs/student-agent-mcp-security.md), and [implementation evidence and remaining gates](docs/student-agent-mcp-evidence.md).
+
+Run `node test-study-sessions.cjs`, `node test-student-agent-mcp-contract.cjs`, `node test-student-agent-oauth-consent.cjs`, and `node test-time-suggestion.cjs` for the local session, allowlist, consent, and delegated-chat checks. The pinned MCP Edge Function passes `deno check` and `deno lint`; `docs/verify-student-agent-mcp.sql` is an unexecuted local-database denial test, so database and hosted acceptance remain open.
+
 Administrators choose **Team administrator** on the prototype login or open `admin.html`. The visible form accepts a username; internally the app maps it to a Supabase Auth identity in the same project. Administrators never need the Supabase dashboard for normal sign-in. The page checks the signed session and the protected database function checks the role again, so changing browser code cannot grant access. Never hardcode an administrator password in HTML or JavaScript. Add future team OKRs as additional aggregate cards on this dashboard.
 
 ### Administrator login and maintenance

@@ -1,2 +1,26 @@
 [functions.study-assistant]
 verify_jwt = true
+
+# Keep implementation helpers outside PostgREST's exposed schemas.
+[api]
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+# Local-only OAuth proof. Do not run "supabase config push" to production until
+# the security review and separate production authorization are complete.
+[auth]
+site_url = "http://127.0.0.1:4183"
+
+[auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth-consent.html"
+allow_dynamic_registration = true
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/student_mcp_access_token_hook"
+
+[functions.student-mcp]
+# Public discovery is served by the function; all tool calls are verified
+# inside it with Supabase JWKS and the protected-resource OAuth flow.
+verify_jwt = false

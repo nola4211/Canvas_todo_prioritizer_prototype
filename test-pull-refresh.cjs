@@ -1,13 +1,17 @@
 const assert=require('node:assert/strict');
 require('./pull-refresh.js');
-const handlers={},docHandlers={},messages=[],swipes=[];
+const handlers={},docHandlers={},messages=[],swipes=[],progress=[];
 let allowed=true,requests=0,release,fail=false;
 const list={scrollTop:0,ownerDocument:{addEventListener:(key,fn)=>docHandlers[key]=fn},addEventListener:(key,fn)=>handlers[key]=fn};
-CanvasPullRefresh.attach(list,{canRefresh:()=>allowed,onStatus:value=>messages.push(value),onSwipe:(a,b)=>swipes.push([a,b]),onRefresh:()=>{requests++;if(fail)return Promise.reject(Error('Offline'));return new Promise(resolve=>release=resolve)}});
+CanvasPullRefresh.attach(list,{canRefresh:()=>allowed,onStatus:(value,fraction)=>{messages.push(value);progress.push(fraction)},onSwipe:(a,b)=>swipes.push([a,b]),onRefresh:()=>{requests++;if(fail)return Promise.reject(Error('Offline'));return new Promise(resolve=>release=resolve)}});
 const target={closest:()=>null};
 function touch(key,x,y,extra={}){let prevented=false;handlers[key]({target,touches:[{clientX:x,clientY:y}],changedTouches:[{clientX:x,clientY:y}],cancelable:true,preventDefault(){prevented=true},...extra});return prevented}
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
+ touch('touchstart',100,100);touch('touchmove',100,132);assert.equal(progress.at(-1),0.5);
+ touch('touchmove',100,200);assert.equal(progress.at(-1),1);
+ touch('touchmove',100,116);assert.equal(progress.at(-1),0.25);
+ touch('touchmove',100,100);assert.equal(messages.at(-1),'');touch('touchend',100,100);await tick();assert.equal(requests,0);
  touch('touchstart',100,100);assert.equal(touch('touchmove',100,130),true);touch('touchend',100,130);await tick();assert.equal(requests,0);assert.equal(messages.at(-1),'');
  touch('touchstart',100,100);touch('touchmove',100,180);assert.equal(messages.at(-1),'Release to refresh');touch('touchend',100,180);await tick();assert.equal(requests,1);
  // A second gesture cannot start another request while the first is in flight.
