@@ -46,6 +46,7 @@ function page(options={}){
         return {data:{ok:true,data:{client_id:args.p_client_id,active:false,changed:true}},error:null};
       }
       if(name==='student_agent_approve_browser'){
+        if(options.grantLimitReached)return {data:null,error:{message:'AGENT_LIMIT_REACHED: You can connect up to 3 agents.'}};
         if(options.grantCommitOnThrow)currentAppGrants=[{id:'grant-row-new',client_id:args.p_client_id,client_name:args.p_client_name}];
         if(options.grantThrow)throw Error('response lost');
         if(options.grantError)return {data:null,error:{message:'offline'}};
@@ -79,6 +80,13 @@ const active=(clientId,name=clientId)=>({id:'existing-'+clientId,client_id:clien
   await run(denied,'deny');
   assert.deepEqual(denied.calls.map(call=>call[0]),['details','deny']);
   assert.deepEqual(denied.redirects,['https://codex.local/callback?error=access_denied']);
+
+  const atLimit=page({grantLimitReached:true});
+  await run(atLimit,'allow');
+  assert.deepEqual(atLimit.redirects,[],'a fourth connection never receives a callback');
+  assert.match(atLimit.elements.get('error').textContent,/connection limit has been reached/);
+  assert.ok(atLimit.calls.some(call=>call[0]==='student_agent_revoke_client_browser'));
+  assert.ok(atLimit.calls.some(call=>call[0]==='revokeProvider'),'provider consent is cleaned up when the app connection limit rejects approval');
 
   for(const failure of [{approveError:true},{approveThrow:true}]){
     const prior=active('codex-client','Codex');

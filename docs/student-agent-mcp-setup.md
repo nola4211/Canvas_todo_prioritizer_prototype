@@ -2,6 +2,14 @@
 
 ## Current status
 
+November 6 release update: PR #24 is merged, the consent page is published, the MCP migration and Edge Functions are deployed, and the hosted token hook/OAuth server are enabled. Public dynamic client registration remains **disabled by the product owner's decision**; configure individually registered clients instead. Real personal-account/client acceptance is still in progress and must not be inferred from deployment.
+
+The follow-up migration `202611060002_agent_connection_limits.sql` enforces a default maximum of **three active agent connections per account**. Reapproval of an active client uses no extra slot; revocation frees one; reactivating a revoked client needs an available slot. A per-owner database lock enforces this limit even under concurrent approvals.
+
+Extra slots require a project database administrator to insert or update `public.student_agent_connection_limits` with the account UUID, approved limit, and a nonempty approval reason. The table records approver and approval time and grants no access to ordinary users, OAuth agents, or the service-role Data API. Do not distribute a privileged database key as an override mechanism.
+
+Student identity will come from the separate Canvas OAuth integration, using a verified Canvas origin/user ID as the unique account identity. No additional BYU email-domain or separate school-login restriction was added. Canvas identity login remains pending the Canvas integration; the existing app login is used for private acceptance testing.
+
 November 6 update: the complete migration and two-owner behavior checks now pass in a rollback-only transaction against the hosted schema. A pre-launch recovery rehearsal also restores all original function definitions and ACLs. See [the release review](student-agent-mcp-release-review.md) for current evidence and the concrete release actions awaiting confirmation. The unapplied migration is now `202611060001_student_agent_mcp.sql`, avoiding a version collision with the team's assignment-editing migration. Hosted OAuth/client acceptance is still outstanding.
 
 The connection is implemented on the local `codex/student-agent-mcp` branch. The hosted project has **not** been changed. Its OAuth server currently returns `feature_disabled`, so Claude/Codex login and hosted tool calls are unavailable until the independent production review and authorization are complete.
