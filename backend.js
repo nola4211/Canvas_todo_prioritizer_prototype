@@ -83,6 +83,26 @@
         if(!data)throw new Error('The assignment save was not confirmed. Reload assignments before retrying.');
         const saved=record(data);visible.add(saved.id);return saved;
       },
+      async updateAssignment(assignmentId, input) {
+        const key = id(assignmentId);
+        if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
+        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,allowPast:true});
+        const {data,error}=await client.from('assignments').update({name:fields.n,description:fields.description,class_name:fields.c,due_date:fields.d,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g})
+          .eq('assignment_id',key).eq('deleted',false).select(columns).single();
+        if(error)throw new Error(error.message || 'Could not save assignment changes.');
+        if(!data)throw new Error('The assignment update was not confirmed. Reload assignments before retrying.');
+        return record(data);
+      },
+      async updateAssignmentPriority(assignmentId, priority) {
+        const key = id(assignmentId);
+        if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
+        if (!Number.isInteger(priority) || priority < 0 || priority > 3) throw new Error('Choose a valid priority.');
+        const {data,error}=await client.from('assignments').update({priority}).eq('assignment_id',key).eq('deleted',false)
+          .select('assignment_id,name,description,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name').single();
+        if(error)throw new Error(error.message || 'Could not save priority.');
+        if(!data)throw new Error('The priority update was not confirmed. Reload assignments before retrying.');
+        return record(data);
+      },
       async loadAssignmentDraft(chatId) {
         const {data,error}=await client.from('chat').select('assignment_draft').eq('chat_ID',chatId).single();
         if(error)throw new Error(error.message || 'Could not load the assignment draft.');

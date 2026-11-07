@@ -33,13 +33,15 @@ const client={from(table){assert.equal(table,'user_settings');let patch=null;
  const context=vm.createContext({console,Date,Intl,setTimeout,clearTimeout,window:{APP_CONFIG:{}},
   document:{documentElement,getElementById:element,querySelectorAll:selector=>selector==='[data-user-setting], #settings-priority-button'?settingControls:[],addEventListener(){}}});
  vm.runInContext(fs.readFileSync(__dirname+'/priorities.js','utf8'),context);
- const inline=[...fs.readFileSync(__dirname+'/index.html','utf8').matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
+ const html=fs.readFileSync(__dirname+'/index.html','utf8');
+ assert.match(html,/backend\.js\?v=20261106-settings-1/);
+ const inline=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
  vm.runInContext(inline,context);
  const run=code=>vm.runInContext(code,context);
- let releaseSave=null,uiFail=false;
+ let releaseSave=null,uiFail=false,saveCalls=0;
  context.testBackend={
   async loadUserSettings(){return {push_notifications:false,sync_with_canvas:true,dark_mode:true}},
-  async saveUserSettings(value){if(uiFail)throw new Error('Network unavailable');await new Promise(resolve=>releaseSave=()=>resolve({...value}));return {...value}}
+  async saveUserSettings(value){saveCalls++;if(uiFail)throw new Error('Network unavailable');await new Promise(resolve=>releaseSave=()=>resolve({...value}));return {...value}}
  };
  run("backend=testBackend;user={id:'demo'};S.settingsReady=true;S.userSettings={push_notifications:true,sync_with_canvas:true,dark_mode:false}");
  const dark=element('dark-setting');dark.dataset.userSetting='dark_mode';dark.checked=true;settingControls.push(dark);
@@ -48,6 +50,13 @@ const client={from(table){assert.equal(table,'user_settings');let patch=null;
  assert.equal(dark.checked,false);assert.equal(run('S.settingsSaving'),true);assert.equal(dark.disabled,true);
  releaseSave();await pending;
  assert.equal(run('S.userSettings.dark_mode'),true);assert.equal(documentElement.dataset.theme,'dark');assert.equal(dark.checked,true);assert.equal(dark.disabled,false);
+
+ // A reload locks settings and prevents an older settings read from racing a new save.
+ const canvas=element('canvas-setting');canvas.dataset.userSetting='sync_with_canvas';canvas.checked=false;settingControls.push(canvas);context.testInput=canvas;
+ run('S.loading=true;lockListControls()');assert.equal(canvas.disabled,true);
+ const callsBeforeReload=saveCalls;await run('changeUserSetting(testInput)');
+ assert.equal(saveCalls,callsBeforeReload);assert.equal(canvas.checked,true);
+ run('S.loading=false;lockListControls()');assert.equal(canvas.disabled,false);
 
  const push=element('push-setting');push.dataset.userSetting='push_notifications';push.checked=false;settingControls.push(push);context.testInput=push;
  uiFail=true;await run('changeUserSetting(testInput)');

@@ -82,6 +82,7 @@
         sending=false;await selectChat(chatId);
         if(version!==current+1)return;
         if(options.onSaved)await options.onSaved(saved);
+        if(version===current+1)status('✓ Assignment saved');
       }catch(error){if(current===version){sending=false;render();status('I couldn’t confirm the save. Please reopen this chat and try again.')}}
     }
     async function changeDraft(action){
