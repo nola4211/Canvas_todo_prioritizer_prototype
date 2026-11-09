@@ -21,6 +21,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .plus{background:var(--ac);color:#fff;border:0;width:28px;height:28px;border-radius:50%;font-size:18px;line-height:1;margin:0 4px 8px}
 .body{flex:1;overflow-y:auto;padding:14px}
 .card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:10px}
+.progress-panel{padding:16px;margin:12px 0 16px}.progress-title{font-size:16px;font-weight:700;margin:0 0 3px}.progress-range{font-size:12px;color:var(--mu);margin:0 0 12px}.progress-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.progress-stat{background:var(--bg);border:1px solid var(--ln);border-radius:11px;padding:10px 8px;text-align:center}.progress-stat strong{display:block;font-size:22px;line-height:1.2}.progress-stat span{display:block;color:var(--mu);font-size:11px;margin-top:3px}.progress-note{font-size:11px;color:var(--mu);margin:10px 0 0;line-height:1.4}.overdue-panel{border-left:4px solid var(--pr-urgent)}.overdue-panel .progress-title{color:var(--pr-urgent)}.overdue-list{margin-top:8px;display:grid;gap:5px}
+.progress-stat{position:relative;cursor:pointer;color:var(--tx);font:inherit;width:100%}.progress-tooltip{display:none;position:absolute;z-index:9;top:calc(100% + 8px);left:50%;transform:translateX(-50%);width:min(260px,70vw);max-height:220px;overflow:auto;padding:10px 12px;background:var(--card);border:1px solid var(--ln);border-radius:10px;box-shadow:0 8px 24px #0003;text-align:left;color:var(--tx)}.progress-tooltip b{display:block;font-size:12px;margin-bottom:6px}.progress-tooltip ul{margin:0;padding-left:18px}.progress-tooltip li{font-size:12px;line-height:1.5;margin:2px 0}.progress-stat:hover .progress-tooltip,.progress-stat:focus .progress-tooltip,.progress-stat:focus-within .progress-tooltip{display:block}
 .row{display:flex;gap:10px;align-items:flex-start}
 .chk{width:22px;height:22px;border-radius:50%;border:2px solid var(--ac);background:none;flex:none;margin-top:2px}
 .chk.d{background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center}.chk.d .fi{font-size:11px}.dn .nm{text-decoration:line-through;opacity:.5}
@@ -316,6 +318,32 @@ const priorityNames=['Low','Normal','High','Urgent'];
 const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><div class="row" style="gap:4px"><button class="ib" data-edit="${esc(a.id)}" style="font-size:14px" title="Edit assignment" aria-label="Edit ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-edit" aria-hidden="true"></i></button><button class="ib" data-remove="${esc(a.id)}" style="font-size:14px" title="Remove assignment" aria-label="Remove ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div></div>${a.description?`<div class="sub assignment-description">${esc(a.description)}</div>`:''}<div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
 <div class="chips"><span class="chip"><i class="fi fi-rr-clock" aria-hidden="true"></i> ${ft(a.t)}</span><span class="chip"><i class="fi fi-rr-percentage" aria-hidden="true"></i> ${a.g==null?'Grade weight not set':a.g+' of grade'}</span><span class="priority-picker-wrap"><button class="chip pr pr-${priorityName.toLowerCase()}" data-priority-open="${esc(a.id)}" aria-haspopup="true" aria-expanded="${S.priorityPicker===a.id}" aria-label="Priority: ${priorityName}. Change priority" ${!S.ready||S.loading||S.saving.has(a.id)?'disabled':''}><i class="fi fi-rr-flag" aria-hidden="true"></i> ${priorityName}</button>${S.priorityPicker===a.id?`<span class="priority-popup" role="menu">${priorityNames.map((name,value)=>`<button type="button" role="menuitemradio" aria-checked="${value===priority}" data-priority-value="${value}" data-assignment="${esc(a.id)}">${name}${value===priority?' ✓':''}</button>`).join('')}</span>`:''}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub" data-completion-status>${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk with-icon" onclick="openCal('${a.d}')"><i class="fi fi-rr-calendar-arrow-up" aria-hidden="true"></i>See in calendar</button>`}</div></div></div>`};
 const completedSection=html=>html?'<div class="gh completed-heading">Completed</div>'+html:'';
+function weekBounds(){
+ const today=new Date(TODAY+'T12:00:00');
+ const day=(today.getDay()+6)%7;
+ const start=new Date(today);start.setDate(today.getDate()-day);
+ const end=new Date(start);end.setDate(start.getDate()+6);
+ const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+ return [key(start),key(end)];
+}
+function progressSummary(assignments){
+ const overdue=assignments.filter(a=>!S.done[a.id]&&!a.noDue&&a.d<TODAY);
+ const [start,end]=weekBounds();
+ const thisWeek=assignments.filter(a=>!a.noDue&&a.d>=start&&a.d<=end);
+ const done=thisWeek.filter(a=>S.done[a.id]).length;
+ const open=thisWeek.length-done;
+ const stat=(key,label,rows)=>`<button class="progress-stat" type="button" data-weekly-items="${key}" aria-label="View ${rows.length} ${label} assignments"><strong>${rows.length}</strong><span>${label}</span><div class="progress-tooltip" aria-hidden="true"><b>${rows.length?`${label} assignments`:'No assignments'}</b>${rows.length?`<ul>${srt(rows).map(a=>`<li>${esc(a.n)} · due ${fd(a.d)}</li>`).join('')}</ul>`:'<span class="sub">Nothing in this count.</span>'}</div></button>`;
+ return `<section class="card progress-panel" aria-label="Weekly progress"><h2 class="progress-title">This week</h2><p class="progress-range">${fd(start)}–${fd(end)}</p><div class="progress-stats">${stat('due','Due this week',thisWeek)}${stat('done','Marked complete',thisWeek.filter(a=>S.done[a.id]))}${stat('open','Still open',thisWeek.filter(a=>!S.done[a.id]))}</div><p class="progress-note">Counts reflect current status; completion dates are not tracked.</p></section><section class="card progress-panel overdue-panel" aria-label="Overdue assignments"><h2 class="progress-title">${overdue.length} overdue</h2><p class="sub">Incomplete assignments past their due date</p>${overdue.length?`<div class="overdue-list">${srt(overdue).map(a=>`<div class="sub">${esc(a.n)} · due ${fd(a.d)}</div>`).join('')}</div>`:''}</section>`;
+}
+function openWeeklyItems(kind){
+ const [start,end]=weekBounds();
+ const due=S.A.filter(a=>!a.noDue&&a.d>=start&&a.d<=end);
+ const rows=kind==='due'?due:kind==='done'?due.filter(a=>S.done[a.id]):due.filter(a=>!S.done[a.id]);
+ const title=kind==='due'?'Due this week':kind==='done'?'Marked complete':'Still open';
+ $('pt').textContent=title;
+ $('pb').innerHTML=rows.length?rows.slice().sort((a,b)=>a.d.localeCompare(b.d)).map(a=>`<section class="card"><div class="nm">${esc(a.n)}</div><div class="sub">${esc(a.c)} · Due ${fd(a.d)}</div><div class="sub">${S.done[a.id]?'Marked complete':'Still open'}</div></section>`).join(''):'<div class="hint">No assignments in this group.</div>';
+ menu(0);ov('panel');
+}
 function separatedCards(assignments){
  const incomplete=srt(assignments.filter(a=>!S.done[a.id])).map(card).join('');
  const completed=srt(assignments.filter(a=>S.done[a.id])).map(card).join('');
@@ -343,7 +371,7 @@ function home(){
  const heading=t.id==='main'?'Your upcoming assignments':t.id==='classes'?'Your assignments by class':t.name;
  const visible=t.id==='main'||t.id==='classes'?S.A:S.A.filter(a=>S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id));
  const remaining=visible.filter(a=>!S.done[a.id]).length,completed=visible.length-remaining;
- $('list').innerHTML=`<header class="assignment-intro"><h1 id="assignments-title" tabindex="-1">${esc(heading)}</h1><p>${remaining} to do · ${completed} completed. Choose your next task.</p></header>`+(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
+ $('list').innerHTML=`<header class="assignment-intro"><h1 id="assignments-title" tabindex="-1">${esc(heading)}</h1><p>${remaining} to do · ${completed} completed. Choose your next task.</p></header>`+(t.id==='main'?progressSummary(visible):'')+(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
 }
 let db=null,backend=null,chatClient=null,sessionBackend=null,user=null,loadVersion=0;
 const showError=message=>{['sync-error','login-error','account-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
@@ -398,6 +426,7 @@ function completionNotice(id){
  $('toast').appendChild(view);
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-complete]');if(button&&!button.disabled)tog(button.dataset.complete)});
+document.addEventListener('click',event=>{const stat=event.target.closest('[data-weekly-items]');if(stat)openWeeklyItems(stat.dataset.weeklyItems)});
 document.addEventListener('click',event=>{const choice=event.target.closest('[data-priority-value]');if(choice){changeAssignmentPriority(choice.dataset.assignment,Number(choice.dataset.priorityValue));return}const open=event.target.closest('[data-priority-open]');if(open&&!open.disabled){S.priorityPicker=S.priorityPicker===open.dataset.priorityOpen?null:open.dataset.priorityOpen;paint();return}if(S.priorityPicker&&!event.target.closest('.priority-picker-wrap')){S.priorityPicker=null;paint()}const edit=event.target.closest('[data-edit]');if(edit&&!edit.disabled){openEdit(edit.dataset.edit);return}const button=event.target.closest('[data-remove]');if(button&&!button.disabled)del(button.dataset.remove)});
 async function changeAssignmentPriority(id,priority){const assignment=S.A.find(a=>a.id===id);if(!assignment||S.saving.has(id))return;S.saving.add(id);S.priorityPicker=null;paint();try{const saved=await backend.updateAssignmentPriority(id,priority);const index=S.A.findIndex(a=>a.id===id);if(index>=0)S.A[index]=saved;$('sync-status').textContent='Priority saved';toast('✓ Priority updated')}catch(error){showError('Could not save priority: '+error.message);$('sync-status').textContent='Priority was not confirmed. Reload to check its state.'}finally{S.saving.delete(id);paint()}}
 async function signIn(){
