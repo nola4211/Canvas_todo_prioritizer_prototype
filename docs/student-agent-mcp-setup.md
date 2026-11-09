@@ -2,7 +2,7 @@
 
 ## Current status
 
-November 6 release update: PR #24 is merged, the consent page is published, the MCP migration and Edge Functions are deployed, and the hosted token hook/OAuth server are enabled. Public dynamic client registration remains **disabled by the product owner's decision**; configure individually registered clients instead. Real personal-account/client acceptance is still in progress and must not be inferred from deployment.
+November 9 update: PR #24 is merged, the consent page is published, the MCP migration and Edge Functions are deployed, and the hosted token hook/OAuth server are enabled. Public dynamic client registration remains **disabled by the product owner's decision**. Actual Codex sign-in, tool operations, token renewal, persistence, and denial after disconnect passed with a disposable account. Returning-consent and provider-revocation SDK mismatches were corrected locally after those tests. See [the current acceptance report](student-agent-mcp-test-results-20261109.md) for the release status and exact evidence. Claude testing is deferred by the user.
 
 The follow-up migration `202611060002_agent_connection_limits.sql` enforces a default maximum of **three active agent connections per account**. Reapproval of an active client uses no extra slot; revocation frees one; reactivating a revoked client needs an available slot. A per-owner database lock enforces this limit even under concurrent approvals.
 
@@ -10,17 +10,15 @@ Extra slots require a project database administrator to insert or update `public
 
 Student identity will come from the separate Canvas OAuth integration, using a verified Canvas origin/user ID as the unique account identity. No additional BYU email-domain or separate school-login restriction was added. Canvas identity login remains pending the Canvas integration; the existing app login is used for private acceptance testing.
 
-November 6 update: the complete migration and two-owner behavior checks now pass in a rollback-only transaction against the hosted schema. A pre-launch recovery rehearsal also restores all original function definitions and ACLs. See [the release review](student-agent-mcp-release-review.md) for current evidence and the concrete release actions awaiting confirmation. The unapplied migration is now `202611060001_student_agent_mcp.sql`, avoiding a version collision with the team's assignment-editing migration. Hosted OAuth/client acceptance is still outstanding.
+The hosted migration and two-owner behavior checks passed in rollback-only transactions. The older release-review and manager-review documents describe earlier checkpoints; their pre-deployment status paragraphs are historical, not the current live status.
 
-The connection is implemented on the local `codex/student-agent-mcp` branch. The hosted project has **not** been changed. Its OAuth server currently returns `feature_disabled`, so Claude/Codex login and hosted tool calls are unavailable until the independent production review and authorization are complete.
-
-Target MCP URL:
+Live MCP URL:
 
 ```text
 https://uowlwdwrqceklbqjcnmc.supabase.co/functions/v1/student-mcp
 ```
 
-The URL is a target only; it is not live until the reviewed migration and function are deployed and the project OAuth server is enabled. Do not paste an access token, refresh token, password, or API key into an agent chat or configuration.
+Do not paste an access token, refresh token, password, or API key into an agent chat or configuration. Manual client registration does not itself authorize an account; each account must approve its agent.
 
 ## Edge Function runtime configuration
 
@@ -34,7 +32,7 @@ MCP_RESOURCE_URL=https://<project-ref>.supabase.co/functions/v1/student-mcp
 MCP_AUTH_ISSUER=https://<project-ref>.supabase.co/auth/v1
 ```
 
-The pinned `@supabase/server` runtime reads `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_JWKS_URL` (or `SUPABASE_JWKS` when supplying the JWKS value directly); it does not use the legacy `SUPABASE_ANON_KEY` name for this middleware. Keep the resource and issuer byte-for-byte aligned with `public.student_agent_runtime_config` and the access-token hook. For this repository's configured project, the current resource and issuer are the target URLs shown above. These settings have not been installed on the hosted function.
+The hosted platform provisions its SDK key/JWKS settings automatically. The example above is for a manually configured runtime; do not copy secret keys into browser configuration. Keep the resource and issuer byte-for-byte aligned with `public.student_agent_runtime_config` and the access-token hook. Real hosted authenticated calls passed with the deployed runtime configuration.
 
 ## What approval allows
 
@@ -48,7 +46,7 @@ Agents cannot submit work to Canvas, read Canvas, sync with Canvas, change assig
 
 ## Connect Claude
 
-After the hosted release gate is complete:
+Claude's individually registered public client ID is `36def8b6-bb91-4f7f-93ac-1543fbc4caf6`, with callback `https://claude.ai/api/mcp/auth_callback`. Public registration is intentionally disabled. Use the connector's client-ID setting if supported; do not enable public registration or invent a client secret. Actual Claude client acceptance remains pending.
 
 1. In Claude or Claude Desktop, open **Settings → Connectors → Add custom connector**.
 2. Enter a name such as **Canvas To-Do Prioritizer** and paste the target MCP URL above.
@@ -61,10 +59,9 @@ Claude’s custom remote connectors use OAuth and support Streamable HTTP. Detai
 
 ## Connect Codex
 
-After the hosted release gate is complete, the Codex CLI can register the remote endpoint and start OAuth through the host’s browser flow:
+Codex uses the individually registered public client `374c1f93-8709-4db7-a145-1adb540fc3a5`. The existing local configuration includes its exact registered loopback callback on port 4188. With that configuration already installed, start OAuth through the host’s browser flow:
 
 ```sh
-codex mcp add canvas-todo --url https://uowlwdwrqceklbqjcnmc.supabase.co/functions/v1/student-mcp
 codex mcp login canvas-todo
 codex mcp list
 ```
@@ -99,4 +96,4 @@ The server must already be running on that loopback port, and `psql` must be abl
 
 Before a production release, complete all items in [the security review](student-agent-mcp-security.md), run the migration and policy acceptance checks against a local Supabase database, and record results in [the evidence log](student-agent-mcp-evidence.md). Then get the separate production authorization before applying a production migration, enabling hosted OAuth, configuring a live OAuth hook, or deploying the function.
 
-The hosted OAuth flow, Claude/Codex discovery, tool call, revoke behavior, database readback, and hosted consent/client screenshots are **not verified** yet. The local synthetic screenshots document layout only. No production migration, config push, deployment, GitHub push, or merge was performed for this task.
+Codex and protocol-level live acceptance are recorded in the November 9 report. Claude remains untested. Test-account credentials were removed after acceptance, so a real student connection still requires that student's own approval. The planned Canvas identity login is a separate integration and is not available yet.
