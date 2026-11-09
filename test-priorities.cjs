@@ -30,7 +30,7 @@ for(const rules of [null,{},[{type:'class_grade'}],[{type:'due'},{type:'due'}],[
 // Use the real adapter and page with a small simulated database.
 const elements=new Map();
 function element(id){
- if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',hidden:false,disabled:false,
+ if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',hidden:false,disabled:false,style:{},parentElement:{querySelector:()=>null},
   classList:{contains:()=>false,add(){},remove(){},toggle(){}},addEventListener(){}});
  return elements.get(id);
 }

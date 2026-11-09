@@ -84,10 +84,11 @@ async function readAppGrants(){
 }
 function oauthGrantRows(data){
   const rows=Array.isArray(data)?data:Array.isArray(data?.grants)?data.grants:null;
-  return rows?.filter(row=>typeof row?.client_id==='string'&&row.client_id.length>0&&row.client_id.length<=200)||null;
+  return rows?.map(row=>({client_id:row?.client_id??row?.client?.id,client_name:row?.client_name??row?.client?.name,scopes:row?.scopes}))
+    .filter(row=>typeof row.client_id==='string'&&row.client_id.length>0&&row.client_id.length<=200)||null;
 }
 async function revokeProviderGrant(clientId){
-  try{const {error}=await client.auth.oauth.revokeGrant(clientId);return !error}
+  try{const {error}=await client.auth.oauth.revokeGrant({clientId});return !error}
   catch{return false}
 }
 async function revokeAppGrantByClient(clientId){
@@ -113,7 +114,7 @@ function displayConsent(clientId,clientName,scopes,existingAuthorization,redirec
 async function showExistingAuthorization(data){
   if(!validRedirect(data.redirect_url)){fail('Supabase reports an earlier authorization but did not return a valid callback. No callback was sent.');return}
   let oauthResult,appResult;
-  try{[oauthResult,appResult]=await Promise.all([client.auth.oauth.getUserGrants(),readAppGrants()])}
+  try{[oauthResult,appResult]=await Promise.all([client.auth.oauth.listGrants(),readAppGrants()])}
   catch{fail('Could not verify the earlier authorization against this app. No callback was sent.');return}
   const oauthRows=oauthResult?.error?null:oauthGrantRows(oauthResult?.data);
   if(!oauthRows||!appResult.ok){fail('Could not verify the earlier authorization against this app. No callback was sent.');return}
