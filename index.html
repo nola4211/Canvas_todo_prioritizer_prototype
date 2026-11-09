@@ -333,15 +333,16 @@ function progressSummary(assignments){
  const done=thisWeek.filter(a=>S.done[a.id]).length;
  const open=thisWeek.length-done;
  const stat=(key,label,rows)=>`<button class="progress-stat" type="button" data-weekly-items="${key}" aria-label="View ${rows.length} ${label} assignments"><strong>${rows.length}</strong><span>${label}</span><div class="progress-tooltip" aria-hidden="true"><b>${rows.length?`${label} assignments`:'No assignments'}</b>${rows.length?`<ul>${srt(rows).map(a=>`<li>${esc(a.n)} · due ${fd(a.d)}</li>`).join('')}</ul>`:'<span class="sub">Nothing in this count.</span>'}</div></button>`;
- return `<section class="card progress-panel" aria-label="Weekly progress"><h2 class="progress-title">This week</h2><p class="progress-range">${fd(start)}–${fd(end)}</p><div class="progress-stats">${stat('due','Due this week',thisWeek)}${stat('done','Marked complete',thisWeek.filter(a=>S.done[a.id]))}${stat('open','Still open',thisWeek.filter(a=>!S.done[a.id]))}</div><p class="progress-note">Counts reflect current status; completion dates are not tracked.</p></section><section class="card progress-panel overdue-panel" aria-label="Overdue assignments"><h2 class="progress-title">${overdue.length} overdue</h2><p class="sub">Incomplete assignments past their due date</p>${overdue.length?`<div class="overdue-list">${srt(overdue).map(a=>`<div class="sub">${esc(a.n)} · due ${fd(a.d)}</div>`).join('')}</div>`:''}</section>`;
+ return `<section class="card progress-panel" aria-label="Weekly progress"><h2 class="progress-title">This week</h2><p class="progress-range">${fd(start)}–${fd(end)}</p><div class="progress-stats">${stat('due','Due this week',thisWeek)}${stat('done','Marked complete',thisWeek.filter(a=>S.done[a.id]))}${stat('open','Still open',thisWeek.filter(a=>!S.done[a.id]))}</div><p class="progress-note">Counts reflect current status; completion dates are not tracked.</p></section><section class="card progress-panel overdue-panel" aria-label="Overdue assignments"><h2 class="progress-title">${overdue.length} overdue</h2><p class="sub">Incomplete assignments past their due date</p>${overdue.length?`<button class="btn" type="button" data-weekly-items="overdue">Review overdue assignments</button>`:'<p class="sub">You’re all caught up.</p>'}</section>`;
 }
 function openWeeklyItems(kind){
  const [start,end]=weekBounds();
  const due=S.A.filter(a=>!a.noDue&&a.d>=start&&a.d<=end);
- const rows=kind==='due'?due:kind==='done'?due.filter(a=>S.done[a.id]):due.filter(a=>!S.done[a.id]);
- const title=kind==='due'?'Due this week':kind==='done'?'Marked complete':'Still open';
+ const overdue=S.A.filter(a=>!S.done[a.id]&&!a.noDue&&a.d<TODAY);
+ const rows=kind==='due'?due:kind==='done'?due.filter(a=>S.done[a.id]):kind==='overdue'?overdue:due.filter(a=>!S.done[a.id]);
+ const title=kind==='due'?'Due this week':kind==='done'?'Marked complete':kind==='overdue'?'Overdue assignments':'Still open';
  $('pt').textContent=title;
- $('pb').innerHTML=rows.length?rows.slice().sort((a,b)=>a.d.localeCompare(b.d)).map(a=>`<section class="card"><div class="nm">${esc(a.n)}</div><div class="sub">${esc(a.c)} · Due ${fd(a.d)}</div><div class="sub">${S.done[a.id]?'Marked complete':'Still open'}</div></section>`).join(''):'<div class="hint">No assignments in this group.</div>';
+ $('pb').innerHTML=rows.length?rows.slice().sort((a,b)=>a.d.localeCompare(b.d)).map(card).join(''):'<div class="hint">No assignments in this group.</div>';
  menu(0);ov('panel');
 }
 function separatedCards(assignments){
@@ -405,7 +406,7 @@ async function tog(id){
   if(saved)completionNotice(id);else toast('Assignment marked incomplete');
  }
  catch(error){showError(error.message);$('sync-status').textContent='Save was not confirmed. Reload to check the database.'}
- finally{S.saving.delete(id);lockListControls();paint();if(keepFocus){const scope=$('cal').classList.contains('on')?'dayp':'list';const target=$(scope).querySelector?.('[data-complete][aria-checked="false"]')||$('assignments-title');target?.focus?.({preventScroll:true})}}
+ finally{S.saving.delete(id);lockListControls();paint();if($('panel').classList.contains('on')){const key={'Overdue assignments':'overdue','Still open':'open'}[$('pt').textContent];if(key)openWeeklyItems(key)}if(keepFocus){const scope=$('cal').classList.contains('on')?'dayp':'list';const target=$(scope).querySelector?.('[data-complete][aria-checked="false"]')||$('assignments-title');target?.focus?.({preventScroll:true})}}
 }
 function prefersQuietMotion(){return !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches}
 async function showConfirmedCompletion(id){
