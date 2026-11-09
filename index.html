@@ -784,7 +784,7 @@ async function disconnectAgent(id){
  const grant=S.agentGrants.find(row=>row.id===id);if(!grant||S.agentSaving||!confirm('Disconnect '+(grant.client_name||'this agent')+'? It will no longer be able to use your assignments or study sessions.'))return;
  S.agentSaving=id;renderAgentGrants();let providerError='';
  try{await sessionBackend.revokeAgentGrant(id);S.agentGrants=S.agentGrants.filter(row=>row.id!==id);
-  try{const result=await db.auth.oauth.revokeGrant(grant.client_id);if(result?.error)providerError=result.error.message||'OAuth refresh-token revocation could not be confirmed.'}
+  try{const result=await db.auth.oauth.revokeGrant({clientId:grant.client_id});if(result?.error)providerError=result.error.message||'OAuth refresh-token revocation could not be confirmed.'}
   catch(error){providerError=error.message||'OAuth refresh-token revocation could not be confirmed.'}
   renderAgentGrants();toast(providerError?'Agent disconnected in the app. Supabase could not revoke its OAuth grant: '+providerError:'Agent disconnected')
  }catch(error){$('agent-status').textContent='Could not disconnect this agent: '+error.message}

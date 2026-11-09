@@ -22,10 +22,10 @@ function page(options={}){
   }
   const oauth={
     getAuthorizationDetails:async id=>{calls.push(['details',id]);return options.detailsError?{data:null,error:{message:'unavailable'}}:{data:details,error:null}},
-    getUserGrants:async()=>{calls.push(['getUserGrants']);if(options.oauthGrantThrow)throw Error('network');return options.oauthGrantError?{data:null,error:{message:'offline'}}:{data:oauthGrants,error:null}},
+    listGrants:async()=>{calls.push(['listGrants']);if(options.oauthGrantThrow)throw Error('network');return options.oauthGrantError?{data:null,error:{message:'offline'}}:{data:oauthGrants,error:null}},
     approveAuthorization:async(id,settings)=>{calls.push(['approve',id,settings]);if(options.approveThrow)throw Error('response lost');return options.approveError?{data:null,error:{message:'rejected'}}:approve},
     denyAuthorization:async id=>{calls.push(['deny',id]);if(options.denyThrow)throw Error('offline');return options.denyError?{data:null,error:{message:'offline'}}:deny},
-    revokeGrant:async id=>{calls.push(['revokeProvider',id]);if(options.revokeThrow)throw Error('offline');return options.revokeError?{data:null,error:{message:'offline'}}:{data:{},error:null}},
+    revokeGrant:async optionsArg=>{assert.equal(typeof optionsArg,'object','Supabase revokeGrant requires an options object');assert.equal(typeof optionsArg.clientId,'string','Supabase revokeGrant requires clientId');calls.push(['revokeProvider',optionsArg.clientId]);if(options.revokeThrow)throw Error('offline');return options.revokeError?{data:null,error:{message:'offline'}}:{data:{},error:null}},
   };
   const client={
     auth:{getSession:async()=>({data:{session:options.session===false?null:{access_token:'private-test-session'}},error:null}),oauth,
@@ -155,6 +155,16 @@ const active=(clientId,name=clientId)=>({id:'existing-'+clientId,client_id:clien
   assert.ok(!appConsentForPriorAuth.calls.some(call=>call[0]==='approve'),'previously approved provider request is not approved a second time');
   assert.ok(appConsentForPriorAuth.calls.some(call=>call[0]==='student_agent_approve_browser'));
   assert.deepEqual(appConsentForPriorAuth.redirects,['https://codex.local/callback?code=previously-approved']);
+
+  // The real Supabase response nests client identity under `client`.
+  const nestedAuthorized=page({details:{redirect_url:'https://codex.local/callback?code=nested-client'},oauthGrants:[{client:{id:'codex-client',name:'Codex'},scopes:['email']}],appGrants:[active('codex-client','Codex')]});
+  await settle();
+  assert.deepEqual(nestedAuthorized.redirects,['https://codex.local/callback?code=nested-client']);
+  const nestedUnapproved=page({details:{redirect_url:'https://codex.local/callback?code=nested-client'},oauthGrants:[{client:{id:'codex-client',name:'Codex'},scopes:['email']}]});
+  await settle();
+  assert.deepEqual(nestedUnapproved.redirects,[],'nested provider identity still requires app consent');
+  await run(nestedUnapproved,'allow');
+  assert.deepEqual(nestedUnapproved.redirects,['https://codex.local/callback?code=nested-client']);
 
   const priorCancelled=page({details:{redirect_url:'https://codex.local/callback?code=previously-approved'},oauthGrants:[{client_id:'codex-client',client_name:'Codex'}]});
   await run(priorCancelled,'deny');

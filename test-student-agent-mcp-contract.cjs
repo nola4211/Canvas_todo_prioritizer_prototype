@@ -57,7 +57,7 @@ assert.match(consent,/getAuthorizationDetails\(authorizationId\)/);
 assert.match(consent,/provider will receive the assignment information it reads, including descriptions and grade weights/i);
 assert.match(consent,/student_agent_approve_browser/);
 assert.match(consent,/student_agent_revoke_client_browser/);
-assert.match(consent,/getUserGrants\(\)/);
+assert.match(consent,/listGrants\(\)/);
 const providerApprovalAt=consent.indexOf('client.auth.oauth.approveAuthorization(authorizationId,{skipBrowserRedirect:true})');
 const appApprovalAt=consent.indexOf("client.rpc('student_agent_approve_browser'");
 assert.ok(providerApprovalAt>=0&&appApprovalAt>providerApprovalAt,'provider approval completes without redirect before the app grant can be activated');
