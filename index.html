@@ -34,6 +34,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .lk{background:none;border:0;color:var(--ac);font-size:12px;padding:6px 0 0}
 .gh{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:12px 2px 8px}
 .completed-heading{margin-top:24px;padding-top:14px;border-top:1px solid var(--ln);color:var(--tx);font-weight:700}
+.priority-rule summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:650;list-style:none}.priority-rule summary::-webkit-details-marker{display:none}.priority-rule summary::before{content:'›';display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--bg);color:var(--ac);font-size:22px;line-height:1;transition:transform .15s}.priority-rule[open] summary::before{transform:rotate(90deg)}.priority-rule summary:hover::before,.priority-rule summary:focus-visible::before{background:color-mix(in srgb,var(--ac) 14%,var(--bg))}.priority-rule[open] summary{margin-bottom:8px}
+.emoji{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-variant-emoji:emoji}
 .bar{display:flex;justify-content:space-around;align-items:center;padding:8px 10px 14px;background:var(--card);border-top:1px solid var(--ln)}
 .bb{background:none;border:0;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--mu);gap:4px}.bb b{font-size:22px;font-weight:400;line-height:1}
 .hd{display:flex;align-items:center;gap:8px;padding:16px 12px 10px;border-bottom:1px solid var(--ln);background:var(--card)}
@@ -333,7 +335,7 @@ function progressSummary(assignments){
  const done=thisWeek.filter(a=>S.done[a.id]).length;
  const open=thisWeek.length-done;
  const stat=(key,label,rows)=>`<button class="progress-stat" type="button" data-weekly-items="${key}" aria-label="View ${rows.length} ${label} assignments"><strong>${rows.length}</strong><span>${label}</span><div class="progress-tooltip" aria-hidden="true"><b>${rows.length?`${label} assignments`:'No assignments'}</b>${rows.length?`<ul>${srt(rows).map(a=>`<li>${esc(a.n)} · due ${fd(a.d)}</li>`).join('')}</ul>`:'<span class="sub">Nothing in this count.</span>'}</div></button>`;
- return `<section class="card progress-panel" aria-label="Weekly progress"><h2 class="progress-title">This week</h2><p class="progress-range">${fd(start)}–${fd(end)}</p><div class="progress-stats">${stat('due','Due this week',thisWeek)}${stat('done','Marked complete',thisWeek.filter(a=>S.done[a.id]))}${stat('open','Still open',thisWeek.filter(a=>!S.done[a.id]))}</div><p class="progress-note">Counts reflect current status; completion dates are not tracked.</p></section><section class="card progress-panel overdue-panel ${overdue.length===0?'overdue-clear':''}" aria-label="Overdue assignments"><h2 class="progress-title">${overdue.length} overdue</h2><p class="sub">Incomplete assignments past their due date</p>${overdue.length?`<button class="btn" type="button" data-weekly-items="overdue">Review overdue assignments</button>`:'<p class="sub">You’re all caught up. Good Job! Go play outside.</p>'}</section>`;
+ return `<section class="card progress-panel" aria-label="Weekly progress"><h2 class="progress-title">This week</h2><p class="progress-range">${fd(start)}–${fd(end)}</p><div class="progress-stats">${stat('due','Due this week',thisWeek)}${stat('done','Marked complete',thisWeek.filter(a=>S.done[a.id]))}${stat('open','Still open',thisWeek.filter(a=>!S.done[a.id]))}</div><p class="progress-note">Counts reflect current status; completion dates are not tracked.</p></section><section class="card progress-panel overdue-panel ${overdue.length===0?'overdue-clear':''}" aria-label="Overdue assignments"><h2 class="progress-title">${overdue.length} overdue</h2><p class="sub">Incomplete assignments past their due date</p>${overdue.length?`<button class="btn" type="button" data-weekly-items="overdue">Review overdue assignments</button>`:'<p class="sub">You’re all caught up. Good Job! Go play outside. <span class="emoji" role="img" aria-label="beach with umbrella">🏖️</span></p>'}</section>`;
 }
 function openWeeklyItems(kind){
  const [start,end]=weekBounds();
@@ -538,8 +540,8 @@ function renderPriorityRules(){
   `<label class="tg"><span>Ignore settings priorities for this list</span><input type="checkbox" data-priority-control ${draft.ignoreUserRules?'checked':''} onchange="S.priorityDraft.ignoreUserRules=this.checked;priorityMessage('');renderPriorityRules()"></label>`+
   `<p class="sub">${draft.ignoreUserRules?'Only this list’s rules will apply.':'Settings first: '+esc(S.userRules.map(priorityRuleText).join(' → ') || 'No settings rules')+'. This list’s rules break remaining ties.'}</p>`;
  $('sortrows').innerHTML=draft.rules.map((rule,i)=>`
-  <div class="card">
-   <label for="priority-type-${i}">Rule ${i+1}${i?' — then by':''}</label>
+  <details class="card priority-rule">
+   <summary>Rule ${i+1}${i?' — then by':''} · ${esc(priorityRuleText(rule))}</summary>
    <select id="priority-type-${i}" data-priority-control onchange="changePriorityType(${i},this.value)">${Object.entries(Priority.labels).map(([type,label])=>`<option value="${type}" ${type===rule.type?'selected':''}>${label}</option>`).join('')}</select>
    ${rule.type==='title'?`<label for="priority-text-${i}">Words in title</label><input id="priority-text-${i}" data-priority-control maxlength="80" placeholder="e.g. Exam" value="${esc(rule.text)}" oninput="S.priorityDraft.rules[${i}].text=this.value;priorityMessage('')">`:''}
    <div class="row" style="margin-top:10px;gap:4px">
@@ -547,7 +549,7 @@ function renderPriorityRules(){
     <button class="btn with-icon" data-priority-control onclick="movePriorityRule(${i},1)" ${i===draft.rules.length-1?'disabled':''}><i class="fi fi-rr-angle-down" aria-hidden="true"></i>Down</button>
     <button class="btn with-icon" data-priority-control onclick="removePriorityRule(${i})"><i class="fi fi-rr-trash" aria-hidden="true"></i>Remove</button>
    </div>
-  </div>`).join('') || '<p class="sub">No rules here yet. Add a rule, or save an empty list of rules to use the fallback order.</p>';
+  </details>`).join('') || '<p class="sub">No rules here yet. Add a rule, or save an empty list of rules to use the fallback order.</p>';
  renderPrioritySaveButton();
 }
 function addPriorityRule(){
