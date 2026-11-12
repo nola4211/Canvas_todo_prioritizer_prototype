@@ -109,7 +109,7 @@ context.testBackend=context.CanvasBackend.create(client,['1','2','3','4']);conte
  listHtml=element('list').innerHTML;assert.ok(!listHtml.includes('EXAM 1'));
  run('S.tab=1;home()');listHtml=element('list').innerHTML;assert.ok(!listHtml.includes('EXAM 1'));
  run('S.tab=0;home()');listHtml=element('list').innerHTML;
- assert.ok(listHtml.includes('Completed assignments'));
+ assert.ok(listHtml.includes('Archived Assignment'));
  assert.ok(listHtml.includes('aria-expanded="false"'));
  assert.ok(listHtml.includes('Completed 31 days ago'));
  assert.ok(listHtml.includes('EXAM 1'));
