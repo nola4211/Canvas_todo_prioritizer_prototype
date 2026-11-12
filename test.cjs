@@ -35,6 +35,8 @@ const client = {from(table){if(table==='lists'||table==='list_assignments'||tabl
   assert.equal(vm.runInContext('S.A[0].d',context),'2026-10-10');
   assert.equal(vm.runInContext('S.A[0].t',context),90);
   assert.equal(vm.runInContext('S.A[0].p',context),3);
+  const completedRecord=api.record({...rows[0],completed:true,completed_at:'2026-10-01T12:00:00Z'});
+  assert.equal(completedRecord.completedAt,'2026-10-01T12:00:00.000Z');
   assert.ok(element('list').innerHTML.includes('&lt;img'));
   assert.ok(!element('list').innerHTML.includes('<img src=x'));
   const markers=vm.runInContext("calendarDayMarkers([{p:0},{p:1},{p:2},{p:3},{p:3}],true)",context);
