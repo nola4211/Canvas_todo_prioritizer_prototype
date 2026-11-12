@@ -1,9 +1,9 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Student To-Do Prototype</title>
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/4.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
-:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#2f6feb;--ln:#e2e2de;--ph:#dcdcd7;--pr-normal:#2458b8;--pr-high:#8a4300;--pr-urgent:#b21f2d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10;--pr-normal:#8db4ff;--pr-high:#ffb36b;--pr-urgent:#ff8a91}}
-:root[data-theme=dark]{--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10;--pr-normal:#8db4ff;--pr-high:#ffb36b;--pr-urgent:#ff8a91}
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#2f6feb;--ln:#e2e2de;--ph:#dcdcd7;--pr-low:#2563eb;--pr-normal:#15803d;--pr-high:#f97316;--pr-urgent:#b52e39;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10}}
+:root[data-theme=dark]{--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10}
 *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 html,body{height:100%;margin:0}body{background:var(--ph);color:var(--tx);display:flex;align-items:center;justify-content:center}
 #app{position:relative;width:390px;height:min(844px,calc(100% - 24px));background:var(--bg);border-radius:32px;overflow:hidden;box-shadow:0 10px 40px #0003;border:1px solid var(--ln)}
@@ -67,7 +67,10 @@ input[type=checkbox]{width:auto}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
 .dy{aspect-ratio:1;border:0;background:var(--card);border-radius:10px;font-size:14px;position:relative;border:1px solid var(--ln)}
 .dy.s{background:var(--ac);color:#fff}.dy.t{border-color:var(--ac)}.dy.e{visibility:hidden}
-.dy i{position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}.dy.s i{background:#fff}
+.calendar-markers{position:absolute;bottom:5px;left:50%;display:flex;align-items:center;justify-content:center;gap:3px;transform:translateX(-50%)}
+.calendar-marker{width:6px;height:6px;flex:none;border-radius:50%}.calendar-marker.pr-low{background:var(--pr-low)}.calendar-marker.pr-normal{background:var(--pr-normal)}.calendar-marker.pr-high{background:var(--pr-high)}.calendar-marker.pr-urgent{background:var(--pr-urgent)}
+.calendar-marker.study-session{background:transparent;border:1.5px solid var(--ac)}.dy.s .calendar-marker{box-shadow:0 0 0 1px var(--card)}
+.calendar-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 12px;margin:12px 0 0;color:var(--mu);font-size:12px}.calendar-legend span{display:inline-flex;align-items:center;gap:5px}.calendar-legend .calendar-marker{position:static;width:7px;height:7px}
 .tg{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln);font-size:15px}
 .toast{position:absolute;left:14px;right:14px;bottom:84px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;z-index:20;font-size:13px;display:none;justify-content:space-between;gap:10px}.toast.on{display:flex}.toast button{background:none;border:0;color:#8fb3ff;font-weight:700}.err{color:#d33;font-size:12px;margin-top:5px}
 .save-feedback{margin:0}
@@ -207,7 +210,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .tab:nth-child(3n+2){--tab-accent:#b56b28}.tab:nth-child(3n){--tab-accent:#8a65bf}
 .tab.on{border-top-color:var(--tab-accent);background:var(--bg);font-weight:750}
 .pr{border-color:transparent;color:#fff}
-.pr-low{background:#2563eb}.pr-normal{background:#15803d}.pr-high{background:#f97316;color:#fff}.pr-urgent{background:#b52e39}
+.pr-low{background:var(--pr-low)}.pr-normal{background:var(--pr-normal)}.pr-high{background:var(--pr-high);color:#fff}.pr-urgent{background:var(--pr-urgent)}
 .chk.d::before,.completion-confirmed .chk::before{background:#237447;border-color:#237447}
 .completion-confirmed{border-color:#237447;background:color-mix(in srgb,#237447 9%,var(--card))}
 .completion-confirmed .chk{color:#fff;opacity:1}.completion-confirmed .chk .fi{position:relative;z-index:1;font-size:11px}
@@ -249,7 +252,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
  <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>Calendar</h2></div>
   <div class="body calendar-layout"><div class="calendar-month"><div class="row calendar-toolbar"><button class="ib" onclick="mv(-1)" aria-label="Previous month"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><b id="mt"></b><button class="ib" onclick="mv(1)" aria-label="Next month"><i class="fi fi-rr-angle-right" aria-hidden="true"></i></button></div>
-  <div class="grid" id="cg"></div></div><div id="dayp" aria-label="Selected day"><div id="calendar-day-content"></div>
+  <div class="grid" id="cg"></div><div class="calendar-legend" aria-label="Calendar marker key"><span><i class="calendar-marker pr-low"></i>Low</span><span><i class="calendar-marker pr-normal"></i>Normal</span><span><i class="calendar-marker pr-high"></i>High</span><span><i class="calendar-marker pr-urgent"></i>Urgent</span><span><i class="calendar-marker study-session"></i>Study session</span></div></div><div id="dayp" aria-label="Selected day"><div id="calendar-day-content"></div>
    <form class="card" id="session-editor" hidden onsubmit="event.preventDefault();saveStudySession()">
     <div class="nm" id="session-form-title">Plan a study session</div>
     <label for="session-assignment">Assignment</label><select id="session-assignment" required></select>
@@ -645,13 +648,25 @@ function openCal(d){if(d){S.sel=d;const x=new Date(d+'T12:00:00Z');S.cy=x.getUTC
 function mv(n){S.cm+=n;if(S.cm<0){S.cm=11;S.cy--}if(S.cm>11){S.cm=0;S.cy++}S.sel=null;closeStudySessionEditor();cal();loadVisibleStudySessions()}
 function sessionMonthDate(day){return String(S.cy)+'-'+String(S.cm+1).padStart(2,'0')+'-'+String(day).padStart(2,'0')}
 function sessionDayRows(day){return S.sessions.filter(session=>session.cancelled_at==null&&CanvasStudySessions.overlapsDay(session,day,'America/Denver')).sort((a,b)=>a.starts_at.localeCompare(b.starts_at))}
+function calendarDayMarkers(assignments,hasSession){
+ const counts=[0,0,0,0];
+ assignments.forEach(assignment=>counts[Math.max(0,Math.min(3,Number(assignment.p)||0))]++);
+ const dots=counts.map((count,priority)=>count?`<span class="calendar-marker pr-${priorityNames[priority].toLowerCase()}" title="${count} ${priorityNames[priority]} priority assignment${count===1?'':'s'}" aria-hidden="true"></span>`:'').join('');
+ return dots||hasSession?`<span class="calendar-markers">${dots}${hasSession?'<span class="calendar-marker study-session" title="Study session planned" aria-hidden="true"></span>':''}</span>`:'';
+}
+function calendarDayLabel(day,assignments,hasSession){
+ const counts=[0,0,0,0];
+ assignments.forEach(assignment=>counts[Math.max(0,Math.min(3,Number(assignment.p)||0))]++);
+ const priorities=counts.map((count,priority)=>count?`${count} ${priorityNames[priority].toLowerCase()} priority`:null).filter(Boolean).join(', ');
+ return day+(assignments.length?`, ${assignments.length} assignment${assignments.length===1?'':'s'} due${priorities?`: ${priorities}`:''}`:'')+(hasSession?', study session planned':'');
+}
 function cal(){
  if(!$('cal'))return;
  $('mt').textContent=new Date(S.cy,S.cm,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
  const f=new Date(S.cy,S.cm,1).getDay(),n=new Date(S.cy,S.cm+1,0).getDate();
  let h='SMTWTFS'.split('').map(c=>`<div class="sub">${c}</div>`).join('')+'<div class="dy e"></div>'.repeat(f);
- for(let i=1;i<=n;i++){const d=sessionMonthDate(i),hasDue=S.A.some(a=>a.d===d),hasSession=sessionDayRows(d).length>0,has=hasDue||hasSession;
-  h+=`<button class="dy ${d===S.sel?'s':''} ${d===TODAY?'t':''}" aria-label="${d}${hasDue?', assignments due':''}${hasSession?', study sessions':''}" onclick="S.sel='${d}';cal()">${i}${has?'<i></i>':''}</button>`}
+ for(let i=1;i<=n;i++){const d=sessionMonthDate(i),dueAssignments=S.A.filter(a=>a.d===d),hasSession=sessionDayRows(d).length>0;
+  h+=`<button class="dy ${d===S.sel?'s':''} ${d===TODAY?'t':''}" aria-label="${esc(calendarDayLabel(d,dueAssignments,hasSession))}" onclick="S.sel='${d}';cal()">${i}${calendarDayMarkers(dueAssignments,hasSession)}</button>`}
  $('cg').innerHTML=h;
  const content=$('calendar-day-content');if(!content)return;
  if(!S.sel){content.innerHTML=(S.sessionsLoading?'<div class="hint">Loading study sessions…</div>':'<div class="hint">Select a day to see assignments and study sessions.</div>')+(S.sessionsError?`<p class="err" role="alert">${esc(S.sessionsError)}</p>`:'');return}
