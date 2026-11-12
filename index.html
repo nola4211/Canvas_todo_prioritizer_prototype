@@ -337,7 +337,7 @@ function toggleCompletedArchive(){S.archiveOpen=!S.archiveOpen;home()}
 function completedArchive(assignments){
  if(!assignments.length)return '';
  const cards=srt(assignments).map(assignment=>card(assignment,completionAgeLabel(assignment))).join('');
- return `<section class="completed-archive"><button class="completed-archive-toggle" type="button" aria-expanded="${S.archiveOpen}" onclick="toggleCompletedArchive()"><span>Completed assignments <span class="completed-archive-count">${assignments.length}</span></span><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></button><div class="completed-archive-body" ${S.archiveOpen?'':'hidden'}>${cards}</div></section>`;
+ return `<section class="completed-archive"><button class="completed-archive-toggle" type="button" aria-expanded="${S.archiveOpen}" onclick="toggleCompletedArchive()"><span>Archived Assignment <span class="completed-archive-count">${assignments.length}</span></span><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></button><div class="completed-archive-body" ${S.archiveOpen?'':'hidden'}>${cards}</div></section>`;
 }
 function weekBounds(){
  const today=new Date(TODAY+'T12:00:00');
