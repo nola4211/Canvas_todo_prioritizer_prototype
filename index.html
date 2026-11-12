@@ -259,7 +259,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <div class="foot"><button class="btn with-icon" data-priority-control onclick="closeOv()"><i class="fi fi-rr-cross" aria-hidden="true"></i>Cancel</button><button class="btn p with-icon" data-priority-control id="priority-save-button" onclick="savePriorityRules()"><i class="fi fi-rr-check" aria-hidden="true"></i>Save priorities</button></div>
  </div>
 
- <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>Calendar</h2></div>
+ <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>Calendar</h2><button class="btn with-icon" id="calendar-export" title="Export this month as an .ics calendar file" onclick="exportCalendar()"><i class="fi fi-rr-download" aria-hidden="true"></i>Export month</button></div>
   <div class="body calendar-layout"><div class="calendar-month"><div class="row calendar-toolbar"><button class="ib" onclick="mv(-1)" aria-label="Previous month"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><b id="mt"></b><button class="ib" onclick="mv(1)" aria-label="Next month"><i class="fi fi-rr-angle-right" aria-hidden="true"></i></button></div>
   <div class="grid" id="cg"></div><div class="calendar-legend" aria-label="Calendar marker key"><span><i class="calendar-marker pr-low"></i>Low</span><span><i class="calendar-marker pr-normal"></i>Normal</span><span><i class="calendar-marker pr-high"></i>High</span><span><i class="calendar-marker pr-urgent"></i>Urgent</span><span><i class="calendar-marker study-session"></i>Study session</span></div></div><div id="dayp" aria-label="Selected day"><div id="calendar-day-content"></div>
    <form class="card" id="session-editor" hidden onsubmit="event.preventDefault();saveStudySession()">
@@ -296,11 +296,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  <div id="menu" role="navigation" aria-label="Workspace">
   <div class="workspace-brand">Student To-Do<span>Your academic workspace</span></div>
   <button class="mi" data-view="home" aria-current="page" onclick="navigateWorkspace('home')"><i class="fi fi-rr-list" aria-hidden="true"></i>Assignments</button>
+  <button class="mi" data-view="completed" onclick="navigateWorkspace('completed')"><i class="fi fi-rr-check" aria-hidden="true"></i>Completed assignments</button>
   <button class="mi" data-view="cal" onclick="navigateWorkspace('cal')"><i class="fi fi-rr-calendar" aria-hidden="true"></i>Calendar</button>
   <button class="mi" data-view="chat" onclick="navigateWorkspace('chat')"><i class="fi fi-rr-robot" aria-hidden="true"></i>AI Assistant</button>
   <button class="mi" data-view="sort" onclick="navigateWorkspace('sort')"><i class="fi fi-rr-sort-alt" aria-hidden="true"></i>Sort by</button>
   <button class="mi" data-view="settings" onclick="navigateWorkspace('settings')"><i class="fi fi-rr-settings" aria-hidden="true"></i>Settings</button><button class="mi" data-view="profile" onclick="navigateWorkspace('profile')"><i class="fi fi-rr-user" aria-hidden="true"></i>Profile</button>
-  <button class="mi" data-view="classes" onclick="navigateWorkspace('classes')"><i class="fi fi-rr-graduation-cap" aria-hidden="true"></i>Classes</button><button class="mi" data-view="newlist" onclick="navigateWorkspace('newlist')"><i class="fi fi-rr-list" aria-hidden="true"></i>New List</button><button class="mi" data-view="drafts" onclick="navigateWorkspace('drafts')"><i class="fi fi-rr-file-edit" aria-hidden="true"></i>Drafts</button>
+  <button class="mi" data-view="classes" onclick="navigateWorkspace('classes')"><i class="fi fi-rr-graduation-cap" aria-hidden="true"></i>Classes</button><button class="mi" data-view="newlist" onclick="navigateWorkspace('newlist')"><i class="fi fi-rr-list" aria-hidden="true"></i>New List</button><button class="mi" data-view="drafts" onclick="navigateWorkspace('drafts')"><i class="fi fi-rr-file-edit" aria-hidden="true"></i>Draft Assignments</button>
   <button class="mi" data-view="okr" id="okr-menu" onclick="navigateWorkspace('okr')" hidden><i class="fi fi-rr-chart-histogram" aria-hidden="true"></i>OKR Tracker</button>
   <div class="sub" style="padding:14px">Student demo · Canvas sync is a prototype</div>
  </div>
@@ -309,14 +310,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
-<script src="assignment-fields.js?v=20261116-priority"></script>
-<script src="backend.js?v=20261116-ai-drafts"></script>
+<script src="assignment-fields.js?v=20261116-reconciled-1"></script>
+<script src="backend.js?v=20261116-reconciled-1"></script>
 <script src="study-sessions.js?v=20261105-1"></script>
+<script src="calendar-export.js?v=20261112-1"></script>
+
 <script src="chat.js?v=20261116-chat-create"></script>
 <script src="pull-refresh.js?v=20261106-1"></script>
 <script>
 // The page keeps its UI state here; focused helpers above handle validation,
 // ordering, chat, and Supabase calls. Database-confirmed values drive the view.
+let signingIn=false,signingOut=false,agentLoadVersion=0;
 const DEFAULT_USER_SETTINGS={push_notifications:true,sync_with_canvas:true,dark_mode:false};
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,priorityPicker:null,userSettings:{...DEFAULT_USER_SETTINGS},settingsReady:false,settingsSaving:false,drafts:[],draftsError:'',cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false,archiveOpen:false,sessions:[],sessionsLoading:false,sessionsError:'',sessionSaving:false,pendingSessionCreate:null,sessionLoadVersion:0,selectedSession:null,agentGrants:[],agentsLoading:false,agentSaving:null};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
@@ -349,6 +353,10 @@ function completedArchive(assignments){
  if(!assignments.length)return '';
  const cards=srt(assignments).map(assignment=>card(assignment,completionAgeLabel(assignment))).join('');
  return `<section class="completed-archive"><button class="completed-archive-toggle" type="button" aria-expanded="${S.archiveOpen}" onclick="toggleCompletedArchive()"><span>Archived Assignment <span class="completed-archive-count">${assignments.length}</span></span><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></button><div class="completed-archive-body" ${S.archiveOpen?'':'hidden'}>${cards}</div></section>`;
+}
+function completedAssignmentsMarkup(){
+ const rows=Priority.sortAssignments(S.A.filter(a=>S.done[a.id]),S.userRules,[]);
+ return '<p class="sub">Completed assignments from all your lists. Uncheck an assignment to return it to your to-do work.</p>'+(rows.map(a=>card(a)).join('')||'<div class="hint">No completed assignments yet.</div>');
 }
 function weekBounds(){
  const today=new Date(TODAY+'T12:00:00');
@@ -387,7 +395,7 @@ function groupedByClass(assignments){
  return [...new Set(assignments.map(a=>a.c))].sort().map(c=>{const rows=srt(assignments.filter(a=>a.c===c));return rows.length?`<div class="gh">${esc(c)}</div>`+rows.map(card).join(''):''}).join('');
 }
 function home(){
- $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" aria-pressed="${i===S.tab}" onclick="if(!S.listSaving&&!S.prioritySaving&&!S.saving.size){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
+ $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" aria-pressed="${i===S.tab}" onclick="if(!S.listSaving&&!S.prioritySaving&&!S.saving.size){S.tab=${i};home()}">${esc(l.name)}</button>`).join('')+'<button class="tab" onclick="navigateWorkspace(\'completed\')">Completed</button>';
  const t=S.lists[S.tab] || S.lists[0];let h='';
  // Completion is a section, not a priority rule. Each section keeps the selected rule order.
  if(t.id=='main')h=separatedCards(S.A)+completedArchive(S.A.filter(a=>isArchivedAssignment(a)));
@@ -412,7 +420,7 @@ function home(){
 // cannot replace the state currently shown to the student.
 let db=null,backend=null,chatClient=null,sessionBackend=null,user=null,loadVersion=0;
 const showError=message=>{['sync-error','login-error','account-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
-function paint(){home();if($('cal').classList.contains('on'))cal()}
+function paint(){home();if($('cal').classList.contains('on'))cal();if($('panel').classList.contains('on')&&$('pt').textContent==='Completed assignments')$('pb').innerHTML=completedAssignmentsMarkup()}
 function isOkrAdmin(){return user?.app_metadata?.role==='admin'}
 function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();if(!signed){$('account-actions').hidden=true;setRefreshStatus('')}$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
 function applyUserSettings(){document.documentElement.dataset.theme=S.userSettings.dark_mode?'dark':'light'}
@@ -421,7 +429,7 @@ async function recordAppOpen(){if(!backend||!user)return;try{await backend.recor
 async function loadTasks(){
  if(!backend||!user||S.loading||S.saving.size||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||draftSaving)return;
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';lockListControls();paint();
- try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));try{S.drafts=await backend.loadAssignmentDrafts();S.draftsError=''}catch(error){S.drafts=[];S.draftsError=error.message}if(version!==loadVersion)return;S.ready=true;await loadSavedUserSettings(version);await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded`:'No demo assignments found. The team must add sample rows and check access policies.'}
+ try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));try{const drafts=await backend.loadAssignmentDrafts();if(version!==loadVersion)return;S.drafts=drafts;S.draftsError=''}catch(error){if(version!==loadVersion)return;S.drafts=[];S.draftsError=error.message}if(version!==loadVersion)return;S.ready=true;await loadSavedUserSettings(version);await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded`:'No demo assignments found. The team must add sample rows and check access policies.'}
  catch(error){if(version!==loadVersion)return;S.A=[];S.done={};resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
  finally{if(version===loadVersion){S.loading=false;lockListControls();if($('panel').classList.contains('on')&&$('pt').textContent==='Settings')pan('settings');paint();restoreWorkspace()}}
 }
@@ -462,22 +470,36 @@ function completionNotice(id){
  toast('✓ Assignment completed — moved to Completed',null,10000);
  if(typeof document.createElement!=='function')return;
  const view=document.createElement('button');view.type='button';view.textContent='View';view.setAttribute('aria-label','View completed assignment');
- view.addEventListener('click',()=>{closeOv();const node=[...$('list').querySelectorAll('[data-assignment-id]')].find(card=>card.dataset.assignmentId===id);node?.scrollIntoView({behavior:prefersQuietMotion()?'auto':'smooth',block:'nearest'});node?.querySelector('[data-complete]')?.focus({preventScroll:true})});
+ view.addEventListener('click',()=>{navigateWorkspace('completed');const node=[...$('pb').querySelectorAll('[data-assignment-id]')].find(card=>card.dataset.assignmentId===id);node?.scrollIntoView({behavior:prefersQuietMotion()?'auto':'smooth',block:'nearest'});node?.querySelector('[data-complete]')?.focus({preventScroll:true})});
  $('toast').appendChild(view);
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-complete]');if(button&&!button.disabled)tog(button.dataset.complete)});
 document.addEventListener('click',event=>{const stat=event.target.closest('[data-weekly-items]');if(stat)openWeeklyItems(stat.dataset.weeklyItems)});
-function refreshWeeklyPanel(){if(!$('panel').classList.contains('on'))return;const key={'Overdue assignments':'overdue','Due this week':'due','Marked complete':'done','Still open':'open'}[$('pt').textContent];if(key)openWeeklyItems(key)}
+function refreshWeeklyPanel(){if(!$('panel').classList.contains('on'))return;if($('pt').textContent==='Completed assignments'){$('pb').innerHTML=completedAssignmentsMarkup();return}const key={'Overdue assignments':'overdue','Due this week':'due','Marked complete':'done','Still open':'open'}[$('pt').textContent];if(key)openWeeklyItems(key)}
 document.addEventListener('click',event=>{const choice=event.target.closest('[data-priority-value]');if(choice){changeAssignmentPriority(choice.dataset.assignment,Number(choice.dataset.priorityValue));return}const open=event.target.closest('[data-priority-open]');if(open&&!open.disabled){S.priorityPicker=S.priorityPicker===open.dataset.priorityOpen?null:open.dataset.priorityOpen;if($('panel').classList.contains('on'))refreshWeeklyPanel();else paint();return}if(S.priorityPicker&&!event.target.closest('.priority-picker-wrap')){S.priorityPicker=null;if($('panel').classList.contains('on'))refreshWeeklyPanel();else paint()}const edit=event.target.closest('[data-edit]');if(edit&&!edit.disabled){openEdit(edit.dataset.edit);return}const button=event.target.closest('[data-remove]');if(button&&!button.disabled)del(button.dataset.remove)});
-async function changeAssignmentPriority(id,priority){const assignment=S.A.find(a=>a.id===id);if(!assignment||S.saving.has(id))return;S.saving.add(id);S.priorityPicker=null;paint();refreshWeeklyPanel();try{const saved=await backend.updateAssignmentPriority(id,priority);const index=S.A.findIndex(a=>a.id===id);if(index>=0)S.A[index]=saved;$('sync-status').textContent='Priority saved';toast('✓ Priority updated')}catch(error){showError('Could not save priority: '+error.message);$('sync-status').textContent='Priority was not confirmed. Reload to check its state.'}finally{S.saving.delete(id);paint();refreshWeeklyPanel()}}
-async function signIn(){
- if(!db)return;$('signin').disabled=true;showError('');
- try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
- catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this account, then you can sign in again.':'Could not sign in: '+error.message)}finally{$('signin').disabled=false}
+async function changeAssignmentPriority(id,priority){
+ const assignment=S.A.find(a=>a.id===id);if(!user||!backend||!S.ready||S.loading||S.createSaving||S.prioritySaving||!assignment||S.saving.has(id))return;
+ const owner=user.id,version=loadVersion,current=()=>user?.id===owner&&loadVersion===version;
+ S.saving.add(id);S.priorityPicker=null;paint();refreshWeeklyPanel();
+ try{const saved=await backend.updateAssignmentPriority(id,priority);if(!current())return;const index=S.A.findIndex(a=>a.id===id);if(index>=0)S.A[index]=saved;$('sync-status').textContent='Priority saved';toast('✓ Priority updated')}
+ catch(error){if(current()){showError('Could not save priority: '+error.message);$('sync-status').textContent='Priority was not confirmed. Reload to check its state.'}}
+ finally{if(current()){S.saving.delete(id);paint();refreshWeeklyPanel()}}
 }
-async function signOut(){if(!db||S.loading||S.settingsSaving||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving||S.sessionSaving||draftSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.drafts=[];S.draftsError='';S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showError('');showSession();paint()}
+async function signIn(){
+ if(!db||signingIn)return;signingIn=true;$('signin').disabled=true;showError('');
+ try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
+ catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this account, then you can sign in again.':'Could not sign in: '+error.message)}finally{signingIn=false;$('signin').disabled=false}
+}
+async function signOut(){
+ if(!db||signingOut||S.loading||S.settingsSaving||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving||S.sessionSaving||draftSaving||S.agentSaving)return;
+ signingOut=true;$('signout').disabled=true;
+ try{const {error}=await db.auth.signOut();if(error)throw error;stopTimeSuggestion();clearTransientWorkspace();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showError('');showSession();paint()}
+ catch(error){showError('Could not sign out: '+error.message)}
+ finally{signingOut=false;$('signout').disabled=false}
+}
+function clearTransientWorkspace(){S.agentsLoading=false;removalSaving=false;['create-submit','create-cancel','create-draft','remove-cancel','remove-confirm'].forEach(id=>{if($(id))$(id).disabled=false});S.drafts=[];S.saving.clear();S.createSaving=false;S.priorityPicker=null;activeDraftId=null;draftSaving=false;S.draftsError='';editingAssignmentId=null;pendingCreation=null;++agentLoadVersion;pendingRemoval=null;if($('remove-backdrop'))$('remove-backdrop').hidden=true;}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()},onDraftChanged:async()=>{S.drafts=await backend.loadAssignmentDrafts();S.draftsError=''}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){prepareWorkspaceRestore();await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.drafts=[];S.draftsError='';S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()},onDraftChanged:async()=>{const owner=user?.id,version=loadVersion;const drafts=await backend.loadAssignmentDrafts();if(user?.id===owner&&version===loadVersion){S.drafts=drafts;S.draftsError=''}}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){prepareWorkspaceRestore();await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();clearTransientWorkspace();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 function workspaceView(view){document.querySelectorAll('#menu [data-view]').forEach(button=>{if(button.dataset.view===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')})}
@@ -494,7 +516,7 @@ function navigateWorkspace(view){
 function restoreWorkspace(){
  if(!user||!S.ready)return;
  let view='home';try{view=sessionStorage.getItem('canvas-workspace-view')||'home'}catch{}
- if(view==='cal')openCal();else if(view==='chat')openChat();else if(view==='sort')openSort();else if(['settings','profile','classes','newlist','drafts','okr'].includes(view))pan(view);
+ if(view==='cal')openCal();else if(view==='chat')openChat();else if(view==='sort')openSort();else if(['settings','profile','classes','newlist','drafts','completed','okr'].includes(view))pan(view);
 }
 function prepareWorkspaceRestore(){
  if(!user)return;
@@ -502,7 +524,7 @@ function prepareWorkspaceRestore(){
  if(view==='cal'){menu(0);ov('cal')}
  else if(view==='chat'){menu(0);ov('chat')}
  else if(view==='sort'){menu(0);ov('sort')}
- else if(['settings','profile','classes','newlist','drafts','okr'].includes(view)){menu(0);ov('panel');workspaceView(view)}
+ else if(['settings','profile','classes','newlist','drafts','completed','okr'].includes(view)){menu(0);ov('panel');workspaceView(view)}
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));$('account-actions').hidden=true;if(id)$(id).classList.add('on');workspaceView(id||'home')};
 const closeOv=()=>{if(S.listSaving||S.prioritySaving||S.settingsSaving)return;ov();menu(0);home()};
@@ -579,7 +601,7 @@ function openPriorityEditor(scope){
  // Capture the target now, rather than reading whichever tab is selected when saving finishes.
  S.priorityDraft={scope:scope==='settings'?'settings':list.id,rules:config.rules.map(rule=>({...rule})),ignoreUserRules:config.ignore_user_rules};
  S.prioritySavedSnapshot=priorityDraftSnapshot();
- $('priority-heading').textContent=scope==='settings'?'Settings priorities':list.name+' priorities';
+ $('priority-heading').textContent=scope==='settings'?'Default sort order':list.name+' priorities';
  priorityMessage('');
  menu(0);ov('sort');renderPriorityRules();
 }
@@ -675,6 +697,20 @@ async function loadVisibleStudySessions(){
  finally{if(version===S.sessionLoadVersion){S.sessionsLoading=false;cal()}}
 }
 function openCal(d){if(d){S.sel=d;const x=new Date(d+'T12:00:00Z');S.cy=x.getUTCFullYear();S.cm=x.getUTCMonth()}S.cf='due';ov('cal');cal();loadVisibleStudySessions()}
+function exportCalendar(){
+ if(!user||!S.ready||S.loading||S.sessionsLoading||S.sessionsError){toast('Wait for assignments and study sessions to load before exporting.');return}
+ const month=String(S.cy)+'-'+String(S.cm+1).padStart(2,'0');
+ const assignments=S.A.filter(a=>!a.noDue&&a.d?.startsWith(month+'-')).map(a=>({...a,completed:!!S.done[a.id]}));
+ const sessions=S.sessions.filter(s=>!s.cancelled_at);
+ if(!assignments.some(a=>!a.completed)&&!sessions.length){toast('No assignments or study sessions to export this month.');return}
+ let url;
+ try{
+  const text=CanvasCalendarExport.build({assignments,sessions}),blob=new Blob([text],{type:'text/calendar;charset=utf-8'});
+  url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='student-schedule-'+month+'.ics';document.body.appendChild(link);link.click();link.remove();
+  toast('Calendar file exported for '+month+'. Import it into your calendar; future changes need a new export.');
+ }catch(error){toast('Could not export the calendar. '+esc(error.message))}
+ finally{if(url)setTimeout(()=>URL.revokeObjectURL(url),1000)}
+}
 function mv(n){S.cm+=n;if(S.cm<0){S.cm=11;S.cy--}if(S.cm>11){S.cm=0;S.cy++}S.sel=null;closeStudySessionEditor();cal();loadVisibleStudySessions()}
 function sessionMonthDate(day){return String(S.cy)+'-'+String(S.cm+1).padStart(2,'0')+'-'+String(day).padStart(2,'0')}
 function sessionDayRows(day){return S.sessions.filter(session=>session.cancelled_at==null&&CanvasStudySessions.overlapsDay(session,day,'America/Denver')).sort((a,b)=>a.starts_at.localeCompare(b.starts_at))}
@@ -692,6 +728,7 @@ function calendarDayLabel(day,assignments,hasSession){
 }
 function cal(){
  if(!$('cal'))return;
+ if($('calendar-export'))$('calendar-export').disabled=!user||!S.ready||S.loading||S.sessionsLoading||!!S.sessionsError;
  $('mt').textContent=new Date(S.cy,S.cm,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
  const f=new Date(S.cy,S.cm,1).getDay(),n=new Date(S.cy,S.cm+1,0).getDate();
  let h='SMTWTFS'.split('').map(c=>`<div class="sub">${c}</div>`).join('')+'<div class="dy e"></div>'.repeat(f);
@@ -773,8 +810,8 @@ let timeSuggestionVersion=0,timeSuggestionTimer=null,timeSuggestionLoading=false
 function stopTimeSuggestion(){++timeSuggestionVersion;clearTimeout(timeSuggestionTimer);timeSuggestionTimer=null;timeSuggestionLoading=false}
 function clearAssignmentErrors(){['cne','cdescription-error','cde','cce','cpe','ce','cg-error'].forEach(id=>$(id).textContent='')}
 function fillAssignmentForm(d){$('cn').value=d.n||'';$('cdescription').value=d.description||'';$('cd').value=Object.prototype.hasOwnProperty.call(d,'d')?d.d:TODAY;$('ct').value=Object.prototype.hasOwnProperty.call(d,'t')?d.t:'45m';manualEstimatedTime=$('ct').value;$('ct').disabled=false;$('ca').checked=false;$('co').checked=!!d.o;$('cp').value=String(Number.isInteger(d.p)?d.p:2);$('time-note').textContent='Review the time estimate before saving.';clearAssignmentErrors();$('cc').value=d.c||'';$('cg-weight').value=d.g==null?'':d.g;const weightUnknown=d.gUnknown===undefined?d.g==null:!!d.gUnknown;$('cg-unknown').checked=weightUnknown;$('cg-weight').disabled=weightUnknown}
-function openCreate(d,draftId=null){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving)return;stopTimeSuggestion();pendingCreation=null;editingAssignmentId=null;activeDraftId=draftId;$('create-heading').textContent=draftId?'Resume assignment draft':'New Assignment';$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Create';$('create-draft').hidden=false;$('draft-message').hidden=true;fillAssignmentForm(d||{});ov('create')}
-function openEdit(id){const a=S.A.find(item=>item.id===id);if(!a||!user||S.createSaving)return;stopTimeSuggestion();pendingCreation=null;editingAssignmentId=id;activeDraftId=null;$('create-heading').textContent='Edit Assignment';$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Save changes';$('create-draft').hidden=true;$('draft-message').hidden=true;fillAssignmentForm({n:a.n,description:a.description,c:a.c,d:a.noDue?TODAY:a.d,t:a.t?`${a.t}m`:'45m',o:a.o,g:a.g,p:a.p});ov('create')}
+function openCreate(d,draftId=null){if(!user||!backend){showError('Sign in before adding an assignment.');return}if(!S.ready){showError('Wait for assignments to load before adding one.');return}if(S.createSaving||draftSaving||S.saving.size||S.loading)return;stopTimeSuggestion();pendingCreation=null;editingAssignmentId=null;activeDraftId=draftId;$('create-heading').textContent=draftId?'Resume assignment draft':'New Assignment';$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Create';$('create-draft').hidden=false;$('create-draft').innerHTML='<i class="fi fi-rr-file-edit" aria-hidden="true"></i>Save draft';$('draft-message').hidden=true;fillAssignmentForm(d||{});$('cd').max=AssignmentFields.maxDueDate();$('cd').min=TODAY;ov('create')}
+function openEdit(id){const a=S.A.find(item=>item.id===id);if(!a||!user||S.createSaving||draftSaving||S.saving.size||S.loading)return;stopTimeSuggestion();pendingCreation=null;editingAssignmentId=id;activeDraftId=null;$('create-heading').textContent='Edit Assignment';$('create-submit').innerHTML='<i class="fi fi-rr-check" aria-hidden="true"></i>Save changes';$('create-draft').hidden=true;$('draft-message').hidden=true;fillAssignmentForm({n:a.n,description:a.description,c:a.c,d:a.noDue?TODAY:a.d,t:a.t?`${a.t}m`:'45m',o:a.o,g:a.g,p:a.p});$('cd').max=AssignmentFields.maxDueDate();$('cd').min=a.d<TODAY?a.d:TODAY;ov('create')}
 async function requestTimeSuggestion(description,version){
  timeSuggestionLoading=true;$('time-note').textContent='Asking the AI for a time estimate…';
  try{
@@ -795,7 +832,7 @@ function suggestAssignmentTime(){if($('ca').checked){manualEstimatedTime=$('ct')
 function editEstimatedTime(){manualEstimatedTime=$('ct').value;if($('ca').checked){$('ca').checked=false;stopTimeSuggestion();$('time-note').textContent='Using your edited estimate.'}}
 // Manual creation validates a complete assignment, then uses a stable request
 // ID so a network retry cannot insert a duplicate. Draft saving is separate.
-async function createA(force){if(!user||!backend||!S.ready||S.createSaving||draftSaving||S.loading||S.listSaving||S.prioritySaving)return;clearAssignmentErrors();if(timeSuggestionLoading){$('ce').textContent='Wait for the AI estimate, or enter your own time.';return}const n=$('cn').value.trim(),d=$('cd').value;
+async function createA(force){if(!user||!backend||!S.ready||S.createSaving||draftSaving||S.loading||S.listSaving||S.prioritySaving||S.saving.size)return;const creationOwner=user.id,creationVersion=loadVersion,currentCreation=()=>user?.id===creationOwner&&loadVersion===creationVersion;clearAssignmentErrors();if(timeSuggestionLoading){$('ce').textContent='Wait for the AI estimate, or enter your own time.';return}const n=$('cn').value.trim(),d=$('cd').value;
  if(!n){$('cne').textContent='Enter an assignment name.';$('cn').focus();return}
  if(!d){$('cde').textContent='Choose a due date.';return}if(d<TODAY&&(!editingAssignmentId||d!==(S.A.find(a=>a.id===editingAssignmentId)?.d))){$('cde').textContent="Choose today or a future date.";return}
  let t=null;
@@ -803,18 +840,19 @@ async function createA(force){if(!user||!backend||!S.ready||S.createSaving||draf
   if(t>600&&force!==1){$('ce').innerHTML='That is over 10 hours. Change the estimate or confirm it: <button class="lk" onclick="createA(1)">Confirm this time</button>';return}}
  const o=$('co').checked,weight=$('cg-weight').value.trim();
  if(!$('cg-unknown').checked&&!weight){$('cg-error').textContent='Enter the grade weight, or choose that you do not know it.';return}
- let details;try{details={...AssignmentFields.validate({n,c:$('cc').value,description:$('cdescription').value,d,t,o,g:$('cg-unknown').checked?null:Number(weight),p:Number($('cp').value),allowPast:!!editingAssignmentId}),completed:editingAssignmentId?!!S.done[editingAssignmentId]:false}}catch(error){const message=error.message;if(/assignment name/i.test(message))$('cne').textContent=message;else if(/class name/i.test(message))$('cce').textContent=message;else if(/priority/i.test(message))$('cpe').textContent=message;else if(/description/i.test(message))$('cdescription-error').textContent=message;else if(/due date/i.test(message))$('cde').textContent=message;else if(/grade weight/i.test(message))$('cg-error').textContent=message;else $('ce').textContent=message;return}
+ let details;try{details={...AssignmentFields.validate({n,c:$('cc').value,description:$('cdescription').value,d,t,o,g:$('cg-unknown').checked?null:Number(weight),p:Number($('cp').value),allowPast:!!editingAssignmentId,originalDueDate:S.A.find(a=>a.id===editingAssignmentId)?.d}),completed:editingAssignmentId?!!S.done[editingAssignmentId]:false}}catch(error){const message=error.message;if(/assignment name/i.test(message))$('cne').textContent=message;else if(/class name/i.test(message))$('cce').textContent=message;else if(/priority/i.test(message))$('cpe').textContent=message;else if(/description/i.test(message))$('cdescription-error').textContent=message;else if(/due date/i.test(message))$('cde').textContent=message;else if(/grade weight/i.test(message))$('cg-error').textContent=message;else $('ce').textContent=message;return}
  const signature=JSON.stringify(details);
  if(!pendingCreation||pendingCreation.signature!==signature)pendingCreation={signature,requestId:crypto.randomUUID()};
  S.createSaving=true;showError('');$('create-submit').disabled=$('create-cancel').disabled=$('create-draft').disabled=true;$('create-submit').innerHTML='Saving…';lockListControls();
- try{let assignment;if(editingAssignmentId){assignment=await backend.updateAssignment(editingAssignmentId,details);const index=S.A.findIndex(a=>a.id===editingAssignmentId);if(index>=0)S.A[index]=assignment;$('sync-status').textContent='Assignment updated';editingAssignmentId=null;ov();home();toast('✓ Assignment updated')}else{assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId,confirmLong:force===1});S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;const savedDraftId=activeDraftId;activeDraftId=null;if(savedDraftId){try{await backend.deleteAssignmentDraft(savedDraftId);S.drafts=S.drafts.filter(item=>item.id!==savedDraftId)}catch(error){$('sync-status').textContent='Assignment saved; its draft copy could not be removed.'}}else $('sync-status').textContent='Assignment saved';ov();home();toast('✓ Assignment saved')}}
- catch(error){$('ce').textContent='Could not save this assignment. Check your connection and try again. Details: '+error.message}
- finally{S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=$('create-draft').disabled=false;$('create-submit').innerHTML=editingAssignmentId?'<i class="fi fi-rr-check" aria-hidden="true"></i>Save changes':'<i class="fi fi-rr-check" aria-hidden="true"></i>Create';lockListControls()}}
-async function saveDraftC(){if(!user||!backend||draftSaving||S.createSaving)return;stopTimeSuggestion();const input={n:$('cn').value,description:$('cdescription').value,c:$('cc').value,d:$('cd').value,t:$('ct').value,o:$('co').checked,g:$('cg-unknown').checked?null:$('cg-weight').value,gUnknown:$('cg-unknown').checked,p:Number($('cp').value)};draftSaving=true;$('create-draft').disabled=$('create-cancel').disabled=$('create-submit').disabled=true;$('create-draft').innerHTML='Saving…';$('draft-message').hidden=true;
- try{const saved=await backend.saveAssignmentDraft(input,activeDraftId);const index=S.drafts.findIndex(item=>item.id===saved.id);if(index>=0)S.drafts[index]=saved;else S.drafts.unshift(saved);activeDraftId=saved.id;$('sync-status').textContent='Draft saved';ov();toast('✓ Draft saved')}
- catch(error){$('draft-message').textContent='Could not save this draft. '+error.message;$('draft-message').hidden=false}
- finally{draftSaving=false;$('create-draft').disabled=$('create-cancel').disabled=$('create-submit').disabled=false;$('create-draft').innerHTML='<i class="fi fi-rr-file-edit" aria-hidden="true"></i>Save draft'}}
+ try{let assignment;if(editingAssignmentId){assignment=await backend.updateAssignment(editingAssignmentId,{...details,originalDueDate:S.A.find(a=>a.id===editingAssignmentId)?.d});if(!currentCreation())return;const index=S.A.findIndex(a=>a.id===editingAssignmentId);if(index>=0)S.A[index]=assignment;$('sync-status').textContent='Assignment updated';editingAssignmentId=null;ov();home();toast('✓ Assignment updated')}else{assignment=await backend.createAssignment({...details,requestId:pendingCreation.requestId,confirmLong:force===1});if(!currentCreation())return;S.A.push(assignment);S.done[assignment.id]=assignment.completed;pendingCreation=null;const savedDraftId=activeDraftId;activeDraftId=null;if(savedDraftId){try{await backend.deleteAssignmentDraft(savedDraftId);if(!currentCreation())return;S.drafts=S.drafts.filter(item=>item.id!==savedDraftId)}catch(error){if(!currentCreation())return;$('sync-status').textContent='Assignment saved; its draft copy could not be removed.'}}else $('sync-status').textContent='Assignment saved';ov();home();toast('✓ Assignment saved')}}
+ catch(error){if(!currentCreation())return;$('ce').textContent='Could not save this assignment. Check your connection and try again. Details: '+error.message}
+ finally{if(!currentCreation())return;S.createSaving=false;$('create-submit').disabled=$('create-cancel').disabled=$('create-draft').disabled=false;$('create-submit').innerHTML=editingAssignmentId?'<i class="fi fi-rr-check" aria-hidden="true"></i>Save changes':'<i class="fi fi-rr-check" aria-hidden="true"></i>Create';lockListControls()}}
+async function saveDraftC(){if(!user||!backend||draftSaving||S.createSaving||S.saving.size||S.loading)return;const owner=user.id,version=loadVersion,currentDraft=()=>user?.id===owner&&version===loadVersion;stopTimeSuggestion();const input={n:$('cn').value,description:$('cdescription').value,c:$('cc').value,d:$('cd').value,t:$('ct').value,o:$('co').checked,g:$('cg-unknown').checked?null:$('cg-weight').value,gUnknown:$('cg-unknown').checked,p:Number($('cp').value)};draftSaving=true;$('create-draft').disabled=$('create-cancel').disabled=$('create-submit').disabled=true;$('create-draft').innerHTML='Saving…';$('draft-message').hidden=true;
+ try{const saved=await backend.saveAssignmentDraft(input,activeDraftId);if(!currentDraft())return;const index=S.drafts.findIndex(item=>item.id===saved.id);if(index>=0)S.drafts[index]=saved;else S.drafts.unshift(saved);activeDraftId=saved.id;$('sync-status').textContent='Draft saved';ov();pan('drafts');toast('✓ Draft saved')}
+ catch(error){if(!currentDraft())return;$('draft-message').textContent='Could not save this draft. '+error.message;$('draft-message').hidden=false}
+ finally{if(!currentDraft())return;draftSaving=false;$('create-draft').disabled=$('create-cancel').disabled=$('create-submit').disabled=false;$('create-draft').innerHTML='<i class="fi fi-rr-file-edit" aria-hidden="true"></i>Save draft'}}
 function cancelC(){if(S.createSaving||draftSaving)return;stopTimeSuggestion();pendingCreation=null;editingAssignmentId=null;activeDraftId=null;closeOv()}
+function draftAssignmentsMarkup(){return '<button class="btn p with-icon" onclick="openCreate()"><i class="fi fi-rr-plus" aria-hidden="true"></i>Create draft</button><p class="sub">Saved drafts stay in your account until you create or delete them.</p>'+(S.drafts.map((d,i)=>`<div class="card"><div class="nm">${esc(d.n||'Untitled draft')}</div><div class="sub">${esc(d.c||'No class selected')} · ${d.p==null?'No priority':esc(priorityNames[d.p])} · unfinished</div><button class="btn" onclick="resume(${i})">Resume draft</button> <button class="btn" onclick="removeAssignmentDraft('${esc(d.id)}')">Delete draft</button></div>`).join('')||(S.draftsError?'<div class="hint">Drafts could not be loaded: '+esc(S.draftsError)+'</div>':'<div class="hint">No draft assignments. Choose Create draft to start one.</div>'))}
 let tt;function toast(m,u,duration=5000){const t=$('toast');t.innerHTML=`<span>${m}</span>${u?`<button onclick="${u}">Undo</button>`:''}`;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),duration)}
 let pendingRemoval=null,removalFocus=null,removalSaving=false;
 function del(id){
@@ -836,15 +874,16 @@ document.addEventListener('keydown',event=>{
 });
 async function confirmRemoval(){
  const id=pendingRemoval;
- if(!id||removalSaving)return;
+ if(!id||removalSaving||!user)return;
+ const owner=user.id,version=loadVersion,current=()=>user?.id===owner&&loadVersion===version;
  removalSaving=true;$('remove-cancel').disabled=$('remove-confirm').disabled=true;
  S.saving.add(id);showError('');$('reload-tasks').disabled=$('signout').disabled=true;paint();
- try{await backend.removeAssignment(id);S.A=S.A.filter(a=>a.id!==id);delete S.done[id];S.memberships=S.memberships.filter(m=>m.assignment_id!==id);$('sync-status').textContent='Assignment removed';removalSaving=false;cancelRemoval();toast('Assignment removed')}
- catch(error){$('remove-error').textContent='Could not remove assignment: '+error.message;$('remove-error').hidden=false;$('sync-status').textContent='Removal was not confirmed. Reload to check the database.'}
- finally{removalSaving=false;S.saving.delete(id);$('remove-cancel').disabled=$('remove-confirm').disabled=false;lockListControls();paint();if(!$('remove-backdrop').hidden)$('remove-confirm').focus()}
+ try{await backend.removeAssignment(id);if(!current())return;S.A=S.A.filter(a=>a.id!==id);delete S.done[id];S.memberships=S.memberships.filter(m=>m.assignment_id!==id);$('sync-status').textContent='Assignment removed';removalSaving=false;cancelRemoval();toast('Assignment removed')}
+ catch(error){if(!current())return;$('remove-error').textContent='Could not remove assignment: '+error.message;$('remove-error').hidden=false;$('sync-status').textContent='Removal was not confirmed. Reload to check the database.'}
+ finally{if(!current())return;removalSaving=false;S.saving.delete(id);$('remove-cancel').disabled=$('remove-confirm').disabled=false;lockListControls();paint();if(!$('remove-backdrop').hidden)$('remove-confirm').focus()}
 }
-function resume(i){const draft=S.drafts[i];if(draft)openCreate(draft,draft.id)}
-async function removeAssignmentDraft(id){if(!backend||draftSaving)return;draftSaving=true;try{await backend.deleteAssignmentDraft(id);S.drafts=S.drafts.filter(d=>d.id!==String(id));if($('panel').classList.contains('on')&&$('pt').textContent==='Drafts')pan('drafts');toast('Draft removed')}catch(error){showError('Could not remove draft: '+error.message)}finally{draftSaving=false}}
+function resume(i){if(!user||!backend||!S.ready||S.loading||S.saving.size||S.createSaving||draftSaving)return;const draft=S.drafts[i];if(draft)openCreate(draft,draft.id)}
+async function removeAssignmentDraft(id){if(!user||!backend||draftSaving||S.createSaving||S.loading)return;const owner=user.id,version=loadVersion,current=()=>user?.id===owner&&version===loadVersion;draftSaving=true;try{await backend.deleteAssignmentDraft(id);if(!current())return;S.drafts=S.drafts.filter(d=>d.id!==String(id));if($('panel').classList.contains('on')&&$('pt').textContent==='Draft Assignments')pan('drafts');toast('Draft removed')}catch(error){if(current())showError('Could not remove draft: '+error.message)}finally{if(current())draftSaving=false}}
 let sx=null;const sw=x=>{if(sx==null||S.listSaving||S.prioritySaving)return;const dx=x-sx;sx=null;if(Math.abs(dx)>60){S.tab=Math.max(0,Math.min(S.lists.length-1,S.tab+(dx<0?1:-1)));home()}};
 let refreshNoticeTimer;
 function setRefreshStatus(message,progress){
@@ -867,12 +906,13 @@ async function refreshAssignments(){
 }
 window.CanvasPullRefresh?.attach($('list'),{canRefresh:canRefreshAssignments,onRefresh:refreshAssignments,onStatus:setRefreshStatus,onSwipe:(start,end)=>{sx=start;sw(end)}});
 /* menu panels */
-async function pan(k){if(S.listSaving||S.prioritySaving||S.settingsSaving)return;menu(0);ov('panel');workspaceView(k);const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Drafts',okr:'Weekly engagement'};$('pt').textContent=T[k];let h='';
+async function pan(k){if(S.listSaving||S.prioritySaving||S.settingsSaving)return;menu(0);ov('panel');workspaceView(k);const T={settings:'Settings',profile:'Profile',classes:'Classes',newlist:'New List',drafts:'Draft Assignments',completed:'Completed assignments',okr:'Weekly engagement'};$('pt').textContent=T[k];let h='';
  if(k=='settings')h=userSettingsPanel()+
-  '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" id="settings-priority-button" onclick="openPriorityEditor(\'settings\')">Edit settings priorities</button>'+agentSettingsMarkup()+'<p class="sub">The Canvas switch saves your preference; Canvas synchronization is still a prototype.</p><p class="sub" style="margin-top:22px">Icons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon Uicons</a>.</p>';
+  '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" id="settings-priority-button" onclick="openPriorityEditor(\'settings\')">Default sort order</button>'+agentSettingsMarkup()+'<p class="sub">The Canvas switch saves your preference; Canvas synchronization is still a prototype.</p><p class="sub" style="margin-top:22px">Icons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon Uicons</a>.</p>';
+ if(k=='completed')h=completedAssignmentsMarkup();
  if(k=='profile')h='<div class="card"><div class="nm">Shared demo account</div><div class="sub">Canvas sync is a prototype.</div></div>';
  if(k=='classes')h='<div class="sub">The current database has no direct assignment-to-class field. Demo assignments appear under Shared demo.</div>';
- if(k=='drafts')h=S.drafts.map((d,i)=>`<div class="card"><div class="nm">${esc(d.n||'Untitled assignment')}</div><div class="sub">${esc(d.c||'No class selected')} · ${d.p==null?'No priority':esc(priorityNames[d.p])} · unfinished</div><button class="lk" onclick="resume(${i})">Resume</button> <button class="lk" onclick="removeAssignmentDraft('${esc(d.id)}')">Delete</button></div>`).join('')||(S.draftsError?`<div class="hint">Drafts could not be loaded: ${esc(S.draftsError)}</div>`:'<div class="hint">No drafts.</div>');
+ if(k=='drafts')h=draftAssignmentsMarkup();
  if(k=='newlist'){
    if(!user||!S.listsReady){h='<div class="hint">Sign in and reload successfully before creating a list.</div>'}
    else h='<label for="ln">List name</label><input id="ln" maxlength="100" placeholder="e.g. Club projects"><button class="btn p" data-list-control style="width:100%;margin-top:16px" onclick="saveNewList()">Create list</button><p id="list-message" role="status"></p>';
@@ -884,10 +924,12 @@ async function pan(k){if(S.listSaving||S.prioritySaving||S.settingsSaving)return
  if(k=='okr')await loadOkrTracker()}
 function agentSettingsMarkup(){return '<section aria-labelledby="agents-heading"><div class="gh" id="agents-heading">Connected agents</div><p class="sub">Agents you approve can read assignments and priorities, create assignments with due dates, change completion, and manage saved study sessions. They cannot change an existing due date, edit lists, or change priority rules. Disconnecting blocks access immediately.</p><p class="sub">You can connect up to 3 agents by default. Additional connections require permission. Disconnect an agent below to free a slot.</p><div id="agent-status" class="sub" role="status" aria-live="polite">Loading connected agents…</div><div id="agent-list"></div></section>'}
 async function loadAgentGrants(){
- if(!sessionBackend||!user)return;const owner=user.id;S.agentsLoading=true;$('agent-status').textContent='Loading connected agents…';
- try{const rows=await sessionBackend.listAgentGrants();if(!user||user.id!==owner)return;S.agentGrants=rows;renderAgentGrants()}
- catch(error){if(!user||user.id!==owner)return;$('agent-status').textContent='Connected-agent controls are unavailable until the reviewed database changes are installed: '+error.message;$('agent-list').innerHTML=''}
- finally{S.agentsLoading=false}
+ if(!sessionBackend||!user||!$('agent-status'))return;
+ const owner=user.id,request=++agentLoadVersion,current=()=>user?.id===owner&&request===agentLoadVersion;
+ S.agentsLoading=true;$('agent-status').textContent='Loading connected agents…';
+ try{const rows=await sessionBackend.listAgentGrants();if(!current())return;S.agentGrants=rows;if($('agent-status'))renderAgentGrants()}
+ catch(error){if(!current())return;const status=$('agent-status'),list=$('agent-list');if(status)status.textContent='Connected-agent controls are unavailable. Please try again.';if(list)list.innerHTML=''}
+ finally{if(request===agentLoadVersion)S.agentsLoading=false}
 }
 function renderAgentGrants(){
  const status=$('agent-status'),list=$('agent-list');if(!status||!list)return;
@@ -901,7 +943,7 @@ async function disconnectAgent(id){
   try{const result=await db.auth.oauth.revokeGrant({clientId:grant.client_id});if(result?.error)providerError=result.error.message||'OAuth refresh-token revocation could not be confirmed.'}
   catch(error){providerError=error.message||'OAuth refresh-token revocation could not be confirmed.'}
   renderAgentGrants();toast(providerError?'Agent disconnected in the app. Supabase could not revoke its OAuth grant: '+providerError:'Agent disconnected')
- }catch(error){$('agent-status').textContent='Could not disconnect this agent: '+error.message}
+ }catch(error){const status=$('agent-status');if(status)status.textContent='Could not disconnect this agent: '+error.message}
  finally{S.agentSaving=null;renderAgentGrants()}
 }
 function okrDate(value){return new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}

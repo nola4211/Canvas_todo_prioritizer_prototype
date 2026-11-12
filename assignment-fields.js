@@ -2,6 +2,11 @@
 // checks them again when saving, so browser validation is only the first layer.
 (function(root){
   function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'})}
+  function maxDueDate(reference=today()){
+    const [year,month,day]=reference.split('-').map(Number);
+    const lastDay=new Date(Date.UTC(year+1,month,0)).getUTCDate();
+    return `${year+1}-${String(month).padStart(2,'0')}-${String(Math.min(day,lastDay)).padStart(2,'0')}`;
+  }
   function validate(input){
     const n=typeof input.n==='string'?input.n.trim():'';
     const c=typeof input.c==='string'?input.c.trim():'';
@@ -14,6 +19,7 @@
     const date=new Date(input.d+'T12:00:00Z');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(input.d)||Number.isNaN(date.valueOf())||date.toISOString().slice(0,10)!==input.d)throw new Error('Choose a valid due date.');
     if(input.d<today()&&!input.allowPast)throw new Error("Due date can't be in the past.");
+    if(input.d>maxDueDate()&&!(input.allowPast&&input.d===input.originalDueDate))throw new Error('Choose a due date within one year from today.');
     if(!Number.isSafeInteger(input.t)||input.t<1||input.t>10080)throw new Error('Estimated time must be between 1 minute and 7 days.');
     if(typeof input.o!=='boolean')throw new Error('Choose whether this assignment is optional.');
     if(input.g!==null&&(typeof input.g!=='number'||!Number.isFinite(input.g)||input.g<0||input.g>100))throw new Error('Enter a grade weight from 0 to 100, or choose unknown.');
@@ -21,5 +27,5 @@
     if(!Number.isInteger(p)||p<0||p>3)throw new Error('Choose Low, Normal, High, or Urgent priority.');
     return {n,c,description,d:input.d,t:input.t,o:input.o,g:input.g,p};
   }
-  root.AssignmentFields={today,validate};
+  root.AssignmentFields={today,maxDueDate,validate};
 })(globalThis);

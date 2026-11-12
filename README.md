@@ -395,3 +395,18 @@ See [responsive verification and screenshots](docs/responsive-verification.md) f
 | Keep form actions and chat composer reachable across the five verified viewport sizes. | Complete |
 | Verify native browser zoom at 200%. | Not complete |
 | Live authenticated smoke test, Lighthouse, deployment, and PO acceptance. | Not complete |
+
+## Cameron's November 12 backlog work (local review)
+
+See [card coverage, evidence, and acceptance steps](docs/backlog-review-20261112.md). These statuses follow the team's release Definition of Done; local code/tests alone do not complete it.
+
+| Behavioral requirement | Status |
+| --- | --- |
+| Remove an assignment without deleting its linked legacy user or other assignments. | Not complete — disposable database proof passed; reviewed live migration and acceptance pending. |
+| Export the displayed month's unfinished assignments and active study sessions as an .ics file. | Not complete — local implementation and format/download-link tests passed; external calendar import and release pending. |
+| Reject new/changed due dates more than one calendar year ahead, preserving unchanged legacy dates. | Not complete — local browser/database tests passed; live migration pending. |
+| Prevent duplicate writes and stale-account results from rapid controls; tolerate leaving Settings while loading. | Not complete — regression tests passed; original reviewer phone retest and release pending. |
+| Provide a dedicated Completed assignments view and reopen completed work. | Not complete — local browser check passed; PO acceptance and release pending. |
+| Provide explicit partial Draft Assignments creation and safe resume. | Not complete — local tests passed; the team's database-backed drafts are preserved; PO acceptance/release remain pending. |
+| Label the Settings priority editor Default sort order. | Not complete — local check passed; PO acceptance and release pending. |
+| Choose a product name. | Not complete — awaiting brainstorming and team choice. |
