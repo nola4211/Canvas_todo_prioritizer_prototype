@@ -393,7 +393,7 @@ async function loadTasks(){
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';lockListControls();paint();
  try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));S.ready=true;await loadSavedUserSettings(version);await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded`:'No demo assignments found. The team must add sample rows and check access policies.'}
  catch(error){if(version!==loadVersion)return;S.A=[];S.done={};resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
- finally{if(version===loadVersion){S.loading=false;lockListControls();if($('panel').classList.contains('on')&&$('pt').textContent==='Settings')pan('settings');paint()}}
+ finally{if(version===loadVersion){S.loading=false;lockListControls();if($('panel').classList.contains('on')&&$('pt').textContent==='Settings')pan('settings');paint();restoreWorkspace()}}
 }
 async function tog(id){
  if(S.loading||S.prioritySaving||S.createSaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
@@ -444,18 +444,32 @@ async function signIn(){
 }
 async function signOut(){if(!db||S.loading||S.settingsSaving||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving||S.sessionSaving)return;const {error}=await db.auth.signOut();if(error){showError('Could not sign out: '+error.message);return}stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showError('');showSession();paint()}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){prepareWorkspaceRestore();await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();user=null;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 function workspaceView(view){document.querySelectorAll('#menu [data-view]').forEach(button=>{if(button.dataset.view===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')})}
 function navigateWorkspace(view){
  if(!user||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||S.saving.size||S.removingId)return;
+ try{sessionStorage.setItem('canvas-workspace-view',view)}catch{}
  if(view==='home')return closeOv();
  menu(0);
  if(view==='cal')return openCal();
  if(view==='chat')return openChat();
  if(view==='sort')return openSort();
  return pan(view);
+}
+function restoreWorkspace(){
+ if(!user||!S.ready)return;
+ let view='home';try{view=sessionStorage.getItem('canvas-workspace-view')||'home'}catch{}
+ if(view==='cal')openCal();else if(view==='chat')openChat();else if(view==='sort')openSort();else if(['settings','profile','classes','newlist','drafts','okr'].includes(view))pan(view);
+}
+function prepareWorkspaceRestore(){
+ if(!user)return;
+ let view='home';try{view=sessionStorage.getItem('canvas-workspace-view')||'home'}catch{}
+ if(view==='cal'){menu(0);ov('cal')}
+ else if(view==='chat'){menu(0);ov('chat')}
+ else if(view==='sort'){menu(0);ov('sort')}
+ else if(['settings','profile','classes','newlist','drafts','okr'].includes(view)){menu(0);ov('panel');workspaceView(view)}
 }
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));$('account-actions').hidden=true;if(id)$(id).classList.add('on');workspaceView(id||'home')};
 const closeOv=()=>{if(S.listSaving||S.prioritySaving||S.settingsSaving)return;ov();menu(0);home()};
