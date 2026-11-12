@@ -37,6 +37,15 @@ const client = {from(table){if(table==='lists'||table==='list_assignments'||tabl
   assert.equal(vm.runInContext('S.A[0].p',context),3);
   assert.ok(element('list').innerHTML.includes('&lt;img'));
   assert.ok(!element('list').innerHTML.includes('<img src=x'));
+  const markers=vm.runInContext("calendarDayMarkers([{p:0},{p:1},{p:2},{p:3},{p:3}],true)",context);
+  assert.ok(markers.includes('pr-low'));
+  assert.ok(markers.includes('pr-normal'));
+  assert.ok(markers.includes('pr-high'));
+  assert.ok(markers.includes('pr-urgent'));
+  assert.ok(markers.includes('study-session'));
+  assert.equal((markers.match(/pr-urgent/g)||[]).length,1);
+  const calendarLabel=vm.runInContext("calendarDayLabel('2026-10-10',[{p:2},{p:3},{p:3}],false)",context);
+  assert.equal(calendarLabel,'2026-10-10, 3 assignments due: 1 high priority, 2 urgent priority');
   release=true;const first=vm.runInContext("tog('1')",context);
   assert.equal(vm.runInContext("S.saving.has('1')",context),true);
   assert.equal(vm.runInContext('S.done[1]',context),false);
