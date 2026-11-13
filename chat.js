@@ -45,9 +45,14 @@
       for(const item of messages){
         const friendlyText=item.role==='assistant'&&/^Created assignment: .+\. Saved to Supabase\.$/.test(item.message)?'Assignment successfully saved!':item.message;
         const node=message(friendlyText,item.role);
-        if(item.status==='failed'&&!sending)node.append(document.createTextNode('\nI couldn’t finish that reply. Please try again.'));
         if(item.status==='pending'&&!sending)node.append(document.createTextNode('\nThis reply hasn’t finished yet. Please wait a moment before trying again.'));
         area.append(node);
+        if(item.role==='user'&&item.status==='failed'&&!sending)area.append(message(item.error||'I couldn’t finish that reply. Please try again.','assistant'));
+        if(item.role==='user'&&item.status==='sending'){
+          const thinking=document.createElement('div');thinking.className='chat-thinking';thinking.setAttribute('role','status');thinking.setAttribute('aria-label','Assistant is thinking');
+          for(let i=0;i<3;i++){const dot=document.createElement('i');dot.setAttribute('aria-hidden','true');thinking.append(dot)}
+          area.append(thinking);
+        }
       }
       renderDraft(area);
       area.scrollTop=area.scrollHeight;
@@ -155,7 +160,12 @@
       if(!text||text.length>2000){status('Enter a message between 1 and 2000 characters.');return}
       const turn=useRetry?retry:{requestId:crypto.randomUUID(),message:text};
       const firstMessage=!messages.some(item=>item.role==='user');
-      const current=version;const chatId=selected;sending=true;retry=turn;render();status('Thinking…');
+      const current=version;const chatId=selected;sending=true;retry=turn;
+      const existing=messages.find(item=>item.request_id===turn.requestId);
+      if(existing)existing.status='sending';
+      else messages.push({role:'user',message:turn.message,request_id:turn.requestId,status:'sending'});
+      if(!useRetry)el('ci').value='';
+      render();status('Thinking…');
       try{
         // Name the chat as soon as its first message is sent. The title should not
         // depend on the AI service successfully finishing its reply.
@@ -178,7 +188,7 @@
         if(current!==version)return;
         retry=null;el('ci').value='';sending=false;
         await selectChat(chatId);
-      }catch(error){if(current===version){status(error.message);sending=false;render()}}
+      }catch(error){if(current===version){sending=false;const failed=messages.find(item=>item.request_id===turn.requestId);if(failed){failed.status='failed';failed.error=error.message}status('');render()}}
     }
     function sendSuggestion(text){if(loading||sending||!selected)return;el('ci').value=text;send()}
     return {open,newChat,selectChat,send,confirmDraft,changeDraft,reset};
