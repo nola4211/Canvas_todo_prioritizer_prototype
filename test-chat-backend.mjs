@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createAIHandler,prepareDraft,mergeDraftUpdates,assignmentResponseFormat,wantsAssignmentDraft} from './supabase/functions/study-assistant/index.ts';
+import {createAIHandler,prepareDraft,mergeDraftUpdates,assignmentResponseFormat,normalizeChatTitle,wantsAssignmentDraft} from './supabase/functions/study-assistant/index.ts';
 const env={SUPABASE_URL:'https://database.test',SUPABASE_ANON_KEY:'public',SUPABASE_SERVICE_ROLE_KEY:'server',OPENAI_API_KEY:'secret'};
 const turn={chatId:'1',requestId:'11111111-1111-4111-8111-111111111111',message:'What should I study?'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status});
@@ -13,9 +13,12 @@ function setup(options={}){
   if(url.endsWith('/auth/v1/user'))return json({id:'owner'},options.authStatus||200);
   if(url.includes('begin_ai_turn'))return options.beginError?json({message:options.beginError},400):json(options.cached?{cached:true,reply:'Already saved'}:{cached:false});
   if(url.includes('finish_ai_turn'))return options.saveError&&JSON.parse(init.body).p_reply?json({message:'private database details'},500):new Response(null,{status:204});
-  if(url==='https://api.openai.com/v1/responses')return options.providerError?json({error:{code:options.providerError==='credits'?'credit_balance_exhausted':'rate_limit_exceeded',message:'secret diagnostic'}},429):json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({reply:'Study the exam first.',draft:options.draft||null})}]}]});
+  if(url==='https://api.openai.com/v1/responses')return options.providerError?json({error:{code:options.providerError==='credits'?'credit_balance_exhausted':'rate_limit_exceeded',message:'secret diagnostic'}},429):json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({reply:'Study the exam first.',draft:options.draft||null,title:options.title||'Exam Study Plan'})}]}]});
   if(url.includes('/message?'))return json([{role:'assistant',message:'Earlier advice'},{role:'user',message:'Earlier question'}]);
-  if(url.includes('/chat?'))return json([{assignment_draft:options.previousDraft||null}]);
+  if(url.includes('/chat?')){
+   if(init.method==='PATCH')return options.titleSaveError?json({message:'title unavailable'},500):json([{title:JSON.parse(init.body).title}]);
+   return json([{assignment_draft:options.previousDraft||null,title:'New chat'}]);
+  }
   if(url.includes('/assignments?'))return json([{name:'Exam',percentage_of_grade:25}]);
   return json([]);
  });
@@ -23,11 +26,16 @@ function setup(options={}){
  return {calls,request};
 }
 {
- const s=setup();const result=await s.request();assert.equal(result.status,200);assert.equal((await result.json()).reply,'Study the exam first.');
+ const s=setup();const result=await s.request();assert.equal(result.status,200);assert.deepEqual(await result.json(),{reply:'Study the exam first.',title:'Exam Study Plan'});
  const ai=s.calls.find(c=>c.url.includes('api.openai.com'));const payload=JSON.parse(ai.init.body);
  assert.equal(payload.store,false);assert.equal(payload.model,'gpt-6-luna');assert.match(payload.instructions,/Exam/);assert.deepEqual(payload.input.map(x=>x.content),['Earlier question','Earlier advice',turn.message]);
- for(const c of s.calls.filter(c=>c.url.includes('/rest/v1/'))){assert.equal(c.init.headers.Authorization,c.url.includes('finish_ai_turn')?'Bearer server':'Bearer '+browserToken)}
- assert.equal(JSON.parse(s.calls.at(-1).init.body).p_reply,'Study the exam first.');
+ for(const c of s.calls.filter(c=>c.url.includes('/rest/v1/'))){assert.equal(c.init.headers.Authorization,c.url.includes('finish_ai_turn')||c.init.method==='PATCH'?'Bearer server':'Bearer '+browserToken)}
+ assert.equal(JSON.parse(s.calls.findLast(c=>c.url.includes('finish_ai_turn')).init.body).p_reply,'Study the exam first.');
+ assert.equal(JSON.parse(s.calls.find(c=>c.url.includes('/chat?')&&c.init.method==='PATCH').init.body).title,'Exam Study Plan');
+}
+{
+ const s=setup({titleSaveError:true});const result=await s.request();
+ assert.equal(result.status,200);assert.deepEqual(await result.json(),{reply:'Study the exam first.',title:null});
 }
 for(const [options,body,headers,status] of [
  [{authStatus:401},turn,{},401],[{env:{OPENAI_API_KEY:''}},turn,{},503],[{}, {...turn,message:' '},{},400],
@@ -54,17 +62,19 @@ for(const patch of [{name:null},{class_name:null},{due_date:'2026-02-30'},{estim
 assert.equal(prepareDraft({...complete,time_source:'ai_estimate',estimate_allowed:true},today).draft.status,'review');
 assert.match(prepareDraft({...complete,grade_weight_answered:false},today).reply,/I don’t know/);
 assert.equal(assignmentResponseFormat.strict,true);
+assert.deepEqual(assignmentResponseFormat.schema.required,['reply','draft','title']);
+assert.equal(normalizeChatTitle('  **Plan the difficult final exam now**  '),'Plan the difficult final exam');
 for(const message of ['Create a new assignment','Please add an assignment','I want to make a homework task'])assert.equal(wantsAssignmentDraft(message),true);
 for(const message of ['What assignments are due?','Help prioritize my assignment','What should I study?'])assert.equal(wantsAssignmentDraft(message),false);
 assert.equal(wantsAssignmentDraft('The name is chapter 4',{status:'collecting'}),true);
 {
  const s=setup({draft:complete});const r=await s.request({...turn,message:'Create a new assignment'});assert.equal(r.status,200);
- const finish=JSON.parse(s.calls.at(-1).init.body);assert.equal(finish.p_draft.status,'review');assert.equal(finish.p_draft.percentage_of_grade,null);
+ const finish=JSON.parse(s.calls.findLast(c=>c.url.includes('finish_ai_turn')).init.body);assert.equal(finish.p_draft.status,'review');assert.equal(finish.p_draft.percentage_of_grade,null);
  assert.ok(!s.calls.some(c=>c.url.includes('create_saved_assignment')||c.url.includes('confirm_ai_assignment')));
 }
 {
  const s=setup({draft:complete});const r=await s.request();assert.equal(r.status,200);
- const finish=JSON.parse(s.calls.at(-1).init.body);assert.equal(finish.p_draft,null);
+ const finish=JSON.parse(s.calls.findLast(c=>c.url.includes('finish_ai_turn')).init.body);assert.equal(finish.p_draft,null);
  const ai=s.calls.find(c=>c.url.includes('api.openai.com'));assert.match(JSON.parse(ai.init.body).instructions,/did not ask to create/);
 }
 console.log('PASS: complete/partial drafts, permission to estimate, unknown grade weight, strict output, and no AI-side assignment writes.');
@@ -84,7 +94,7 @@ assert.equal(prepareDraft(empty,today,optionalAnswer.draft).draft.name,'test 1')
 for(const status of ['created','cancelled'])assert.equal(prepareDraft(empty,today,{...optionalAnswer.draft,status}).draft.name,null);
 {
  const s=setup({draft:permissionUpdate,previousDraft:saved});const response=await s.request({...turn,message:'you can est the time'});assert.equal(response.status,200);assert.equal((await response.json()).reply,'Is this assignment optional, or required?');
- const stored=JSON.parse(s.calls.at(-1).init.body).p_draft;assert.equal(stored.name,'test 1');assert.equal(stored.percentage_of_grade,35);
+ const stored=JSON.parse(s.calls.findLast(c=>c.url.includes('finish_ai_turn')).init.body).p_draft;assert.equal(stored.name,'test 1');assert.equal(stored.percentage_of_grade,35);
 }
 console.log('PASS: multi-turn draft memory, null omissions, permission-only answers, optional false, explicit unknown grade, corrections, finished-draft isolation, and persisted merged replies.');
 

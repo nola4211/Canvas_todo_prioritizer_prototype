@@ -28,8 +28,8 @@ After the key owner added API credits:
 
 - New chats show a white welcome message and four blue suggested-question bubbles.
 - Selecting a suggested question uses the same saved send flow as typed text.
-- The history selector is a compact dropdown. Each entry shows a title of no more than five words and a date without a time.
-- `202610300005_chat_titles.sql` was applied to the live project. It names a chat from its first student message and verifies ownership before changing a title.
+- The history selector is a compact dropdown. Each entry shows an AI-written title of no more than five words and a date without a time.
+- The existing study-assistant AI call returns the reply and a useful conversation title together. The backend validates and saves the title after a successful reply, so title generation does not require another AI request. `202610300005_chat_titles.sql` remains part of the live project's history and its older naming function is retained for compatibility.
 - Older empty timestamp-named conversations display as **New chat** because they have no question to summarize.
 
 Separate-account privacy was tested with actual database RLS under another Auth subject, rather than signing into a second browser account. No other student's real data was used. The frontend is verified in the local preview; GitHub Pages needs the frontend change merged/deployed.
