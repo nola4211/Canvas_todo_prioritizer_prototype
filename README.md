@@ -264,7 +264,7 @@ Main keeps incomplete assignments before its Completed section, but no longer fo
 
 ## Completed assignment archive
 
-Completing an assignment starts a 30-day clock stored in `assignments.completed_at`. Marking it incomplete clears the timestamp, so completing it again starts a new consecutive 30-day period. After 30 days, the assignment is hidden from Main's regular cards, By Class, custom lists, and the list assignment picker. It appears only in Main's collapsed **Completed assignments** section with text such as “Completed 31 days ago.” Reopening it from the archive returns it to its former lists because list membership is preserved.
+Completing an assignment starts a 30-day clock stored in `assignments.completed_at`. Marking it incomplete clears the timestamp, so completing it again starts a new consecutive 30-day period. After 30 days, the assignment is hidden from Main's regular cards, By Class, custom lists, and the list assignment picker. It appears only in Main's collapsed **Archived Assignment** section with text such as “Completed 31 days ago.” Reopening it from the archive returns it to its former lists because list membership is preserved.
 
 The migration `supabase/migrations/202611120001_completed_assignment_archive.sql` was applied to the shared Supabase project on November 12, 2026. It adds only `assignments.completed_at`, backfills currently completed assignments with the migration time, and installs a trigger so browser and connected-agent completion changes follow the same clock. Do not rerun it on the shared project. Apply it once after the student-agent migration when setting up a different Supabase project.
 
