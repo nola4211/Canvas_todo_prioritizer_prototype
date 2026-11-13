@@ -98,6 +98,22 @@ context.testBackend=context.CanvasBackend.create(client,['1','2','3','4']);conte
  assert.ok(listHtml.indexOf('Chapter Readings')<completedAt&&completedAt<listHtml.indexOf('EXAM 1'));
  run('S.tab=1;home()');listHtml=element('list').innerHTML;completedAt=listHtml.indexOf('completed-heading');
  assert.ok(listHtml.indexOf('Exam practice assignment')<completedAt&&completedAt<listHtml.indexOf('EXAM 1'));
+ // After 30 consecutive completed days, an assignment leaves every normal/list
+ // view and appears only in Main's collapsed completed archive.
+ const archiveNow=Date.parse('2026-12-01T12:00:00Z');
+ run("S.A[0].completedAt='2026-11-01T12:00:00Z'");
+ assert.equal(run(`isArchivedAssignment(S.A[0],${archiveNow-1})`),false);
+ assert.equal(run(`isArchivedAssignment(S.A[0],${archiveNow})`),true);
+ run("S.done['1']=false");assert.equal(run(`isArchivedAssignment(S.A[0],${archiveNow})`),false);run("S.done['1']=true");
+ run("S.A[0].completedAt=new Date(Date.now()-31*24*60*60*1000).toISOString();S.tab=2;home()");
+ listHtml=element('list').innerHTML;assert.ok(!listHtml.includes('EXAM 1'));
+ run('S.tab=1;home()');listHtml=element('list').innerHTML;assert.ok(!listHtml.includes('EXAM 1'));
+ run('S.tab=0;home()');listHtml=element('list').innerHTML;
+ assert.ok(listHtml.includes('Archived Assignment'));
+ assert.ok(listHtml.includes('aria-expanded="false"'));
+ assert.ok(listHtml.includes('Completed 31 days ago'));
+ assert.ok(listHtml.includes('EXAM 1'));
+ run('toggleCompletedArchive()');assert.equal(run('S.archiveOpen'),true);assert.ok(element('list').innerHTML.includes('aria-expanded="true"'));
  run('S.tab=2');
  run("openPriorityEditor('list');S.priorityDraft.rules=[{type:'due'}]");
  fail=true;await run('savePriorityRules()');

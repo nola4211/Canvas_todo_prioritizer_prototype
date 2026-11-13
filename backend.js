@@ -1,11 +1,12 @@
 // This adapter uses the existing schema; it creates no tables or sample rows.
 (function (root) {
   'use strict';
-  const columns = 'assignment_id,name,description,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
-  const columnsWithoutDescription = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
+  const columns = 'assignment_id,name,description,percentage_of_grade,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
+  const columnsWithoutDescription = 'assignment_id,name,percentage_of_grade,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
   const legacyColumns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
   const missingCreationColumns = error => error && (error.code === '42703' ||
     /(?:optional|client_request_id|class_name).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id|class_name)/i.test(error.message || ''));
+  const missingCompletedAt = error => error && /completed_at.*(?:does not exist|schema cache)|could not find.*completed_at/i.test(error.message || '');
   function id(value) {
     if (typeof value === 'number' && !Number.isSafeInteger(value)) throw new Error('Assignment ID exceeds the browser safe integer range.');
     const result = String(value);
@@ -30,7 +31,7 @@
     return { id: id(row.assignment_id), n: String(row.name ?? ''), description: String(row.description ?? ''), c: row.class_name || 'Shared demo', d: due || '9999-12-31', noDue: !due,
       t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade),
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), o: !!row.optional, l: null,
-      completed: row.completed, requestId: row.client_request_id || null, persisted: true };
+      completed: row.completed, completedAt: row.completed_at == null ? null : new Date(row.completed_at).toISOString(), requestId: row.client_request_id || null, persisted: true };
   }
   function listName(value) {
     const name = String(value).trim();
@@ -195,6 +196,7 @@
       async load() {
         const query = selected => client.from('assignments').select(selected).eq('deleted', false).order('assignment_id');
         let { data, error } = await query(columns);
+        if (missingCompletedAt(error)) throw new Error('The completed assignments archive needs its database update. Apply the completed archive migration, then reload.');
         if (missingCreationColumns(error)) ({ data, error } = await client.from('assignments').select(legacyColumns).eq('deleted', false).order('assignment_id'));
         // Older deployments may not yet grant SELECT on description. Keep the
         // rest of the assignment list usable until its additive migration lands.

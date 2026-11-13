@@ -1,9 +1,9 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Student To-Do Prototype</title>
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/4.0.0/uicons-regular-rounded/css/uicons-regular-rounded.css">
 <style>
-:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#2f6feb;--ln:#e2e2de;--ph:#dcdcd7;--pr-normal:#2458b8;--pr-high:#8a4300;--pr-urgent:#b21f2d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10;--pr-normal:#8db4ff;--pr-high:#ffb36b;--pr-urgent:#ff8a91}}
-:root[data-theme=dark]{--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10;--pr-normal:#8db4ff;--pr-high:#ffb36b;--pr-urgent:#ff8a91}
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#2f6feb;--ln:#e2e2de;--ph:#dcdcd7;--pr-low:#2563eb;--pr-normal:#15803d;--pr-high:#f97316;--pr-urgent:#b52e39;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10}}
+:root[data-theme=dark]{--bg:#1b1b1d;--card:#27272b;--tx:#f2f2f2;--mu:#a3a3aa;--ln:#3a3a40;--ph:#0e0e10}
 *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 html,body{height:100%;margin:0}body{background:var(--ph);color:var(--tx);display:flex;align-items:center;justify-content:center}
 #app{position:relative;width:390px;height:min(844px,calc(100% - 24px));background:var(--bg);border-radius:32px;overflow:hidden;box-shadow:0 10px 40px #0003;border:1px solid var(--ln)}
@@ -41,6 +41,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .lk{background:none;border:0;color:var(--ac);font-size:12px;padding:6px 0 0}
 .gh{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:12px 2px 8px}
 .completed-heading{margin-top:24px;padding-top:14px;border-top:1px solid var(--ln);color:var(--tx);font-weight:700}
+.completed-archive{margin-top:24px;padding-top:14px;border-top:1px solid var(--ln)}.completed-archive-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;border:0;background:transparent;padding:10px 2px;text-align:left;font-weight:750}.completed-archive-toggle .fi{color:var(--ac);transition:transform .15s}.completed-archive-toggle[aria-expanded=true] .fi{transform:rotate(180deg)}.completed-archive-count{color:var(--mu);font-size:13px;font-weight:500;margin-left:6px}.completed-archive-body{padding-top:8px}
 .priority-rule summary{min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:650;list-style:none}.priority-rule summary::-webkit-details-marker{display:none}.priority-rule summary::before{content:'›';display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--bg);color:var(--ac);font-size:22px;line-height:1;transition:transform .15s}.priority-rule[open] summary::before{transform:rotate(90deg)}.priority-rule summary:hover::before,.priority-rule summary:focus-visible::before{background:color-mix(in srgb,var(--ac) 14%,var(--bg))}.priority-rule[open] summary{margin-bottom:8px}
 .emoji{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-variant-emoji:emoji}
 .bar{display:flex;justify-content:space-around;align-items:center;padding:8px 10px 14px;background:var(--card);border-top:1px solid var(--ln)}
@@ -74,7 +75,10 @@ input[type=checkbox]{width:auto}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
 .dy{aspect-ratio:1;border:0;background:var(--card);border-radius:10px;font-size:14px;position:relative;border:1px solid var(--ln)}
 .dy.s{background:var(--ac);color:#fff}.dy.t{border-color:var(--ac)}.dy.e{visibility:hidden}
-.dy i{position:absolute;bottom:4px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}.dy.s i{background:#fff}
+.calendar-markers{position:absolute;bottom:5px;left:50%;display:flex;align-items:center;justify-content:center;gap:3px;transform:translateX(-50%)}
+.calendar-marker{width:6px;height:6px;flex:none;border-radius:50%}.calendar-marker.pr-low{background:var(--pr-low)}.calendar-marker.pr-normal{background:var(--pr-normal)}.calendar-marker.pr-high{background:var(--pr-high)}.calendar-marker.pr-urgent{background:var(--pr-urgent)}
+.calendar-marker.study-session{background:transparent;border:1.5px solid var(--ac)}.dy.s .calendar-marker{box-shadow:0 0 0 1px var(--card)}
+.calendar-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 12px;margin:12px 0 0;color:var(--mu);font-size:12px}.calendar-legend span{display:inline-flex;align-items:center;gap:5px}.calendar-legend .calendar-marker{position:static;width:7px;height:7px}
 .tg{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln);font-size:15px}
 .toast{position:absolute;left:14px;right:14px;bottom:84px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;z-index:20;font-size:13px;display:none;justify-content:space-between;gap:10px}.toast.on{display:flex}.toast button{background:none;border:0;color:#8fb3ff;font-weight:700}.err{color:#d33;font-size:12px;margin-top:5px}
 .save-feedback{margin:0}
@@ -214,7 +218,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .tab:nth-child(3n+2){--tab-accent:#b56b28}.tab:nth-child(3n){--tab-accent:#8a65bf}
 .tab.on{border-top-color:var(--tab-accent);background:var(--bg);font-weight:750}
 .pr{border-color:transparent;color:#fff}
-.pr-low{background:#2563eb}.pr-normal{background:#15803d}.pr-high{background:#f97316;color:#fff}.pr-urgent{background:#b52e39}
+.pr-low{background:var(--pr-low)}.pr-normal{background:var(--pr-normal)}.pr-high{background:var(--pr-high);color:#fff}.pr-urgent{background:var(--pr-urgent)}
 .chk.d::before,.completion-confirmed .chk::before{background:#237447;border-color:#237447}
 .completion-confirmed{border-color:#237447;background:color-mix(in srgb,#237447 9%,var(--card))}
 .completion-confirmed .chk{color:#fff;opacity:1}.completion-confirmed .chk .fi{position:relative;z-index:1;font-size:11px}
@@ -256,7 +260,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
  <div class="scr ov" id="cal"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2>Calendar</h2></div>
   <div class="body calendar-layout"><div class="calendar-month"><div class="row calendar-toolbar"><button class="ib" onclick="mv(-1)" aria-label="Previous month"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><b id="mt"></b><button class="ib" onclick="mv(1)" aria-label="Next month"><i class="fi fi-rr-angle-right" aria-hidden="true"></i></button></div>
-  <div class="grid" id="cg"></div></div><div id="dayp" aria-label="Selected day"><div id="calendar-day-content"></div>
+  <div class="grid" id="cg"></div><div class="calendar-legend" aria-label="Calendar marker key"><span><i class="calendar-marker pr-low"></i>Low</span><span><i class="calendar-marker pr-normal"></i>Normal</span><span><i class="calendar-marker pr-high"></i>High</span><span><i class="calendar-marker pr-urgent"></i>Urgent</span><span><i class="calendar-marker study-session"></i>Study session</span></div></div><div id="dayp" aria-label="Selected day"><div id="calendar-day-content"></div>
    <form class="card" id="session-editor" hidden onsubmit="event.preventDefault();saveStudySession()">
     <div class="nm" id="session-form-title">Plan a study session</div>
     <label for="session-assignment">Assignment</label><select id="session-assignment" required></select>
@@ -311,7 +315,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <script src="pull-refresh.js?v=20261106-1"></script>
 <script>
 const DEFAULT_USER_SETTINGS={push_notifications:true,sync_with_canvas:true,dark_mode:false};
-const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,priorityPicker:null,userSettings:{...DEFAULT_USER_SETTINGS},settingsReady:false,settingsSaving:false,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false,sessions:[],sessionsLoading:false,sessionsError:'',sessionSaving:false,pendingSessionCreate:null,sessionLoadVersion:0,selectedSession:null,agentGrants:[],agentsLoading:false,agentSaving:null};
+const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,priorityPicker:null,userSettings:{...DEFAULT_USER_SETTINGS},settingsReady:false,settingsSaving:false,drafts:[],cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false,archiveOpen:false,sessions:[],sessionsLoading:false,sessionsError:'',sessionSaving:false,pendingSessionCreate:null,sessionLoadVersion:0,selectedSession:null,agentGrants:[],agentsLoading:false,agentSaving:null};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
 S.cy=Number(TODAY.slice(0,4));S.cm=Number(TODAY.slice(5,7))-1;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -330,9 +334,18 @@ function srt(assignments,keys){
 const fd=d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
 const ft=t=>t==null?'Cannot determine':t>=60?Math.floor(t/60)+'h'+(t%60?' '+t%60+'m':''):t+'m';
 const priorityNames=['Low','Normal','High','Urgent'];
-const card=a=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority];return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><div class="row" style="gap:4px"><button class="ib" data-edit="${esc(a.id)}" style="font-size:14px" title="Edit assignment" aria-label="Edit ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-edit" aria-hidden="true"></i></button><button class="ib" data-remove="${esc(a.id)}" style="font-size:14px" title="Remove assignment" aria-label="Remove ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div></div>${a.description?`<div class="sub assignment-description">${esc(a.description)}</div>`:''}<div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
-<div class="chips"><span class="chip"><i class="fi fi-rr-clock" aria-hidden="true"></i> ${ft(a.t)}</span><span class="chip"><i class="fi fi-rr-percentage" aria-hidden="true"></i> ${a.g==null?'Grade weight not set':a.g+' of grade'}</span><span class="priority-picker-wrap"><button class="chip pr pr-${priorityName.toLowerCase()}" data-priority-open="${esc(a.id)}" aria-haspopup="true" aria-expanded="${S.priorityPicker===a.id}" aria-label="Priority: ${priorityName}. Change priority" ${!S.ready||S.loading||S.saving.has(a.id)?'disabled':''}><i class="fi fi-rr-flag" aria-hidden="true"></i> ${priorityName}</button>${S.priorityPicker===a.id?`<span class="priority-popup" role="menu">${priorityNames.map((name,value)=>`<button type="button" role="menuitemradio" aria-checked="${value===priority}" data-priority-value="${value}" data-assignment="${esc(a.id)}">${name}${value===priority?' ✓':''}</button>`).join('')}</span>`:''}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub" data-completion-status>${S.saving.has(a.id)?'Saving…':S.done[a.id]?'Completed':'Incomplete'}</div>${a.noDue?'':`<button class="lk with-icon" onclick="openCal('${a.d}')"><i class="fi fi-rr-calendar-arrow-up" aria-hidden="true"></i>See in calendar</button>`}</div></div></div>`};
+const card=(a,completionLabel)=>{const priority=Math.max(0,Math.min(3,Number(a.p)||0)),priorityName=priorityNames[priority],status=S.saving.has(a.id)?'Saving…':S.done[a.id]?(completionLabel||'Completed'):'Incomplete';return `<div class="card ${S.done[a.id]?'dn':''}" data-assignment-id="${esc(a.id)}"><div class="row"><button class="chk ${S.done[a.id]?'d':''}" role="checkbox" aria-checked="${!!S.done[a.id]}" aria-label="${esc(a.n)} completion" data-complete="${esc(a.id)}" ${!S.ready||S.loading||S.prioritySaving||S.createSaving||S.saving.has(a.id)?'disabled':''}>${S.done[a.id]?'<i class="fi fi-rr-check" aria-hidden="true"></i>':''}</button><div style="flex:1"><div class="row" style="justify-content:space-between"><div class="nm">${esc(a.n)}</div><div class="row" style="gap:4px"><button class="ib" data-edit="${esc(a.id)}" style="font-size:14px" title="Edit assignment" aria-label="Edit ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-edit" aria-hidden="true"></i></button><button class="ib" data-remove="${esc(a.id)}" style="font-size:14px" title="Remove assignment" aria-label="Remove ${esc(a.n)}" ${!S.ready||S.loading||S.createSaving||S.saving.size?'disabled':''}><i class="fi fi-rr-trash" aria-hidden="true"></i></button></div></div>${a.description?`<div class="sub assignment-description">${esc(a.description)}</div>`:''}<div class="sub">${esc(a.c)} · ${a.noDue?'No due date':'Due '+fd(a.d)}</div>
+<div class="chips"><span class="chip"><i class="fi fi-rr-clock" aria-hidden="true"></i> ${ft(a.t)}</span><span class="chip"><i class="fi fi-rr-percentage" aria-hidden="true"></i> ${a.g==null?'Grade weight not set':a.g+' of grade'}</span><span class="priority-picker-wrap"><button class="chip pr pr-${priorityName.toLowerCase()}" data-priority-open="${esc(a.id)}" aria-haspopup="true" aria-expanded="${S.priorityPicker===a.id}" aria-label="Priority: ${priorityName}. Change priority" ${!S.ready||S.loading||S.saving.has(a.id)?'disabled':''}><i class="fi fi-rr-flag" aria-hidden="true"></i> ${priorityName}</button>${S.priorityPicker===a.id?`<span class="priority-popup" role="menu">${priorityNames.map((name,value)=>`<button type="button" role="menuitemradio" aria-checked="${value===priority}" data-priority-value="${value}" data-assignment="${esc(a.id)}">${name}${value===priority?' ✓':''}</button>`).join('')}</span>`:''}</span>${a.o?'<span class="chip">Optional</span>':''}</div><div class="sub" data-completion-status>${esc(status)}</div>${a.noDue?'':`<button class="lk with-icon" onclick="openCal('${a.d}')"><i class="fi fi-rr-calendar-arrow-up" aria-hidden="true"></i>See in calendar</button>`}</div></div></div>`};
 const completedSection=html=>html?'<div class="gh completed-heading">Completed</div>'+html:'';
+const ARCHIVE_AFTER_MS=30*24*60*60*1000;
+function isArchivedAssignment(assignment,now=Date.now()){const completedAt=assignment.completedAt?new Date(assignment.completedAt).getTime():NaN;return !!S.done[assignment.id]&&Number.isFinite(completedAt)&&now-completedAt>=ARCHIVE_AFTER_MS}
+function completionAgeLabel(assignment,now=Date.now()){const days=Math.max(0,Math.floor((now-new Date(assignment.completedAt).getTime())/(24*60*60*1000)));return `Completed ${days} day${days===1?'':'s'} ago`}
+function toggleCompletedArchive(){S.archiveOpen=!S.archiveOpen;home()}
+function completedArchive(assignments){
+ if(!assignments.length)return '';
+ const cards=srt(assignments).map(assignment=>card(assignment,completionAgeLabel(assignment))).join('');
+ return `<section class="completed-archive"><button class="completed-archive-toggle" type="button" aria-expanded="${S.archiveOpen}" onclick="toggleCompletedArchive()"><span>Archived Assignment <span class="completed-archive-count">${assignments.length}</span></span><i class="fi fi-rr-angle-small-down" aria-hidden="true"></i></button><div class="completed-archive-body" ${S.archiveOpen?'':'hidden'}>${cards}</div></section>`;
+}
 function weekBounds(){
  const today=new Date(TODAY+'T12:00:00');
  const day=(today.getDay()+6)%7;
@@ -361,8 +374,9 @@ function openWeeklyItems(kind){
  menu(0);ov('panel');
 }
 function separatedCards(assignments){
- const incomplete=srt(assignments.filter(a=>!S.done[a.id])).map(card).join('');
- const completed=srt(assignments.filter(a=>S.done[a.id])).map(card).join('');
+ const current=assignments.filter(a=>!isArchivedAssignment(a));
+ const incomplete=srt(current.filter(a=>!S.done[a.id])).map(card).join('');
+ const completed=srt(current.filter(a=>S.done[a.id])).map(card).join('');
  return incomplete+completedSection(completed);
 }
 function groupedByClass(assignments){
@@ -372,10 +386,11 @@ function home(){
  $('tabs').innerHTML=S.lists.map((l,i)=>`<button class="tab ${i==S.tab?'on':''}" aria-pressed="${i===S.tab}" onclick="if(!S.listSaving&&!S.prioritySaving&&!S.saving.size){S.tab=${i};home()}">${esc(l.name)}</button>`).join('');
  const t=S.lists[S.tab] || S.lists[0];let h='';
  // Completion is a section, not a priority rule. Each section keeps the selected rule order.
- if(t.id=='main')h=separatedCards(S.A);
+ if(t.id=='main')h=separatedCards(S.A)+completedArchive(S.A.filter(a=>isArchivedAssignment(a)));
  else if(t.id=='classes'){
-  const incomplete=groupedByClass(S.A.filter(a=>!S.done[a.id]));
-  const completed=groupedByClass(S.A.filter(a=>S.done[a.id]));
+  const current=S.A.filter(a=>!isArchivedAssignment(a));
+  const incomplete=groupedByClass(current.filter(a=>!S.done[a.id]));
+  const completed=groupedByClass(current.filter(a=>S.done[a.id]));
   h=incomplete+completedSection(completed);
  }
  else{
@@ -385,9 +400,9 @@ function home(){
  const config=currentListPriorities();
  const summary=config.ignore_user_rules?'This list ignores your settings priorities.':'Settings priorities first, then this list’s priorities.';
  const heading=t.id==='main'?'Your upcoming assignments':t.id==='classes'?'Your assignments by class':t.name;
- const visible=t.id==='main'||t.id==='classes'?S.A:S.A.filter(a=>S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id));
+ const visible=t.id==='main'?S.A:t.id==='classes'?S.A.filter(a=>!isArchivedAssignment(a)):S.A.filter(a=>!isArchivedAssignment(a)&&S.memberships.some(m=>m.list_id===t.id&&m.assignment_id===a.id));
  const remaining=visible.filter(a=>!S.done[a.id]).length,completed=visible.length-remaining;
- $('list').innerHTML=`<header class="assignment-intro"><h1 id="assignments-title" tabindex="-1">${esc(heading)}</h1><p>${remaining} to do · ${completed} completed. Choose your next task.</p></header>`+(t.id==='main'?progressSummary(visible):'')+(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
+ $('list').innerHTML=`<header class="assignment-intro"><h1 id="assignments-title" tabindex="-1">${esc(heading)}</h1><p>${remaining} to do · ${completed} completed. Choose your next task.</p></header>`+(t.id==='main'?progressSummary(visible.filter(a=>!isArchivedAssignment(a))):'')+(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
 }
 let db=null,backend=null,chatClient=null,sessionBackend=null,user=null,loadVersion=0;
 const showError=message=>{['sync-error','login-error','account-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
@@ -416,6 +431,7 @@ async function tog(id){
   if(user?.id!==owner||loadVersion!==version)return;
   if(saved)await showConfirmedCompletion(id);
   if(user?.id!==owner||loadVersion!==version)return;
+  const assignment=S.A.find(a=>a.id===id);if(assignment){assignment.completed=saved;assignment.completedAt=saved?new Date().toISOString():null}
   S.done[id]=saved;$('sync-status').textContent=saved?'Assignment saved · completed':'Assignment saved · incomplete';
   paint();
   if(saved)completionNotice(id);else toast('Assignment marked incomplete');
@@ -473,6 +489,7 @@ function restoreWorkspace(){
  if(view==='cal')openCal();else if(view==='chat')openChat();else if(view==='sort')openSort();else if(['settings','profile','classes','newlist','drafts','okr'].includes(view))pan(view);
 }
 function prepareWorkspaceRestore(){
+ if(!user)return;
  let view='home';try{view=sessionStorage.getItem('canvas-workspace-view')||'home'}catch{}
  if(view==='cal'){menu(0);ov('cal')}
  else if(view==='chat'){menu(0);ov('chat')}
@@ -651,13 +668,25 @@ function openCal(d){if(d){S.sel=d;const x=new Date(d+'T12:00:00Z');S.cy=x.getUTC
 function mv(n){S.cm+=n;if(S.cm<0){S.cm=11;S.cy--}if(S.cm>11){S.cm=0;S.cy++}S.sel=null;closeStudySessionEditor();cal();loadVisibleStudySessions()}
 function sessionMonthDate(day){return String(S.cy)+'-'+String(S.cm+1).padStart(2,'0')+'-'+String(day).padStart(2,'0')}
 function sessionDayRows(day){return S.sessions.filter(session=>session.cancelled_at==null&&CanvasStudySessions.overlapsDay(session,day,'America/Denver')).sort((a,b)=>a.starts_at.localeCompare(b.starts_at))}
+function calendarDayMarkers(assignments,hasSession){
+ const counts=[0,0,0,0];
+ assignments.forEach(assignment=>counts[Math.max(0,Math.min(3,Number(assignment.p)||0))]++);
+ const dots=counts.map((count,priority)=>count?`<span class="calendar-marker pr-${priorityNames[priority].toLowerCase()}" title="${count} ${priorityNames[priority]} priority assignment${count===1?'':'s'}" aria-hidden="true"></span>`:'').join('');
+ return dots||hasSession?`<span class="calendar-markers">${dots}${hasSession?'<span class="calendar-marker study-session" title="Study session planned" aria-hidden="true"></span>':''}</span>`:'';
+}
+function calendarDayLabel(day,assignments,hasSession){
+ const counts=[0,0,0,0];
+ assignments.forEach(assignment=>counts[Math.max(0,Math.min(3,Number(assignment.p)||0))]++);
+ const priorities=counts.map((count,priority)=>count?`${count} ${priorityNames[priority].toLowerCase()} priority`:null).filter(Boolean).join(', ');
+ return day+(assignments.length?`, ${assignments.length} assignment${assignments.length===1?'':'s'} due${priorities?`: ${priorities}`:''}`:'')+(hasSession?', study session planned':'');
+}
 function cal(){
  if(!$('cal'))return;
  $('mt').textContent=new Date(S.cy,S.cm,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
  const f=new Date(S.cy,S.cm,1).getDay(),n=new Date(S.cy,S.cm+1,0).getDate();
  let h='SMTWTFS'.split('').map(c=>`<div class="sub">${c}</div>`).join('')+'<div class="dy e"></div>'.repeat(f);
- for(let i=1;i<=n;i++){const d=sessionMonthDate(i),hasDue=S.A.some(a=>a.d===d),hasSession=sessionDayRows(d).length>0,has=hasDue||hasSession;
-  h+=`<button class="dy ${d===S.sel?'s':''} ${d===TODAY?'t':''}" aria-label="${d}${hasDue?', assignments due':''}${hasSession?', study sessions':''}" onclick="S.sel='${d}';cal()">${i}${has?'<i></i>':''}</button>`}
+ for(let i=1;i<=n;i++){const d=sessionMonthDate(i),dueAssignments=S.A.filter(a=>a.d===d),hasSession=sessionDayRows(d).length>0;
+  h+=`<button class="dy ${d===S.sel?'s':''} ${d===TODAY?'t':''}" aria-label="${esc(calendarDayLabel(d,dueAssignments,hasSession))}" onclick="S.sel='${d}';cal()">${i}${calendarDayMarkers(dueAssignments,hasSession)}</button>`}
  $('cg').innerHTML=h;
  const content=$('calendar-day-content');if(!content)return;
  if(!S.sel){content.innerHTML=(S.sessionsLoading?'<div class="hint">Loading study sessions…</div>':'<div class="hint">Select a day to see assignments and study sessions.</div>')+(S.sessionsError?`<p class="err" role="alert">${esc(S.sessionsError)}</p>`:'');return}
@@ -869,7 +898,7 @@ async function loadOkrTracker(){
 /* Saved lists: database IDs stay the same when names change. */
 function resetLists(){
  S.lists=[{id:'main',name:'Main'},{id:'classes',name:'By Class'}];
- S.memberships=[];S.tab=0;S.listsReady=false;S.userRules=[];S.viewPriorities={};S.prioritiesReady=false;S.priorityDraft=null;ov();
+ S.memberships=[];S.tab=0;S.listsReady=false;S.userRules=[];S.viewPriorities={};S.prioritiesReady=false;S.priorityDraft=null;S.archiveOpen=false;ov();
 }
 async function loadSavedLists(version){
  if(version!==loadVersion)return;
@@ -896,7 +925,7 @@ function openListEditor(){
   '<button class="btn" data-list-control onclick="deleteCurrentList()">Delete list</button>'+
   '<button class="btn" data-list-control style="display:block;margin-top:12px" onclick="openSort()">List priorities</button>'+
   '<p class="sub">Check an assignment to add it. Uncheck to remove it from this list. Each change saves immediately.</p>'+
-  S.A.filter(a=>a.persisted).map(a=>`<label class="tg"><span>${esc(a.n)}</span><input type="checkbox" data-list-control data-list-assignment="${esc(a.id)}" ${S.memberships.some(m=>m.list_id===list.id&&m.assignment_id===a.id)?'checked':''}></label>`).join('')+
+  S.A.filter(a=>a.persisted&&!isArchivedAssignment(a)).map(a=>`<label class="tg"><span>${esc(a.n)}</span><input type="checkbox" data-list-control data-list-assignment="${esc(a.id)}" ${S.memberships.some(m=>m.list_id===list.id&&m.assignment_id===a.id)?'checked':''}></label>`).join('')+
   '<p id="list-message" role="status"></p>';
  $('ln').value=list.name;
  lockListControls();
