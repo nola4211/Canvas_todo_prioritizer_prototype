@@ -1,6 +1,6 @@
 # Canvas To-Do Prioritizer — IS 401 Module 05
 
-**AI assignment creation update — October 30, 2026:** the chatbot now collects assignment details into a saved draft, asks for missing answers, and offers a review before creation. The manual form and reviewed chat draft use one database creation function. See [AI assignment creation](docs/ai-assignment-creation.md) for setup, the system prompt, limits, and verification. This update supersedes the earlier advice-only behavior below.
+**AI assignment creation:** the chatbot saves every active assignment draft to the Drafts section. Only name, class, and Low/Normal/High/Urgent priority are required to create an assignment; due date, time, optional status, grade weight, and description can be added later. See [AI assignment creation](docs/ai-assignment-creation.md) for setup, limits, and verification.
 
 **Assignment creation update — October 30, 2026:** the Add Assignment form saves new tasks directly to Supabase. The app displays database assignments only; it does not create or load device-only assignments. The migration was applied to the live project, and a rollback-only database check passed creation, completion, and account isolation. See [Database-backed assignment creation](#database-backed-assignment-creation).
 

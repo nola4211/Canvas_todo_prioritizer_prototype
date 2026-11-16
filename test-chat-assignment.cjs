@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 function element(){return {value:'',textContent:'',children:[],append(...nodes){this.children.push(...nodes)},replaceChildren(){this.children=[]},focus(){}}}
 const nodes={};function find(node,id){if(node?.id===id)return node;for(const child of node?.children||[]){const hit=find(child,id);if(hit)return hit}}
-const draft={status:'review',request_id:'11111111-1111-4111-8111-111111111111',name:'Reading',class_name:'History',due_date:'2030-01-01',estimated_minutes:30,time_source:'student',estimate_allowed:false,optional:false,percentage_of_grade:null,grade_weight_answered:true};
+const draft={status:'review',request_id:'11111111-1111-4111-8111-111111111111',draft_assignment_id:12,name:'Reading',class_name:'History',priority:2,due_date:null,estimated_minutes:null,time_source:null,estimate_allowed:false,optional:null,percentage_of_grade:null,grade_weight_answered:false};
 let savedDraft=structuredClone(draft),fail=false,saves=0,refreshes=0,resolveSave=null;
 const backend={loadAssignmentDraft:async()=>structuredClone(savedDraft),async confirmAssignmentDraft(){saves++;if(resolveSave)await new Promise(resolve=>{resolveSave=resolve});if(fail)throw Error('Network failed');savedDraft.status='created';return {id:'9'}},async changeAssignmentDraft(id,request,action){savedDraft.status=action==='cancel'?'cancelled':'collecting'}};
 const client={from(table){const q={select(){return q},order(){return q},limit(){return q},eq(){return q},then(resolve){resolve({data:table==='chat'?[{chat_ID:1,title:'Study'}]:[]})}};return q}};

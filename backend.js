@@ -68,11 +68,11 @@
         return data;
       },
       async createAssignment(input) {
-        const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',description:input.description,d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g});
+        const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',description:input.description,d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g,p:input.p});
         const args={
           p_name:fields.n,p_class_name:fields.c,p_due_date:fields.d,p_estimated_minutes:fields.t,
           p_optional:fields.o,p_percentage_of_grade:fields.g,p_request_id:input.requestId,
-          p_completed:!!input.completed,p_confirm_long:!!input.confirmLong
+          p_completed:!!input.completed,p_confirm_long:!!input.confirmLong,p_priority:fields.p
         };
         if(fields.description)args.p_description=fields.description;
         const {data,error}=await client.rpc('create_saved_assignment',args);
@@ -85,23 +85,23 @@
         const saved=record(data);visible.add(saved.id);return saved;
       },
       async loadAssignmentDrafts() {
-        const selected='assignment_id,name,description,class_name,due_date,est_time,optional,percentage_of_grade,owner_id';
+        const selected='assignment_id,name,description,class_name,due_date,est_time,optional,percentage_of_grade,priority,owner_id';
         const {data,error}=await client.from('assignments_draft').select(selected).order('assignment_id');
         if(error)throw new Error(error.message || 'Could not load saved drafts.');
         return (data||[]).filter(row=>row.owner_id).map(row=>{
           let due='';if(row.due_date){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(row.due_date));const part=type=>parts.find(item=>item.type===type).value;due=`${part('year')}-${part('month')}-${part('day')}`}
           const minutesValue=minutes(row.est_time);
-          return {id:String(row.assignment_id),n:String(row.name||''),description:String(row.description||''),c:String(row.class_name||''),d:due,t:minutesValue?`${minutesValue}m`:'',o:!!row.optional,g:row.percentage_of_grade==null?null:Number(row.percentage_of_grade),gUnknown:row.percentage_of_grade==null};
+          return {id:String(row.assignment_id),n:String(row.name||''),description:String(row.description||''),c:String(row.class_name||''),d:due,t:minutesValue?`${minutesValue}m`:'',o:!!row.optional,g:row.percentage_of_grade==null?null:Number(row.percentage_of_grade),gUnknown:row.percentage_of_grade==null,p:row.priority==null?null:Number(row.priority)};
         });
       },
       async saveAssignmentDraft(input,draftId) {
         const draft={
           n:String(input.n||''),description:String(input.description||''),c:String(input.c||''),
-          d:String(input.d||''),t:String(input.t||''),o:!!input.o,gUnknown:!!input.gUnknown,
+          d:String(input.d||''),t:String(input.t||''),o:!!input.o,gUnknown:!!input.gUnknown,p:input.p==null?null:Number(input.p),
           g:input.g==null||input.g===''?null:Number(input.g)
         };
-        if(!draft.n.trim())throw new Error('Enter a name before saving this draft.');
         if(draft.n.length>200||draft.description.length>2000||draft.c.length>100)throw new Error('Some draft details are longer than the allowed limits.');
+        if(draft.p!==null&&(!Number.isInteger(draft.p)||draft.p<0||draft.p>3))throw new Error('Choose a valid draft priority.');
         const date=/^\d{4}-\d{2}-\d{2}$/.test(draft.d)&&!Number.isNaN(new Date(draft.d+'T12:00:00Z').valueOf())?new Date(draft.d+'T12:00:00Z').toISOString():null;
         const parsed=String(draft.t).trim().toLowerCase().match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);
         const mins=parsed&&(parsed[1]||parsed[2])?(Number(parsed[1]||0)*60+Number(parsed[2]||0)):null;
@@ -110,10 +110,10 @@
         const row={
           owner_id:userData.user.id,name:draft.n.trim(),description:draft.description.trim()||null,
           class_name:draft.c.trim()||null,due_date:date,est_time:mins==null?null:`${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}:00`,
-          optional:draft.o,percentage_of_grade:Number.isFinite(draft.g)?draft.g:null,priority:draft.o?0:2,
+          optional:draft.o,percentage_of_grade:Number.isFinite(draft.g)?draft.g:null,priority:draft.p,
           completed:false,deleted:false,client_request_id:crypto.randomUUID()
         };
-        const selected='assignment_id,name,description,class_name,due_date,est_time,optional,percentage_of_grade,owner_id';
+        const selected='assignment_id,name,description,class_name,due_date,est_time,optional,percentage_of_grade,priority,owner_id';
         const query=draftId
           ?client.from('assignments_draft').update(row).eq('assignment_id',draftId).select(selected).single()
           :client.from('assignments_draft').insert(row).select(selected).single();
@@ -122,7 +122,7 @@
         if(!data)throw new Error('The draft save was not confirmed.');
         let due='';if(data.due_date){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(data.due_date));const part=type=>parts.find(item=>item.type===type).value;due=`${part('year')}-${part('month')}-${part('day')}`}
         const minutesValue=minutes(data.est_time);
-        return {id:String(data.assignment_id),n:String(data.name||''),description:String(data.description||''),c:String(data.class_name||''),d:due,t:minutesValue?`${minutesValue}m`:'',o:!!data.optional,g:data.percentage_of_grade==null?null:Number(data.percentage_of_grade),gUnknown:data.percentage_of_grade==null};
+        return {id:String(data.assignment_id),n:String(data.name||''),description:String(data.description||''),c:String(data.class_name||''),d:due,t:minutesValue?`${minutesValue}m`:'',o:!!data.optional,g:data.percentage_of_grade==null?null:Number(data.percentage_of_grade),gUnknown:data.percentage_of_grade==null,p:data.priority==null?null:Number(data.priority)};
       },
       async deleteAssignmentDraft(draftId) {
         const {data,error}=await client.from('assignments_draft').delete().eq('assignment_id',draftId).select('assignment_id').single();
@@ -132,8 +132,8 @@
       async updateAssignment(assignmentId, input) {
         const key = id(assignmentId);
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
-        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,allowPast:true});
-        const {data,error}=await client.from('assignments').update({name:fields.n,description:fields.description,class_name:fields.c,due_date:fields.d,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g})
+        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,p:input.p,allowPast:true});
+        const {data,error}=await client.from('assignments').update({name:fields.n,description:fields.description,class_name:fields.c,due_date:fields.d,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g,priority:fields.p})
           .eq('assignment_id',key).eq('deleted',false).select(columns).single();
         if(error)throw new Error(error.message || 'Could not save assignment changes.');
         if(!data)throw new Error('The assignment update was not confirmed. Reload assignments before retrying.');
