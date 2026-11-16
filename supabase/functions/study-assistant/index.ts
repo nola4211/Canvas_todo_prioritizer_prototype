@@ -179,7 +179,7 @@ export function createAIHandler(env, fetchRequest = fetch) {
         return reply(400,{error:'Choose a conversation and use a message between 1 and 2000 characters.'});
       }
       const start = await database('rpc/begin_ai_turn',{method:'POST',body:JSON.stringify({p_chat_id:body.chatId,p_request_id:body.requestId,p_text:body.message.trim()})});
-      if (start.cached) return reply(200,{reply:start.reply,cached:true});
+      if (start.cached) return reply(200,{reply:start.reply,cached:true,presentation:'word-by-word'});
       reservation = true;
       // All reads use the caller's token: database policies decide what the model may see.
       const [history,tasks,lists,memberships,priorities,chatRows] = await Promise.all([
@@ -227,7 +227,9 @@ export function createAIHandler(env, fetchRequest = fetch) {
         const updated=await database('chat?select=title&chat_ID=eq.'+body.chatId+'&owner_id=eq.'+owner,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({title:generatedTitle})},true);
         if(updated?.[0]?.title===generatedTitle)savedTitle=generatedTitle;
       }catch{console.warn('Chat title save failed')}
-      return reply(200,{reply:answer,title:savedTitle});
+      // The reply is already saved before this response reaches the browser.
+      // This flag lets the interface reveal that confirmed text word by word.
+      return reply(200,{reply:answer,title:savedTitle,presentation:'word-by-word'});
     } catch (error) {
       if (reservation) {
         try { await database('rpc/finish_ai_turn',{method:'POST',body:JSON.stringify({p_owner:owner,p_chat_id:body.chatId,p_request_id:body.requestId,p_reply:null,p_model:model})},true); } catch { /* A lease expires after 90 seconds if the database is unreachable. */ }

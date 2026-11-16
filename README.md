@@ -295,7 +295,7 @@ Run `node test.cjs`, `node test-lists.cjs`, `node test-priorities.cjs`, and `nod
 
 The Assistant now uses a Supabase Edge Function named `study-assistant` to call OpenAI. It reads the signed-in account's saved assignments, lists, memberships, and priorities to offer advice. It can prepare new assignments for review and confirmation; it cannot edit, delete, or complete existing tasks. Device-only assignments and class grades are not included. Shared demo users share the same conversations because they share one login.
 
-Choose **New chat** to see a welcome message and four blue suggested-question bubbles. Selecting a suggestion sends it like a typed question. After each successful reply, the same AI response supplies a useful two-to-five-word title summarizing the conversation. The title can improve as the conversation becomes clearer, without making a second AI request. The compact history selector shows that title and the creation date, without a timestamp. Replies appear after Supabase confirms they were saved. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
+Choose **New chat** to see a welcome message and four blue suggested-question bubbles. Selecting a suggestion sends it like a typed question. The student’s message appears immediately, followed by a clear **Assistant is thinking** bubble. After Supabase confirms the reply was saved, the confirmed text is revealed word by word; reduced-motion settings show it all at once. This is a display effect, not a second AI request or unconfirmed provider stream. The same AI response also supplies a useful two-to-five-word title summarizing the conversation. The title can improve as the conversation becomes clearer, without making a second AI request. The compact history selector shows that title and the creation date, without a timestamp. Failed requests keep the draft and offer **Retry unanswered message**. Retrying reuses the same request ID to avoid duplicate saved messages or another AI call after an already-completed request. If the retry limit is reached, start a new conversation. Sign-out clears the displayed history.
 
 ### Tables and functions
 
@@ -326,11 +326,12 @@ Run `node test-chat-backend.mjs` (Node 22.18+ or another runtime supporting `.ts
 Manual checks:
 
 1. Sign in, open Assistant, create a chat, and ask which saved task to start. Check assignment names and priorities against the app.
-2. Ask a follow-up referring to the previous answer. Refresh, reopen Assistant, and confirm both turns remain.
-3. Create another chat. It should start empty. Switch back to the first conversation to confirm separation.
-4. Ask the assistant to complete an existing assignment. It should explain it cannot change existing tasks; task data should stay unchanged.
-5. A failed API request should show an error, retain the draft, and allow a retry. Check that retrying does not duplicate the user question in saved history.
-6. Sign out and sign in as a different account; the first account's conversations must not appear. The shared demo login is the same account on every device.
+2. Immediately after sending, confirm your blue message appears and a white **Assistant is thinking** bubble is visible. Confirm the saved reply then appears word by word.
+3. Ask a follow-up referring to the previous answer. Refresh, reopen Assistant, and confirm both turns remain.
+4. Create another chat. It should start empty. Switch back to the first conversation to confirm separation.
+5. Ask the assistant to complete an existing assignment. It should explain it cannot change existing tasks; task data should stay unchanged.
+6. A failed API request should show an error, retain the draft, and allow a retry. Check that retrying does not duplicate the user question in saved history.
+7. Sign out and sign in as a different account; the first account's conversations must not appear. The shared demo login is the same account on every device.
 
 See `docs/chat-verification.md` for completed live checks and any remaining external blockers.
 

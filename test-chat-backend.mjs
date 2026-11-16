@@ -26,7 +26,7 @@ function setup(options={}){
  return {calls,request};
 }
 {
- const s=setup();const result=await s.request();assert.equal(result.status,200);assert.deepEqual(await result.json(),{reply:'Study the exam first.',title:'Exam Study Plan'});
+ const s=setup();const result=await s.request();assert.equal(result.status,200);assert.deepEqual(await result.json(),{reply:'Study the exam first.',title:'Exam Study Plan',presentation:'word-by-word'});
  const ai=s.calls.find(c=>c.url.includes('api.openai.com'));const payload=JSON.parse(ai.init.body);
  assert.equal(payload.store,false);assert.equal(payload.model,'gpt-6-luna');assert.match(payload.instructions,/Exam/);assert.deepEqual(payload.input.map(x=>x.content),['Earlier question','Earlier advice',turn.message]);
  for(const c of s.calls.filter(c=>c.url.includes('/rest/v1/'))){assert.equal(c.init.headers.Authorization,c.url.includes('finish_ai_turn')||c.init.method==='PATCH'?'Bearer server':'Bearer '+browserToken)}
@@ -35,7 +35,7 @@ function setup(options={}){
 }
 {
  const s=setup({titleSaveError:true});const result=await s.request();
- assert.equal(result.status,200);assert.deepEqual(await result.json(),{reply:'Study the exam first.',title:null});
+ assert.equal(result.status,200);assert.deepEqual(await result.json(),{reply:'Study the exam first.',title:null,presentation:'word-by-word'});
 }
 for(const [options,body,headers,status] of [
  [{authStatus:401},turn,{},401],[{env:{OPENAI_API_KEY:''}},turn,{},503],[{}, {...turn,message:' '},{},400],
@@ -48,7 +48,7 @@ for(const [options,body,headers,status] of [
  assert.ok(!s.calls.some(call=>call.url.includes('/rest/v1/')||call.url.includes('api.openai.com')));
 }
 {
- const s=setup({cached:true});assert.equal((await s.request()).status,200);assert.ok(!s.calls.some(c=>c.url.includes('api.openai.com')));
+ const s=setup({cached:true});const r=await s.request();assert.equal(r.status,200);assert.deepEqual(await r.json(),{reply:'Already saved',cached:true,presentation:'word-by-word'});assert.ok(!s.calls.some(c=>c.url.includes('api.openai.com')));
 }
 for(const options of [{providerError:true},{providerError:'credits'},{saveError:true}]){
  const s=setup(options);const r=await s.request();assert.equal(r.status,502);const text=await r.text();assert.doesNotMatch(text,/private database|secret diagnostic/);if(options.providerError==='credits')assert.match(text,/usage credit/);assert.equal(JSON.parse(s.calls.at(-1).init.body).p_reply,null);
