@@ -181,6 +181,7 @@
         if(current!==version)return;
         sending=false;
         await selectChat(chatId);
+        if(data.assignmentCreated&&options.onSaved)await options.onSaved(data.assignmentCreated);
         if(options.onDraftChanged)await options.onDraftChanged();
       }catch(error){if(current===version){
         sending=false;el('ci').value='';

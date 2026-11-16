@@ -1,13 +1,13 @@
 # AI assignment creation
 
-The assistant collects a new assignment through conversation. It does not write an assignment when it generates a reply. It saves a draft and the app shows a review. Only the student's **Create assignment** action calls the database confirmation function.
+The assistant collects a new assignment through conversation and saves the work in Drafts. Once the review has a name, class, and priority, the student can select **Create assignment** or clearly confirm in chat with a message such as “create it.” The server performs the save and reports success only after the assignment is actually added.
 
 ## Using it
 
 1. Open Assistant and start a conversation. For example, “Add a chapter reading assignment.”
 2. Supply the assignment name, class name, and a priority: Low, Normal, High, or Urgent. These are the only three details required to create it.
 3. Due date, time estimate, optional status, and grade weight may be supplied now or added later. You may explicitly allow the AI to estimate the time. Its suggestion is labeled **AI estimate** for review. Unknown or unanswered grade weight stays empty rather than becoming 0% or 10%.
-4. Check the review, then select **Create assignment**, **Edit details**, or **Cancel draft**. A chat message saying “yes” does not create anything. Estimates over 10 hours need an additional checkbox acknowledgement.
+4. Check the review, then select **Create assignment**, **Edit details**, or **Cancel draft**. You may also reply “create it” or clearly confirm that the reviewed assignment should be added. Estimates over 10 hours still need the checkbox acknowledgement.
 5. After a confirmed save, the app reloads assignments. The saved task supports completion, list membership, priorities, and the assistant's normal task context.
 
 While a reply is loading, only the thinking status appears; retry/failure controls are hidden. Actual request failures show a helpful message and a retry. Successful creation says “Assignment successfully saved!” without database terminology.
@@ -21,12 +21,13 @@ The manual form uses the same rules and writer. Its class field now accepts a na
 - `assignment-fields.js`: plain JavaScript field validation used by the manual form and its backend adapter.
 - `backend.js`: `createAssignment`, `loadAssignmentDraft`, `confirmAssignmentDraft`, and `changeAssignmentDraft` call Supabase. Existing assignment IDs, completion, and memberships still use the regular adapter.
 - `chat.js`: displays the saved draft, review fields, confirmation controls, and errors. It renders student/model text with `textContent`.
-- `supabase/functions/study-assistant/index.ts`: `assignmentInstructions` is the active system-prompt section. It sends a strict JSON response schema, validates the returned snapshot, and generates missing-field questions and review wording in code. It never invokes the assignment writer. `docs/assignment-creation-system-prompt.txt` is a readable copy.
+- `supabase/functions/study-assistant/index.ts`: `assignmentInstructions` is the active system-prompt section. It sends a strict JSON response schema, validates the returned snapshot, generates missing-field questions and review wording, and recognizes a clear confirmation of an already reviewed assignment. `docs/assignment-creation-system-prompt.txt` is a readable copy.
 - `assignments.class_name` stores the class label. Existing rows default to Shared demo; no existing assignment name, completion, or memberships are changed.
 - `chat.assignment_draft` stores partial answers, explicit priority, whether weight was answered, estimate permission/source, review status, the Drafts-row ID, and a server-generated save request ID.
 - `assignments_draft.source_chat_id` connects one Drafts-page row to its AI conversation. The database updates that row with each AI turn instead of creating duplicates.
 - `create_saved_assignment`: shared manual/chat database writer. It validates sign-in and fields, derives ownership from Auth, converts Denver date to 11:59 pm correctly across daylight saving time, derives priority from optional status, and returns a confirmed row. Retrying the same request returns that row; changed input using that ID is rejected.
 - `finish_ai_turn`: saves the assistant reply and its draft together. Only the service role can call it. Older calls without a draft remain compatible.
+- `confirm_ai_assignment_from_chat`: service-only confirmation used after the signed-in student clearly asks the assistant to add an already reviewed assignment.
 - `confirm_ai_assignment`: checks ownership, the exact current review ID, required name/class/priority, any optional values that were supplied, and long-estimate acknowledgement. Confirmation, Drafts cleanup, and the saved chat acknowledgement happen in one transaction. The browser cannot pass replacement assignment fields to this function.
 - `change_ai_assignment_draft`: edits or cancels the account's current draft. A message trigger also invalidates a review before a new user question runs.
 
@@ -36,7 +37,7 @@ Required rules: title 1–200 characters, class 1–100, and priority 0–3 (Low
 
 ## Deployment
 
-Apply the original AI migrations in order, followed by `202611150001_assignment_drafts_table.sql` and `202611160001_ai_flexible_assignment_drafts.sql`. Apply each once. The flexible-drafts migration relaxes the final assignment requirement, connects AI drafts to the Drafts page, and keeps existing rows and ownership policies.
+Apply the original AI migrations in order, followed by `202611150001_assignment_drafts_table.sql`, `202611160001_ai_flexible_assignment_drafts.sql`, and `202611160002_ai_chat_assignment_confirmation.sql`. Apply each once. These migrations relax the final assignment requirement, connect AI drafts to the Drafts page, and allow the verified Edge Function to save a reviewed assignment after a clear chat confirmation.
 
 Deploy the updated `study-assistant/index.ts` in Supabase's function Code editor, keeping JWT verification enabled. No additional dependency files or new secrets are needed. The existing `OPENAI_API_KEY`, optional `OPENAI_MODEL`, and allowed origins remain in effect. Merge/deploy the frontend files together, including `assignment-fields.js` and the updated script versions in `index.html`.
 

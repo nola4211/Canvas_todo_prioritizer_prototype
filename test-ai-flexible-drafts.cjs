@@ -4,6 +4,7 @@ const sql=fs.readFileSync('supabase/migrations/202611160001_ai_flexible_assignme
 const edge=fs.readFileSync('supabase/functions/study-assistant/index.ts','utf8');
 const chat=fs.readFileSync('chat.js','utf8');
 const backend=fs.readFileSync('backend.js','utf8');
+const confirmSql=fs.readFileSync('supabase/migrations/202611160002_ai_chat_assignment_confirmation.sql','utf8');
 
 assert.match(sql,/name is not null[\s\S]*class_name is not null[\s\S]*priority is not null/);
 assert.doesNotMatch(sql,/assignment_created_fields[\s\S]{0,500}due_date is not null/);
@@ -16,5 +17,9 @@ assert.match(edge,/only details required to create an assignment are its name, c
 assert.match(chat,/Saved in Drafts/);
 assert.match(backend,/select\(selected\)[\s\S]*assignments_draft/);
 assert.match(backend,/p_priority:fields\.p/);
+assert.match(edge,/wantsAssignmentConfirmation/);
+assert.match(edge,/confirm_ai_assignment_from_chat/);
+assert.match(confirmSql,/grant execute on function public\.confirm_ai_assignment_from_chat[\s\S]*service_role/);
+assert.doesNotMatch(confirmSql,/to authenticated/);
 
 console.log('PASS: minimal AI creation, automatic Drafts mirroring, cleanup, priority persistence, and service-only finalization contract.');
