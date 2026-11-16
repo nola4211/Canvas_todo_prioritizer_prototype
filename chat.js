@@ -178,7 +178,14 @@
         if(current!==version)return;
         sending=false;
         await selectChat(chatId);
-      }catch(error){if(current===version){sending=false;if(!useRetry)el('ci').value=turn.message;const failed=messages.find(item=>item.request_id===turn.requestId);if(failed){failed.status='failed';failed.error=error.message}status(error.message||'I couldn’t finish that reply. Please try again.');render()}}
+      }catch(error){if(current===version){
+        sending=false;el('ci').value='';
+        const failed=messages.find(item=>item.request_id===turn.requestId);
+        if(failed){failed.status='failed';failed.error=error.message}
+        // Keep one clear error in the conversation. The retry button already
+        // remembers the failed text, so it should not return to the input box.
+        status('');render();
+      }}
     }
     function sendSuggestion(text){if(loading||sending||!selected)return;el('ci').value=text;send()}
     return {open,newChat,selectChat,send,confirmDraft,changeDraft,reset};

@@ -17,7 +17,7 @@ const context={document:{getElementById:id=>nodes[id]??=(element()),createElemen
  assert.equal(lastTurn.message,'What should I work on first?');assert.equal(chats[0].title,'Plan Upcoming Coursework');assert.match(nodes['chat-history'].children[1].textContent,/Plan Upcoming Coursework · Oct 30, 2026/);
  await ui.open();assert.equal(nodes.cb.children.length,2);
  await ui.newChat();assert.equal(nodes.cb.children.length,2);assert.equal(chats.length,2);
- fail=true;nodes.ci.value='Draft';await ui.send();const requestId=lastTurn.requestId;assert.equal(nodes.ci.value,'Draft');assert.equal(nodes['chat-status'].textContent,'Quota unavailable');assert.equal(nodes['chat-retry'].hidden,false);
+ fail=true;nodes.ci.value='Draft';await ui.send();const requestId=lastTurn.requestId;assert.equal(nodes.ci.value,'');assert.equal(nodes['chat-status'].textContent,'');assert.equal(nodes['chat-retry'].hidden,false);assert.equal(nodes.cb.children[0].textContent,'Draft');assert.equal(nodes.cb.children[1].textContent,'Quota unavailable');
  assert.equal(chats[0].title,'New chat');assert.match(nodes['chat-history'].children[1].textContent,/New chat · Oct 30, 2026/);
  const previous=invokeCount;await ui.send();assert.equal(invokeCount,previous);
  fail=false;holdReply=true;const pending=ui.send(true);await new Promise(resolve=>setImmediate(resolve));assert.equal(nodes['chat-retry'].hidden,true);assert.equal(nodes['chat-status'].textContent,'Thinking…');
