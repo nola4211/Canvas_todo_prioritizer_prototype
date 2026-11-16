@@ -2,6 +2,7 @@
 (function(root){
   function create(client,options={}){
     const backend=options.backend;
+    const pause=options.pause || (milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds)));
     let conversations=[],selected=null,messages=[],loading=false,sending=false,version=0,retry=null,draft=null;
     const el=id=>document.getElementById(id);
     const suggestions=['What should I work on first?','Help me plan today','What is due soon?','Create a new assignment'];
@@ -42,7 +43,8 @@
         area.append(node);
         if(item.role==='user'&&item.status==='failed'&&!sending)area.append(message(item.error||'I couldn’t finish that reply. Please try again.','assistant'));
         if(item.role==='user'&&item.status==='sending'){
-          const thinking=document.createElement('div');thinking.className='chat-thinking';thinking.setAttribute('role','status');thinking.setAttribute('aria-label','Assistant is thinking');
+          const thinking=document.createElement('div');thinking.className='msg bot chat-thinking';thinking.setAttribute('role','status');thinking.setAttribute('aria-label','Assistant is thinking');
+          const label=document.createElement('span');label.textContent='Assistant is thinking';thinking.append(label);
           for(let i=0;i<3;i++){const dot=document.createElement('i');dot.setAttribute('aria-hidden','true');thinking.append(dot)}
           area.append(thinking);
         }
@@ -132,6 +134,20 @@
         conversations.unshift(chat);loading=false;await selectChat(chat.id);
       }catch(error){if(current===version){loading=false;status(error.message.includes('limit')?'You’ve reached the saved chat limit. Please use an existing chat.':'I couldn’t start a new chat right now. Please try again.');render()}}
     }
+    async function showReplyWordByWord(reply,current){
+      const parts=reply.match(/\S+\s*/g) || [reply];
+      const item={role:'assistant',message:'',status:'streaming'};messages.push(item);
+      const reduceMotion=typeof root.matchMedia==='function'&&root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const wordDelay=options.wordDelayMs ?? Math.max(8,Math.min(45,Math.round(1800/parts.length)));
+      status('Writing reply…');
+      if(reduceMotion){item.message=reply;render();return}
+      for(const part of parts){
+        if(current!==version)return;
+        item.message+=part;render();
+        if(wordDelay>0)await pause(wordDelay);
+      }
+      item.message=reply;render();
+    }
     async function send(useRetry=false){
       if(loading||sending||!selected)return;
       if(retry&&!useRetry){status('Please retry your last message first, or start a new chat.');return}
@@ -155,8 +171,12 @@
         }
         if(!data||typeof data.reply!=='string'||!data.reply.trim())throw new Error('Your reply isn’t ready. Please reopen this chat and try again.');
         if(current!==version)return;
+        const sent=messages.find(item=>item.request_id===turn.requestId);if(sent)sent.status='complete';
         applyGeneratedTitle(chatId,data.title);
-        retry=null;el('ci').value='';sending=false;
+        retry=null;el('ci').value='';
+        if(data.presentation==='word-by-word')await showReplyWordByWord(data.reply.trim(),current);
+        if(current!==version)return;
+        sending=false;
         await selectChat(chatId);
       }catch(error){if(current===version){sending=false;if(!useRetry)el('ci').value=turn.message;const failed=messages.find(item=>item.request_id===turn.requestId);if(failed){failed.status='failed';failed.error=error.message}status(error.message||'I couldn’t finish that reply. Please try again.');render()}}
     }
