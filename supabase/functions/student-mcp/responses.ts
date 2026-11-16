@@ -1,5 +1,7 @@
 export type ToolReply = {isError?:boolean;structuredContent:Record<string,unknown>;content:Array<{type:'text';text:string}>}
 
+// Keep database/internal details out of tool replies. Clients receive a small,
+// stable set of codes with plain-language recovery guidance.
 const messages:Record<string,string>={
   VALIDATION_ERROR:'Check the supplied values and try again.',
   NOT_FOUND:'The requested record was not found.',

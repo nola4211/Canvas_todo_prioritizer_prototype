@@ -315,6 +315,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <script src="chat.js?v=20261116-chat-create"></script>
 <script src="pull-refresh.js?v=20261106-1"></script>
 <script>
+// The page keeps its UI state here; focused helpers above handle validation,
+// ordering, chat, and Supabase calls. Database-confirmed values drive the view.
 const DEFAULT_USER_SETTINGS={push_notifications:true,sync_with_canvas:true,dark_mode:false};
 const $=id=>document.getElementById(id),S={tab:0,lists:[{id:'main',name:'Main'},{id:'classes',name:'By Class'}],memberships:[],listsReady:false,listSaving:false,createSaving:false,userRules:[],viewPriorities:{},prioritiesReady:false,prioritySaving:false,priorityDraft:null,priorityPicker:null,userSettings:{...DEFAULT_USER_SETTINGS},settingsReady:false,settingsSaving:false,drafts:[],draftsError:'',cy:2026,cm:9,sel:null,cf:'due',done:{},next:4,A:[],saving:new Set(),loading:false,ready:false,archiveOpen:false,sessions:[],sessionsLoading:false,sessionsError:'',sessionSaving:false,pendingSessionCreate:null,sessionLoadVersion:0,selectedSession:null,agentGrants:[],agentsLoading:false,agentSaving:null};
 const CL=['Shared demo'],TODAY=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'}),EX=/exam|test|quiz/i;
@@ -326,6 +328,7 @@ function currentListPriorities(){
  if(list.id==='main'||list.id==='classes')return S.viewPriorities[list.id] || {rules:[],ignore_user_rules:false};
  return {rules:list.priority_rules || [],ignore_user_rules:list.ignore_user_rules || false};
 }
+// One sorting entry point keeps Main, class, list, and calendar views aligned.
 function srt(assignments,keys){
  // Calendar controls use the user's rules first, then their temporary view sort.
  if(keys)return Priority.sortAssignments(assignments,S.userRules,keys.map(type=>({type})));
@@ -405,6 +408,8 @@ function home(){
  const remaining=visible.filter(a=>!S.done[a.id]).length,completed=visible.length-remaining;
  $('list').innerHTML=`<header class="assignment-intro"><h1 id="assignments-title" tabindex="-1">${esc(heading)}</h1><p>${remaining} to do · ${completed} completed. Choose your next task.</p></header>`+(t.id==='main'?progressSummary(visible.filter(a=>!isArchivedAssignment(a))):'')+(S.prioritiesReady?`<p class="sub">${summary}</p>`:'')+(h||'<div class="hint">Nothing here yet.</div>');
 }
+// Loads are versioned so a late response from a previous account or reload
+// cannot replace the state currently shown to the student.
 let db=null,backend=null,chatClient=null,sessionBackend=null,user=null,loadVersion=0;
 const showError=message=>{['sync-error','login-error','account-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
 function paint(){home();if($('cal').classList.contains('on'))cal()}
@@ -423,6 +428,8 @@ async function loadTasks(){
 async function tog(id){
  if(S.loading||S.prioritySaving||S.createSaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
  if(!S.ready)return;
+ // Remember both account and load version across the request. If either has
+ // changed by the time it returns, this response must not update the new view.
  const owner=user?.id,version=loadVersion,previous=!!S.done[id],next=!previous;
  const sourceCard=typeof document.querySelectorAll==='function'?[...document.querySelectorAll('[data-assignment-id]')].find(node=>node.dataset?.assignmentId===id&&node.getClientRects().length):null;
  const keepFocus=!!sourceCard&&sourceCard.contains(document.activeElement);
@@ -500,7 +507,8 @@ function prepareWorkspaceRestore(){
 const ov=id=>{document.querySelectorAll('.ov').forEach(e=>e.classList.remove('on'));$('account-actions').hidden=true;if(id)$(id).classList.add('on');workspaceView(id||'home')};
 const closeOv=()=>{if(S.listSaving||S.prioritySaving||S.settingsSaving)return;ov();menu(0);home()};
 function menu(o){$('menu').classList.toggle('on',!!o);$('scrim').classList.toggle('on',!!o)}
-/* Ordinary account settings. Priority rules keep using their existing table and editor. */
+/* Account preferences are saved per signed-in account. A failed save restores
+   the last confirmed value so the switch never claims an unsaved change. */
 async function loadSavedUserSettings(version){
  if(version!==loadVersion)return;
  S.settingsReady=false;
@@ -543,7 +551,8 @@ async function changeUserSetting(input){
   if(version===loadVersion){input.checked=S.userSettings[name];lockListControls()}
  }
 }
-/* Saved priorities. Draft edits do not change the list until Save succeeds. */
+/* Saved priorities. Draft edits do not change sorting until Save succeeds;
+   the target scope is captured when the editor opens. */
 async function loadSavedPriorities(version){
  if(version!==loadVersion)return;
  S.prioritiesReady=false;
@@ -784,6 +793,8 @@ async function requestTimeSuggestion(description,version){
 function updateDescriptionSuggestion(){if(!$('ca').checked)return;stopTimeSuggestion();const description=$('cdescription').value.trim();if(!description){$('ct').value=manualEstimatedTime;$('time-note').textContent='Enter a description to get an AI estimate.';return}const version=timeSuggestionVersion;$('time-note').textContent='Waiting for the description…';timeSuggestionLoading=true;timeSuggestionTimer=setTimeout(()=>requestTimeSuggestion(description,version),700)}
 function suggestAssignmentTime(){if($('ca').checked){manualEstimatedTime=$('ct').value;updateDescriptionSuggestion()}else{stopTimeSuggestion();$('ct').value=manualEstimatedTime;$('time-note').textContent='Manual estimate restored.'}}
 function editEstimatedTime(){manualEstimatedTime=$('ct').value;if($('ca').checked){$('ca').checked=false;stopTimeSuggestion();$('time-note').textContent='Using your edited estimate.'}}
+// Manual creation validates a complete assignment, then uses a stable request
+// ID so a network retry cannot insert a duplicate. Draft saving is separate.
 async function createA(force){if(!user||!backend||!S.ready||S.createSaving||draftSaving||S.loading||S.listSaving||S.prioritySaving)return;clearAssignmentErrors();if(timeSuggestionLoading){$('ce').textContent='Wait for the AI estimate, or enter your own time.';return}const n=$('cn').value.trim(),d=$('cd').value;
  if(!n){$('cne').textContent='Enter an assignment name.';$('cn').focus();return}
  if(!d){$('cde').textContent='Choose a due date.';return}if(d<TODAY&&(!editingAssignmentId||d!==(S.A.find(a=>a.id===editingAssignmentId)?.d))){$('cde').textContent="Choose today or a future date.";return}
@@ -903,7 +914,8 @@ async function loadOkrTracker(){
   $('pb').innerHTML=`<div class="card"><div class="sub">Users who opened the app every day for the last 7 days</div><div class="okr-number ${report.goal_met?'met':''}">${esc(report.engagement_percent)}%</div><div class="sub">Goal: ${esc(report.goal_percent)}% ${report.goal_met?'· Goal met':'· Keep improving'}</div><div class="okr-grid"><div class="okr-stat"><b>${esc(report.daily_users)}</b><span class="sub">7-day daily users</span></div><div class="okr-stat"><b>${esc(report.active_users)}</b><span class="sub">Active users (30 days)</span></div></div></div><div class="card"><div class="nm">Daily unique users</div><div class="okr-bars">${bars}</div><div class="sub">${okrDate(report.week_start)}–${okrDate(report.week_end)}. Each signed-in account counts once per day.</div></div>`;
  }catch(error){$('pb').innerHTML='<div class="hint">Could not load the tracker. '+esc(error.message)+'</div>'}
 }
-/* Saved lists: database IDs stay the same when names change. */
+/* Saved lists: database IDs stay the same when names change. Memberships point
+   to assignments, so a list is a view of shared assignment records. */
 function resetLists(){
  S.lists=[{id:'main',name:'Main'},{id:'classes',name:'By Class'}];
  S.memberships=[];S.tab=0;S.listsReady=false;S.userRules=[];S.viewPriorities={};S.prioritiesReady=false;S.priorityDraft=null;S.archiveOpen=false;ov();

@@ -3,9 +3,12 @@ import { authenticatedPipeline, identityValid, RESOURCE } from './auth.ts'
 import { type AgentContext } from './database.ts'
 import { createStudentMcpServer } from './tools.ts'
 
+// Bound the bytes read before handing requests to the MCP protocol handler.
 const BODY_LIMIT = 64 * 1024
 const ORIGINS = new Set((Deno.env.get('ALLOWED_ORIGINS') || 'https://nola4211.github.io,http://127.0.0.1:4183,http://localhost:4183').split(',').map(x => x.trim()).filter(Boolean))
 
+// Authentication middleware validates the OAuth resource token and supplies
+// the user's Supabase context before any student tools are registered.
 const handler = authenticatedPipeline((request:Request,context:object)=>{
   const ctx=context as AgentContext
   if(!identityValid(ctx.jwtClaims))return Promise.resolve(new Response('Unauthorized',{status:401,headers:{
@@ -26,6 +29,7 @@ function cors(response:Response,origin:string|null){
 async function bounded(request:Request):Promise<Request|Response>{
   if(['GET','HEAD','OPTIONS'].includes(request.method)||!request.body)return request
   if(Number(request.headers.get('content-length')||0)>BODY_LIMIT)return new Response('Request body too large',{status:413})
+  // Content-Length can be missing or wrong, so count streamed bytes as well.
   const reader=request.body.getReader(),chunks:Uint8Array[]=[];let size=0
   while(true){
     const {done,value}=await reader.read();if(done)break

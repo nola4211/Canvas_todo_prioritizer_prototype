@@ -7,6 +7,8 @@ export const ISSUER = Deno.env.get('MCP_AUTH_ISSUER') || 'https://uowlwdwrqceklb
 export type PipelineHandler = (request:Request,context:object)=>Promise<Response>
 
 export function authenticatedPipeline(handler:PipelineHandler){
+  // OAuth resource validation happens before the regular Supabase user context
+  // is created. CORS is handled by the outer request wrapper.
   return pipeline([
     withOAuthProtectedResource({resourceServer:RESOURCE,authorizationServer:ISSUER}),
     withSupabase({auth:'user',cors:'disabled'}),
@@ -14,6 +16,8 @@ export function authenticatedPipeline(handler:PipelineHandler){
 }
 
 export function identityValid(claims:AgentContext['jwtClaims']){
+  // Check the exact issuer, audience, user role, and expiry expected by this
+  // endpoint; a valid JWT for another Supabase resource is not sufficient.
   return typeof claims.sub==='string'&&claims.sub.length>0&&claims.iss===ISSUER&&
     typeof claims.exp==='number'&&claims.exp>Math.floor(Date.now()/1000)&&claims.role==='authenticated'&&
     typeof claims.client_id==='string'&&claims.client_id.length>0&&claims.aud===RESOURCE

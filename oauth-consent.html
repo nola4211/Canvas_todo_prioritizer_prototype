@@ -63,6 +63,8 @@ small{display:block;color:#667b89;margin-top:6px}a{color:#126989}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
+// This page handles the OAuth consent callback: it shows the requesting app,
+// records the user's grant, and sends the browser to Supabase's validated URL.
 const $=id=>document.getElementById(id);
 const authorizationId=new URLSearchParams(location.search).get('authorization_id');
 let client=null,details=null,busy=false;
@@ -92,6 +94,8 @@ async function revokeProviderGrant(clientId){
   catch{return false}
 }
 async function revokeAppGrantByClient(clientId){
+  // If provider approval or the callback fails, remove the matching app grant
+  // too; repeating this cleanup is safe if an earlier response was lost.
   try{
     const {data,error}=await client.rpc('student_agent_revoke_client_browser',{p_client_id:clientId});
     return !error&&data?.ok===true&&data.data?.client_id===clientId&&data.data?.active===false;

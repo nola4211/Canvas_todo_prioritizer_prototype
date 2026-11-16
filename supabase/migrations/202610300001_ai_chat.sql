@@ -1,4 +1,6 @@
 -- Apply once after inspecting chat/message. These tables were empty when inspected.
+-- Conversations and messages are private to one Auth account; the service
+-- function can use them for replies without exposing the model key to browsers.
 begin;
 do $$ begin
   if exists(select 1 from public.chat) or exists(select 1 from public.message) then

@@ -1,5 +1,7 @@
 (function(root){
  'use strict';
+ // One gesture handler supports touch and mouse. A pull only starts at the
+ // top of the list; horizontal movement is reserved for changing tabs.
  function attach(list,{canRefresh,onRefresh,onStatus,onSwipe}){
   const doc=list.ownerDocument;let gesture=null,refreshing=false;
   function start(x,y,target){

@@ -2,6 +2,8 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = __dirname;
+// This is only a loopback static-file preview server. Database requests go
+// directly from the browser to Supabase; this server stores no user data.
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.png':'image/png', '.md':'text/plain; charset=utf-8' };
 http.createServer((req,res) => {
   try {

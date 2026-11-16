@@ -1,4 +1,5 @@
-// The manual form, chat review, and server use the same field rules.
+// Shared assignment rules for the manual form and chat review. The database
+// checks them again when saving, so browser validation is only the first layer.
 (function(root){
   function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'})}
   function validate(input){
@@ -8,6 +9,8 @@
     if(!n||n.length>200)throw new Error('Use an assignment name between 1 and 200 characters.');
     if(!c||c.length>100)throw new Error('Enter a class name between 1 and 100 characters.');
     if(description.length>2000)throw new Error('Keep the description under 2,000 characters.');
+    // Parse at noon UTC to validate the calendar date without midnight
+    // timezone shifts, then compare against today's Denver date.
     const date=new Date(input.d+'T12:00:00Z');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(input.d)||Number.isNaN(date.valueOf())||date.toISOString().slice(0,10)!==input.d)throw new Error('Choose a valid due date.');
     if(input.d<today()&&!input.allowPast)throw new Error("Due date can't be in the past.");

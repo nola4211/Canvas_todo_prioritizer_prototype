@@ -3,6 +3,8 @@ export type DbClient = {rpc:(name:string,args?:Record<string,unknown>)=>Promise<
 export type AgentContext = {supabase:DbClient;jwtClaims:Record<string,unknown>}
 
 export async function invoke(client:DbClient,name:string,args:Record<string,unknown>={}){
+  // Every agent tool reaches a narrowly scoped database RPC. A timeout and
+  // normalized errors keep provider-facing responses bounded and predictable.
   let timer:ReturnType<typeof setTimeout>|undefined
   try{
     const call=client.rpc(name,args)
@@ -18,6 +20,8 @@ export async function invoke(client:DbClient,name:string,args:Record<string,unkn
 export function sessionCursor(value:unknown){
   if(value==null||value==='')return {p_cursor_start:null,p_cursor_id:null}
   if(typeof value!=='string')throw new Error('VALIDATION_ERROR')
+  // The cursor packs both sort columns so equal start times paginate without
+  // dropping or repeating sessions.
   const at=value.lastIndexOf('|'),start=value.slice(0,at),id=value.slice(at+1)
   if(at<1||!Number.isFinite(Date.parse(start))||!/^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.test(id))throw new Error('VALIDATION_ERROR')
   return {p_cursor_start:start,p_cursor_id:id}

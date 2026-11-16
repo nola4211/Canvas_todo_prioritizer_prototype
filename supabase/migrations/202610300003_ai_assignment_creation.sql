@@ -1,5 +1,7 @@
 -- Apply once after the assignment-creation and AI-chat migrations.
 -- Class is a user-entered label for now, not a Canvas course or Class-table link.
+-- The chat stores a review draft; a separate authenticated confirmation RPC
+-- creates the assignment only after the student approves it.
 begin;
 alter table public.assignments add column class_name text not null default 'Shared demo';
 alter table public.assignments add constraint saved_assignment_details check (
