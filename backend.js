@@ -144,8 +144,11 @@
       async updateAssignment(assignmentId, input) {
         const key = id(assignmentId);
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
-        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,p:input.p,allowPast:true});
-        const {data,error}=await client.from('assignments').update({name:fields.n,description:fields.description,class_name:fields.c,due_date:fields.d,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g,priority:fields.p})
+        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,p:input.p,allowPast:true,originalDueDate:input.originalDueDate});
+        const patch={name:fields.n,description:fields.description,class_name:fields.c,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g,priority:fields.p};
+        // Leave an unchanged stored instant intact; changed dates use Denver's end of day.
+        if(fields.d!==input.originalDueDate)patch.due_date=root.CanvasStudySessions.dueDeadline(fields.d,'America/Denver');
+        const {data,error}=await client.from('assignments').update(patch)
           .eq('assignment_id',key).eq('deleted',false).select(columns).single();
         if(error)throw new Error(error.message || 'Could not save assignment changes.');
         if(!data)throw new Error('The assignment update was not confirmed. Reload assignments before retrying.');

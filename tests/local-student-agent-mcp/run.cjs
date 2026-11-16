@@ -46,10 +46,19 @@ try {
   process.stdout.write(`Created disposable local database ${database} on 127.0.0.1:${port}.\n`);
   psqlRun(database, ['-f', path.join(tests, 'baseline.sql')]);
   psqlRun('postgres', ['-c', `ALTER DATABASE ${database} SET search_path=public,extensions`]);
+  const setupEnv = { ...process.env, MCP_LOCAL_TEST_DATABASE: database, MCP_LOCAL_TEST_PORT: String(port), MCP_LOCAL_TEST_PSQL: psql };
+  const setup = childProcess.spawnSync(node, [path.join(tests, 'backlog.cjs'), 'setup'], { cwd: root, env: setupEnv, encoding: 'utf8', windowsHide: true });
+  if (setup.stdout) process.stdout.write(setup.stdout);
+  if (setup.stderr) process.stderr.write(setup.stderr);
+  if (setup.status !== 0) throw new Error('backlog fixture setup failed');
   const migrations = fs.readdirSync(path.join(root, 'supabase', 'migrations')).filter(name => name.endsWith('.sql')).sort();
   assert.ok(migrations.some(name => name.includes('student_agent_mcp')), 'the MCP migration is missing');
   for (const migration of migrations) {
     process.stdout.write(`Applying ${migration}\n`);
+    if (migration === '202611150001_assignment_drafts_table.sql') {
+      // Upstream expects a pre-existing copy; reconstruct it only in this disposable fixture.
+      psqlRun(database, ['-c', 'CREATE TABLE public.assignments_draft (LIKE public.assignments INCLUDING DEFAULTS INCLUDING IDENTITY INCLUDING CONSTRAINTS)']);
+    }
     psqlRun(database, ['-f', path.join(root, 'supabase', 'migrations', migration)]);
   }
   const env = {
@@ -58,7 +67,7 @@ try {
     MCP_LOCAL_TEST_PORT: String(port),
     MCP_LOCAL_TEST_PSQL: psql,
   };
-  for (const script of ['verify.cjs', 'concurrency.cjs', 'cleanup.cjs', 'regression.cjs', 'agent-limits.cjs']) {
+  for (const script of ['verify.cjs', 'concurrency.cjs', 'cleanup.cjs', 'regression.cjs', 'agent-limits.cjs', 'backlog.cjs']) {
     process.stdout.write(`Running ${script}\n`);
     const result = childProcess.spawnSync(node, [path.join(tests, script)], { cwd: root, env, encoding: 'utf8', windowsHide: true, shell: false });
     if (result.stdout) process.stdout.write(result.stdout);
