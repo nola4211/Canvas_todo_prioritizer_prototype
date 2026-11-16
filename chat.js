@@ -56,11 +56,13 @@
       if(!draft||!['collecting','review'].includes(draft.status))return;
       const box=document.createElement('div');box.className='card';box.id='assignment-review';
       const heading=document.createElement('strong');heading.textContent=draft.status==='review'?'Review assignment':'Assignment draft';box.append(heading);
-      const fields=[['Name',draft.name],['Class',draft.class_name],['Due date',draft.due_date],
+      const priorityNames=['Low','Normal','High','Urgent'];
+      const fields=[['Name',draft.name],['Class',draft.class_name],['Priority',priorityNames[draft.priority]??null],['Due date',draft.due_date],
         ['Estimated time',draft.estimated_minutes==null?null:draft.estimated_minutes+' minutes'+(draft.time_source==='ai_estimate'?' (AI estimate)':'')],
         ['Optional',draft.optional===null?null:draft.optional?'Yes — lowest priority':'No'],
         ['Grade weight',!draft.grade_weight_answered?null:draft.percentage_of_grade===null?'Unknown':draft.percentage_of_grade+'%']];
       for(const [label,value] of fields){const line=document.createElement('p');line.className='sub';line.textContent=label+': '+(value??'Not answered');box.append(line)}
+      if(draft.draft_assignment_id){const saved=document.createElement('p');saved.className='sub';saved.textContent='Saved in Drafts. You can add the other details later.';box.append(saved)}
       function button(id,text,action){const b=document.createElement('button');b.id=id;b.className='btn';b.textContent=text;b.disabled=sending||loading;b.onclick=action;box.append(b)}
       if(draft.status==='review'){
         if(draft.estimated_minutes>600){const label=document.createElement('label');const check=document.createElement('input');check.type='checkbox';check.id='chat-long-confirm';check.disabled=sending||loading;label.append(check,document.createTextNode(' I confirm this estimate is over 10 hours.'));box.append(label)}
@@ -92,6 +94,7 @@
         await backend.changeAssignmentDraft(chatId,draft.request_id,action);
         if(current!==version)return;
         sending=false;await selectChat(chatId);
+        if(options.onDraftChanged)await options.onDraftChanged();
         if(action==='edit'){status('What would you like to change? I’ll show you the updated details before saving.');el('ci').focus()}
       }catch(error){if(current===version){sending=false;render();status('I couldn’t update your draft right now. Please try again.')}}
     }
@@ -178,6 +181,7 @@
         if(current!==version)return;
         sending=false;
         await selectChat(chatId);
+        if(options.onDraftChanged)await options.onDraftChanged();
       }catch(error){if(current===version){
         sending=false;el('ci').value='';
         const failed=messages.find(item=>item.request_id===turn.requestId);

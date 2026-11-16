@@ -56,11 +56,11 @@ for(const options of [{providerError:true},{providerError:'credits'},{saveError:
 console.log('Chat backend checks passed: auth, privacy headers, context, history, caching, limits, provider failure, and save failure.');
 
 const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Denver'});
-const complete={name:'Exam',class_name:'IS 401',due_date:today,estimated_minutes:60,time_source:'student',estimate_allowed:false,optional:false,percentage_of_grade:null,grade_weight_answered:true};
+const complete={name:'Exam',class_name:'IS 401',priority:2,due_date:today,estimated_minutes:60,time_source:'student',estimate_allowed:false,optional:false,percentage_of_grade:null,grade_weight_answered:true};
 assert.equal(prepareDraft(complete,today).draft.status,'review');
-for(const patch of [{name:null},{class_name:null},{due_date:'2026-02-30'},{estimated_minutes:null},{optional:null},{grade_weight_answered:false},{percentage_of_grade:101},{time_source:'ai_estimate',estimate_allowed:false}])assert.equal(prepareDraft({...complete,...patch},today).draft.status,'collecting');
+for(const patch of [{name:null},{class_name:null},{priority:null},{due_date:'2026-02-30'},{percentage_of_grade:101},{time_source:'ai_estimate',estimate_allowed:false}])assert.equal(prepareDraft({...complete,...patch},today).draft.status,'collecting');
+for(const patch of [{due_date:null},{estimated_minutes:null,time_source:null},{optional:null},{grade_weight_answered:false,percentage_of_grade:null}])assert.equal(prepareDraft({...complete,...patch},today).draft.status,'review');
 assert.equal(prepareDraft({...complete,time_source:'ai_estimate',estimate_allowed:true},today).draft.status,'review');
-assert.match(prepareDraft({...complete,grade_weight_answered:false},today).reply,/I don’t know/);
 assert.equal(assignmentResponseFormat.strict,true);
 assert.deepEqual(assignmentResponseFormat.schema.required,['reply','draft','title']);
 assert.equal(normalizeChatTitle('  **Plan the difficult final exam now**  '),'Plan the difficult final exam');
@@ -80,20 +80,20 @@ assert.equal(wantsAssignmentDraft('The name is chapter 4',{status:'collecting'})
 console.log('PASS: complete/partial drafts, permission to estimate, unknown grade weight, strict output, and no AI-side assignment writes.');
 
 // Regression: the student answers over several turns; a short permission reply must not reset them.
-const empty={name:null,class_name:null,due_date:null,estimated_minutes:null,time_source:null,estimate_allowed:false,optional:null,percentage_of_grade:null,grade_weight_answered:false};
+const empty={name:null,class_name:null,priority:null,due_date:null,estimated_minutes:null,time_source:null,estimate_allowed:false,optional:null,percentage_of_grade:null,grade_weight_answered:false};
 let saved=prepareDraft(empty,today).draft;
 saved=prepareDraft({...empty,name:'test 1'},today,saved).draft;
 saved=prepareDraft({...empty,class_name:'test',due_date:today,percentage_of_grade:35,grade_weight_answered:true},today,saved).draft;
 const permissionUpdate={...empty,estimated_minutes:45,time_source:'ai_estimate',estimate_allowed:true};
 const afterPermission=prepareDraft(permissionUpdate,today,saved);
-assert.equal(afterPermission.draft.name,'test 1');assert.equal(afterPermission.draft.class_name,'test');assert.equal(afterPermission.draft.due_date,today);assert.equal(afterPermission.draft.percentage_of_grade,35);assert.equal(afterPermission.draft.estimated_minutes,45);assert.equal(afterPermission.draft.status,'collecting');assert.equal(afterPermission.reply,'Is this assignment optional, or required?');
-const optionalAnswer=prepareDraft({...empty,optional:false},today,afterPermission.draft);
-assert.equal(optionalAnswer.draft.status,'review');assert.equal(optionalAnswer.draft.optional,false);
-assert.equal(prepareDraft({...empty,name:'Corrected title',grade_weight_answered:true,percentage_of_grade:null},today,optionalAnswer.draft).draft.percentage_of_grade,null);
-assert.equal(prepareDraft(empty,today,optionalAnswer.draft).draft.name,'test 1');
-for(const status of ['created','cancelled'])assert.equal(prepareDraft(empty,today,{...optionalAnswer.draft,status}).draft.name,null);
+assert.equal(afterPermission.draft.name,'test 1');assert.equal(afterPermission.draft.class_name,'test');assert.equal(afterPermission.draft.due_date,today);assert.equal(afterPermission.draft.percentage_of_grade,35);assert.equal(afterPermission.draft.estimated_minutes,45);assert.equal(afterPermission.draft.status,'collecting');assert.match(afterPermission.reply,/priority/i);
+const priorityAnswer=prepareDraft({...empty,priority:3},today,afterPermission.draft);
+assert.equal(priorityAnswer.draft.status,'review');assert.equal(priorityAnswer.draft.priority,3);assert.equal(priorityAnswer.draft.optional,null);
+assert.equal(prepareDraft({...empty,name:'Corrected title',grade_weight_answered:true,percentage_of_grade:null},today,priorityAnswer.draft).draft.percentage_of_grade,null);
+assert.equal(prepareDraft(empty,today,priorityAnswer.draft).draft.name,'test 1');
+for(const status of ['created','cancelled'])assert.equal(prepareDraft(empty,today,{...priorityAnswer.draft,status}).draft.name,null);
 {
- const s=setup({draft:permissionUpdate,previousDraft:saved});const response=await s.request({...turn,message:'you can est the time'});assert.equal(response.status,200);assert.equal((await response.json()).reply,'Is this assignment optional, or required?');
+ const s=setup({draft:permissionUpdate,previousDraft:saved});const response=await s.request({...turn,message:'you can est the time'});assert.equal(response.status,200);assert.match((await response.json()).reply,/priority/i);
  const stored=JSON.parse(s.calls.findLast(c=>c.url.includes('finish_ai_turn')).init.body).p_draft;assert.equal(stored.name,'test 1');assert.equal(stored.percentage_of_grade,35);
 }
 console.log('PASS: multi-turn draft memory, null omissions, permission-only answers, optional false, explicit unknown grade, corrections, finished-draft isolation, and persisted merged replies.');
