@@ -84,6 +84,51 @@
         if(!data)throw new Error('The assignment save was not confirmed. Reload assignments before retrying.');
         const saved=record(data);visible.add(saved.id);return saved;
       },
+      async loadAssignmentDrafts() {
+        const selected='assignment_id,name,description,class_name,due_date,est_time,optional,percentage_of_grade,owner_id';
+        const {data,error}=await client.from('assignments_draft').select(selected).order('assignment_id');
+        if(error)throw new Error(error.message || 'Could not load saved drafts.');
+        return (data||[]).filter(row=>row.owner_id).map(row=>{
+          let due='';if(row.due_date){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(row.due_date));const part=type=>parts.find(item=>item.type===type).value;due=`${part('year')}-${part('month')}-${part('day')}`}
+          const minutesValue=minutes(row.est_time);
+          return {id:String(row.assignment_id),n:String(row.name||''),description:String(row.description||''),c:String(row.class_name||''),d:due,t:minutesValue?`${minutesValue}m`:'',o:!!row.optional,g:row.percentage_of_grade==null?null:Number(row.percentage_of_grade),gUnknown:row.percentage_of_grade==null};
+        });
+      },
+      async saveAssignmentDraft(input,draftId) {
+        const draft={
+          n:String(input.n||''),description:String(input.description||''),c:String(input.c||''),
+          d:String(input.d||''),t:String(input.t||''),o:!!input.o,gUnknown:!!input.gUnknown,
+          g:input.g==null||input.g===''?null:Number(input.g)
+        };
+        if(!draft.n.trim())throw new Error('Enter a name before saving this draft.');
+        if(draft.n.length>200||draft.description.length>2000||draft.c.length>100)throw new Error('Some draft details are longer than the allowed limits.');
+        const date=/^\d{4}-\d{2}-\d{2}$/.test(draft.d)&&!Number.isNaN(new Date(draft.d+'T12:00:00Z').valueOf())?new Date(draft.d+'T12:00:00Z').toISOString():null;
+        const parsed=String(draft.t).trim().toLowerCase().match(/^(?:(\d+)\s*h(?:rs?|ours?)?)?\s*(?:(\d+)\s*m(?:ins?)?)?$/);
+        const mins=parsed&&(parsed[1]||parsed[2])?(Number(parsed[1]||0)*60+Number(parsed[2]||0)):null;
+        const {data:userData,error:userError}=await client.auth.getUser();
+        if(userError||!userData?.user)throw new Error('Sign in again before saving a draft.');
+        const row={
+          owner_id:userData.user.id,name:draft.n.trim(),description:draft.description.trim()||null,
+          class_name:draft.c.trim()||null,due_date:date,est_time:mins==null?null:`${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}:00`,
+          optional:draft.o,percentage_of_grade:Number.isFinite(draft.g)?draft.g:null,priority:draft.o?0:2,
+          completed:false,deleted:false,client_request_id:crypto.randomUUID()
+        };
+        const selected='assignment_id,name,description,class_name,due_date,est_time,optional,percentage_of_grade,owner_id';
+        const query=draftId
+          ?client.from('assignments_draft').update(row).eq('assignment_id',draftId).select(selected).single()
+          :client.from('assignments_draft').insert(row).select(selected).single();
+        const {data,error}=await query;
+        if(error)throw new Error(error.message || 'Could not save this draft.');
+        if(!data)throw new Error('The draft save was not confirmed.');
+        let due='';if(data.due_date){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(data.due_date));const part=type=>parts.find(item=>item.type===type).value;due=`${part('year')}-${part('month')}-${part('day')}`}
+        const minutesValue=minutes(data.est_time);
+        return {id:String(data.assignment_id),n:String(data.name||''),description:String(data.description||''),c:String(data.class_name||''),d:due,t:minutesValue?`${minutesValue}m`:'',o:!!data.optional,g:data.percentage_of_grade==null?null:Number(data.percentage_of_grade),gUnknown:data.percentage_of_grade==null};
+      },
+      async deleteAssignmentDraft(draftId) {
+        const {data,error}=await client.from('assignments_draft').delete().eq('assignment_id',draftId).select('assignment_id').single();
+        if(error)throw new Error(error.message || 'Could not remove the saved draft.');
+        if(!data)throw new Error('The draft removal was not confirmed.');
+      },
       async updateAssignment(assignmentId, input) {
         const key = id(assignmentId);
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
