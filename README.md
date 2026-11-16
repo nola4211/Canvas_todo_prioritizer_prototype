@@ -410,3 +410,7 @@ See [card coverage, evidence, and acceptance steps](docs/backlog-review-20261112
 | Provide explicit partial Draft Assignments creation and safe resume. | Not complete — local tests passed; the team's database-backed drafts are preserved; PO acceptance/release remain pending. |
 | Label the Settings priority editor Default sort order. | Not complete — local check passed; PO acceptance and release pending. |
 | Choose a product name. | Not complete — awaiting brainstorming and team choice. |
+
+## In-app agent connection setup (local review)
+
+Settings now includes **Connect your agent** with the MCP URL, copy buttons, and separate Codex/Claude guides above the existing Connected agents controls. Setup continues in the chosen agent; each account must still sign in and approve access. Public registration remains unchanged. See [verification and screenshots](docs/agent-setup-ui-20261116.md). Publishing this UI and completing Claude end-to-end acceptance remain pending.

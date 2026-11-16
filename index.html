@@ -225,6 +225,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .completion-confirmed .chk{color:#fff;opacity:1}.completion-confirmed .chk .fi{position:relative;z-index:1;font-size:11px}
 .completion-confirmed [data-completion-status]{color:var(--tx);font-weight:650}
 .toast button{min-width:44px;min-height:44px;flex-shrink:0}
+
+.agent-setup{margin:24px 0;padding:20px;border:1px solid var(--ln);border-radius:14px;background:var(--card)}
+.agent-setup h3{margin:0 0 10px;font-size:20px}.agent-copy-row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}.agent-copy-row input{flex:1 1 200px;width:100%;min-width:0}.agent-copy-row .btn{flex:0 0 auto}.agent-setup-guide{border-top:1px solid var(--ln);padding:14px 0}.agent-setup-guide summary{cursor:pointer;min-height:44px;display:list-item;align-content:center;font-weight:600}.agent-setup-guide ol{padding-left:24px}.agent-setup-guide li{margin:10px 0;overflow-wrap:anywhere}.agent-setup-status:empty{display:none}.agent-setup-status{font-weight:600;color:var(--tx)}
 </style></head><body>
 <div id="app">
  <div class="scr signed-out" id="home">
@@ -922,7 +925,38 @@ async function pan(k){if(S.listSaving||S.prioritySaving||S.settingsSaving)return
  if(k==='settings'||k==='profile'){$('account-actions').hidden=!user;$('signout').hidden=!user;$('reload-tasks').hidden=!user||k!=='settings';lockListControls()}
  if(k==='settings'&&user)await loadAgentGrants();
  if(k=='okr')await loadOkrTracker()}
-function agentSettingsMarkup(){return '<section aria-labelledby="agents-heading"><div class="gh" id="agents-heading">Connected agents</div><p class="sub">Agents you approve can read assignments and priorities, create assignments with due dates, change completion, and manage saved study sessions. They cannot change an existing due date, edit lists, or change priority rules. Disconnecting blocks access immediately.</p><p class="sub">You can connect up to 3 agents by default. Additional connections require permission. Disconnect an agent below to free a slot.</p><div id="agent-status" class="sub" role="status" aria-live="polite">Loading connected agents…</div><div id="agent-list"></div></section>'}
+const agentSetupValues={
+ url:{value:'https://uowlwdwrqceklbqjcnmc.supabase.co/functions/v1/student-mcp',field:'agent-mcp-url',label:'Server URL'},
+ claude:{value:'36def8b6-bb91-4f7f-93ac-1543fbc4caf6',field:'agent-claude-client',label:'Claude client ID'},
+ codex:{value:'codex mcp login canvas-todo',field:'agent-codex-command',label:'Codex sign-in command'}
+};
+function agentSetupField(key,label,button){const entry=agentSetupValues[key];return '<label for="'+entry.field+'">'+label+'</label><div class="agent-copy-row"><input id="'+entry.field+'" readonly spellcheck="false" value="'+esc(entry.value)+'"><button class="btn" type="button" onclick="copyAgentSetup(\''+key+'\')">'+button+'</button></div>'}
+async function copyAgentSetup(key){
+ const entry=agentSetupValues[key],status=$('agent-setup-status');if(!entry||!status)return;
+ try{await navigator.clipboard.writeText(entry.value);if($('agent-setup-status')===status)status.textContent=entry.label+' copied.'}
+ catch{if($('agent-setup-status')!==status)return;const field=$(entry.field);if(field){field.focus();field.select()}status.textContent='Automatic copy is unavailable. The value is selected; copy it using your device’s copy command.'}
+}
+function agentSettingsMarkup(){return `<section class="agent-setup" aria-labelledby="agent-connect-heading">
+ <h3 id="agent-connect-heading">Connect your agent</h3>
+ <p class="sub">Use Codex or Claude to plan with the assignments saved in this app. Start with the setup below, then finish sign-in and approve access in your agent.</p>
+ ${agentSetupField('url','MCP server URL','Copy URL')}
+ <p id="agent-setup-status" class="sub agent-setup-status" role="status" aria-live="polite"></p>
+ <details class="agent-setup-guide"><summary>Connect Codex</summary>
+ <ol><li>Open Codex <strong>Settings → MCP servers</strong>.</li><li>Find <strong>canvas-todo</strong> and choose <strong>Authenticate</strong>. Restart Codex first if a newly added server is not listed.</li><li>Sign in with your own account for this app, review the permissions, and approve access.</li></ol>
+ <p class="sub">The team’s configured computer already has canvas-todo. On a new computer, ask the project team for the registered server configuration first. The URL alone is not enough to set up its sign-in.</p>
+ <p class="sub">If you use the Codex terminal instead, run this command after the server is configured:</p>
+ ${agentSetupField('codex','Codex sign-in command','Copy command')}
+ <p class="sub"><a href="https://learn.chatgpt.com/docs/extend/mcp?surface=app" target="_blank" rel="noopener noreferrer">Codex connection help</a></p>
+ </details>
+ <details class="agent-setup-guide"><summary>Connect Claude</summary>
+ <ol><li>Open Claude <strong>Customize → Connectors → Add → Add custom connector</strong>.</li><li>Name it <strong>Canvas To-Do</strong> and paste the server URL above.</li><li>Choose OAuth sign-in and <strong>Use your own OAuth client</strong>. Use the client ID below and leave the client secret blank.</li><li>Add the connector, choose <strong>Connect</strong>, then sign in with your own app account and approve access. Enable it in your conversation’s Connectors menu.</li></ol>
+ ${agentSetupField('claude','Claude OAuth client ID','Copy client ID')}
+ <p class="sub">Claude connection testing is still in progress. If setup fails, share the error with the project team.</p>
+ <p class="sub"><a href="https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp" target="_blank" rel="noopener noreferrer">Claude connection help</a></p>
+ </details>
+ <p class="sub">Use your own app account to approve an agent. Canvas account sign-in is not available yet. This connection uses saved app assignments and study sessions; it does not connect directly to Canvas.</p>
+ </section>
+ <section aria-labelledby="agents-heading"><h3 id="agents-heading">Connected agents</h3><p class="sub">Agents you approve can read assignments, descriptions, lists, and priority rules; create assignments; change completion; and manage study sessions. They cannot change assignment due dates, delete assignments, edit lists or priority rules, or submit coursework to Canvas.</p><p class="sub">You can connect up to 3 agents by default. Disconnect an agent below to free a slot, or ask the project team for more slots. Disconnecting blocks access immediately.</p><div id="agent-status" class="sub" role="status" aria-live="polite">Loading connected agents…</div><div id="agent-list"></div></section>`}
 async function loadAgentGrants(){
  if(!sessionBackend||!user||!$('agent-status'))return;
  const owner=user.id,request=++agentLoadVersion,current=()=>user?.id===owner&&request===agentLoadVersion;
