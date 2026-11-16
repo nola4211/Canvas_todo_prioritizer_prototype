@@ -1,4 +1,6 @@
 -- Student agent MCP. Apply only after reviewing docs/student-agent-mcp-security.md.
+-- This migration separates browser-only RPCs from OAuth-agent RPCs, records
+-- per-account grants, and gives agents a narrow set of saved-data tools.
 begin;
 
 create schema if not exists private;

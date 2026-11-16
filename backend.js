@@ -1,4 +1,6 @@
-// This adapter uses the existing schema; it creates no tables or sample rows.
+// Browser-to-Supabase adapter. It translates the page's short assignment fields
+// into database requests and checks the returned rows before reporting success.
+// It uses the existing schema; it never creates tables or sample rows.
 (function (root) {
   'use strict';
   const columns = 'assignment_id,name,description,percentage_of_grade,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
@@ -8,6 +10,8 @@
     /(?:optional|client_request_id|class_name).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id|class_name)/i.test(error.message || ''));
   const missingCompletedAt = error => error && /completed_at.*(?:does not exist|schema cache)|could not find.*completed_at/i.test(error.message || '');
   function id(value) {
+    // Keep database IDs as strings: PostgreSQL bigint values can exceed the
+    // largest integer JavaScript can represent exactly.
     if (typeof value === 'number' && !Number.isSafeInteger(value)) throw new Error('Assignment ID exceeds the browser safe integer range.');
     const result = String(value);
     if (!/^\d+$/.test(result)) throw new Error('Invalid assignment ID.');
@@ -24,6 +28,8 @@
     if (row.due_date) {
       const date = new Date(row.due_date);
       if (Number.isNaN(date.getTime())) throw new Error('Assignment has an invalid due date.');
+      // Due dates are displayed as Denver calendar dates even if the browser
+      // itself is set to another timezone.
       const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
       const part = type => parts.find(p => p.type === type).value;
       due = `${part('year')}-${part('month')}-${part('day')}`;
@@ -54,6 +60,8 @@
   }
   function create(client, assignmentIds) {
     const allowed = [...new Set(assignmentIds.map(id))];
+    // This client-side set mirrors the small demo allowlist. Database policies
+    // remain the authority; the set also prevents UI requests for unknown IDs.
     let visible = new Set(allowed);
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
     return {
@@ -68,6 +76,8 @@
         return data;
       },
       async createAssignment(input) {
+        // The database RPC performs the insert and idempotency check together;
+        // a request ID makes a retry safe if the first response was lost.
         const fields=globalThis.AssignmentFields.validate({n:input.n,c:input.c||'Shared demo',description:input.description,d:input.d,t:input.t,o:input.o,g:input.g===undefined?null:input.g,p:input.p});
         const args={
           p_name:fields.n,p_class_name:fields.c,p_due_date:fields.d,p_estimated_minutes:fields.t,
@@ -95,6 +105,8 @@
         });
       },
       async saveAssignmentDraft(input,draftId) {
+        // Draft rows belong to the signed-in account and can be incomplete.
+        // Convert the form's friendly time text into PostgreSQL interval text.
         const draft={
           n:String(input.n||''),description:String(input.description||''),c:String(input.c||''),
           d:String(input.d||''),t:String(input.t||''),o:!!input.o,gUnknown:!!input.gUnknown,p:input.p==null?null:Number(input.p),
@@ -255,6 +267,8 @@
       async save(assignmentId, previous, next) {
         const key = id(assignmentId);
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
+        // Compare the old value as well as the ID so a stale tab cannot silently
+        // overwrite a completion change made elsewhere.
         const { data, error } = await client.from('assignments').update({ completed: next })
           .eq('assignment_id', key).eq('deleted', false).eq('completed', previous)
           .select('assignment_id,completed').single();

@@ -1,4 +1,5 @@
-// Browser-side chat state. The OpenAI key is never used here.
+// Browser-side chat state and rendering. The OpenAI key stays in the server
+// function; this module sends signed-in requests and reads saved conversations.
 (function(root){
   function create(client,options={}){
     const backend=options.backend;
@@ -73,6 +74,8 @@
       area.append(box);
     }
     async function confirmDraft(){
+      // The chat only asks the database to confirm a reviewed draft. The RPC
+      // performs the assignment insert and draft-state update as one operation.
       if(sending||loading||draft?.status!=='review'||!backend)return;
       const longConfirmed=draft.estimated_minutes<=600||el('chat-long-confirm')?.checked;
       if(!longConfirmed){status('Confirm the estimate over 10 hours before creating.');return}
@@ -105,6 +108,8 @@
       const current=++version;selected=id || null;messages=[];retry=null;draft=null;loading=true;render();status('Loading conversation…');
       try{
         if(selected){
+          // Fetch the newest 100 messages, then reverse them for normal reading
+          // order without making the database return the whole conversation.
           const rows=await query(client.from('message').select('message_ID,role,message,status,request_id,sent_at').eq('chat_ID',selected).order('message_ID',{ascending:false}).limit(100));
           if(current!==version)return;
           messages=rows.reverse();
@@ -156,6 +161,8 @@
       if(retry&&!useRetry){status('Please retry your last message first, or start a new chat.');return}
       const text=useRetry?retry?.message:el('ci').value.trim();
       if(!text||text.length>2000){status('Enter a message between 1 and 2000 characters.');return}
+      // Reuse the request ID on retry so the server can safely resume the same
+      // turn instead of creating duplicate messages.
       const turn=useRetry?retry:{requestId:crypto.randomUUID(),message:text};
       const current=version;const chatId=selected;sending=true;retry=turn;
       const existing=messages.find(item=>item.request_id===turn.requestId);

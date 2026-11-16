@@ -6,6 +6,8 @@ const dateTime = z.string().datetime({ offset: true })
 const limit = z.number().int().min(1).max(100).default(25)
 const empty = z.object({}).strict()
 
+// Strict schemas reject extra fields as well as invalid values. These checks
+// improve tool feedback; the database RPCs still enforce ownership and rules.
 export const schemas = {
   get_workspace_context: empty,
   list_assignments: z.object({

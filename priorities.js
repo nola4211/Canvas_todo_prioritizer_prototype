@@ -1,4 +1,5 @@
-// Plain functions shared by the page, database adapter, and tests.
+// Plain priority-rule helpers shared by the page, database adapter, and tests.
+// Rules are ordered: each one only decides ties left by the rules before it.
 (function (root) {
   'use strict';
   const labels = {
@@ -29,6 +30,8 @@
   }
 
   function effectiveRules(userRules, listRules, ignoreUserRules) {
+    // Lists normally refine account-wide priorities. A list can opt out and
+    // start with its own rules instead.
     return ignoreUserRules ? [...listRules] : [...userRules, ...listRules];
   }
 

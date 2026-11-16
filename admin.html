@@ -37,6 +37,8 @@
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // The dashboard uses a separate administrator role. Ordinary signed-in
+    // student accounts cannot read the aggregate activity report.
     const byId=id=>document.getElementById(id);let db;
     const isAdmin=user=>user?.app_metadata?.role==='admin';
     const date=value=>new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});

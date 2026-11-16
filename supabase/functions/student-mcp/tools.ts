@@ -6,6 +6,8 @@ import { toolError, toolSuccess } from './responses.ts'
 const SAFE_ERROR_CODES=new Set(['VALIDATION_ERROR','NOT_FOUND','CONFLICT','SCHEDULE_OVERLAP','REAUTH_REQUIRED','ACCESS_REVOKED','RATE_LIMITED','UNAVAILABLE'])
 
 export function createStudentMcpServer(ctx:AgentContext){
+  // Keep tool definitions declarative: each one validates input, maps it to an
+  // owner-scoped database RPC, and returns the same safe response shape.
   const server=new McpServer({name:'canvas-todo-prioritizer',version:'1.0.0'})
   const originalRpc=ctx.supabase.rpc.bind(ctx.supabase)
   ctx.supabase.rpc=(name,args={})=>{

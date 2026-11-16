@@ -1,5 +1,6 @@
 -- Apply after creating public.assignments_draft as a copy of public.assignments.
 -- Drafts may be incomplete. Only assignment_id (generated) and name are required.
+-- Owner policies keep each student's unfinished work private until it is saved.
 begin;
 
 alter table public.assignments_draft alter column owner_id set default auth.uid();

@@ -1,5 +1,7 @@
 -- AI assignments need only a name, class, and priority. Every active AI draft
 -- is mirrored into assignments_draft so it appears in the app's Drafts page.
+-- The chat JSON remains the source for review state; the mirror supplies the
+-- editable Drafts list and is removed when the assignment is confirmed/cancelled.
 begin;
 
 alter table public.assignments drop constraint if exists assignment_created_fields;

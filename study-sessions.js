@@ -1,5 +1,7 @@
 (function(root){
   'use strict';
+  // Study sessions are separate calendar blocks; changing one never changes
+  // the assignment's due date. All calendar conversions use an explicit zone.
   const zonedParts=(date,timeZone)=>{
     const parts=new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
     const value=type=>parts.find(part=>part.type===type)?.value||'';
@@ -30,6 +32,8 @@
     return 'UTC'+sign+String(Math.floor(abs/60)).padStart(2,'0')+':'+String(abs%60).padStart(2,'0');
   };
   function toIso(local,timeZone,offset){
+    // Requiring the chosen UTC offset disambiguates repeated clock times when
+    // daylight saving time ends, and rejects local times skipped in spring.
     if(offset==null||offset==='')throw new Error('Choose the UTC offset for this time.');
     const parsed=parseLocal(local),value=Number(offset),candidate=parsed.stamp-value*60000;
     if(!Number.isFinite(value)||localText(zonedParts(new Date(candidate),timeZone))!==local)
@@ -51,6 +55,8 @@
     return Date.parse(end)>Date.parse(deadline);
   }
   function dayBounds(date,timeZone='America/Denver'){
+    // Build the next local midnight independently; a daylight-saving day can
+    // be 23 or 25 hours long, so adding 24 hours would be incorrect.
     const start=toIso(date+'T00:00',timeZone,offsetOptions(date+'T00:00',timeZone)[0]);
     const next=new Date(date+'T12:00:00Z');next.setUTCDate(next.getUTCDate()+1);
     const nextDate=next.toISOString().slice(0,10),local=nextDate+'T00:00';

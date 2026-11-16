@@ -1,5 +1,7 @@
 -- Apply once after reviewing the live assignments schema and existing policies.
 -- Existing synthetic rows remain ownerless and keep their current demo policies.
+-- New assignment rows belong to the signed-in account and are created through
+-- a validated, retry-safe RPC rather than a direct browser insert.
 begin;
 
 alter table public.assignments
