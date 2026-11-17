@@ -1,6 +1,9 @@
 [functions.study-assistant]
 verify_jwt = true
 
+[functions.admin-users]
+verify_jwt = true
+
 # Keep implementation helpers outside PostgREST's exposed schemas.
 [api]
 schemas = ["public", "graphql_public"]

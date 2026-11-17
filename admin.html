@@ -42,7 +42,7 @@
       </div>
       <div id="users-view" class="hidden">
         <div class="user-tools"><div><h2>Maintain Users</h2><p class="muted">Create, view, edit, or delete student accounts.</p></div><button id="refresh-users" class="secondary" type="button">Refresh users</button></div>
-        <form id="user-form" class="user-form"><label>Email<input id="user-email" type="email" required></label><label>Password<input id="user-password" type="password" minlength="8" placeholder="Required for new users"></label><button id="save-user" class="primary" type="submit">Add user</button></form>
+        <form id="user-form" class="user-form"><label>Email<input id="user-email" type="email" required></label><label>Password<input id="user-password" type="password" minlength="8" placeholder="Required for new users" required></label><button id="save-user" class="primary" type="submit">Add user</button></form>
         <p id="user-message" class="muted" role="status"></p><p id="user-error" class="error" role="alert"></p>
         <div class="table-wrap"><table><thead><tr><th>Email</th><th>Created</th><th>Last sign-in</th><th>Role</th><th>Actions</th></tr></thead><tbody id="user-rows"></tbody></table></div>
       </div>
