@@ -297,6 +297,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  <div class="scr ov" id="panel"><div class="hd"><button class="ib" onclick="closeOv()" aria-label="Back"><i class="fi fi-rr-angle-left" aria-hidden="true"></i></button><h2 id="pt"></h2></div><div class="body" id="pb"></div><div id="account-actions" class="account-actions" hidden><p id="account-error" class="err" role="alert" hidden></p><button class="btn with-icon" id="reload-tasks" onclick="refreshAssignments()" hidden><i class="fi fi-rr-refresh" aria-hidden="true"></i>Reload assignments and sessions</button><button class="btn" id="signout" onclick="signOut()" hidden>Sign out</button></div></div>
 
  <div class="remove-backdrop" id="remove-backdrop" hidden><div class="remove-dialog" role="dialog" aria-modal="true" aria-labelledby="remove-title" aria-describedby="remove-message"><h2 id="remove-title">Remove assignment?</h2><p id="remove-message"></p><p class="err" id="remove-error" role="alert" hidden></p><div class="remove-actions"><button class="btn" id="remove-cancel" onclick="cancelRemoval()">Cancel</button><button class="btn p with-icon" id="remove-confirm" onclick="confirmRemoval()"><i class="fi fi-rr-trash" aria-hidden="true"></i>Remove</button></div></div></div>
+ <div class="remove-backdrop" id="grade-backdrop" hidden><div class="remove-dialog" role="dialog" aria-modal="true" aria-labelledby="grade-title" aria-describedby="grade-message"><h2 id="grade-title">What grade did you get?</h2><p id="grade-message"></p><label for="completion-grade">Grade percentage</label><input id="completion-grade" type="number" min="0" max="100" step="0.01" placeholder="0–100"><p class="err" id="completion-grade-error" role="alert" hidden></p><div class="remove-actions"><button class="btn" id="grade-later" onclick="closeGradePrompt()">Not graded yet</button><button class="btn p with-icon" id="grade-save" onclick="saveCompletionGrade()"><i class="fi fi-rr-check" aria-hidden="true"></i>Save grade</button></div></div></div>
  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
  <div class="scrim" id="scrim" onclick="menu(0)"></div>
  <div id="menu" role="navigation" aria-label="Workspace">
@@ -317,7 +318,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
 <script src="assignment-fields.js?v=20261116-okr-1"></script>
-<script src="backend.js?v=20261116-account-1"></script>
+<script src="backend.js?v=20261116-grade-1"></script>
 <script src="study-sessions.js?v=20261105-1"></script>
 <script src="calendar-export.js?v=20261112-1"></script>
 
@@ -450,14 +451,14 @@ document.addEventListener('visibilitychange',()=>{trackAppUsage();if(document.hi
 if(typeof window.addEventListener==='function')window.addEventListener('pagehide',()=>{trackAppUsage();void flushAppUsage()});
 async function recordAppOpen(){if(!backend||!user)return;appUsageLastTick=appUsageLastActivity=Date.now();try{await backend.recordAppOpen()}catch(error){console.warn('Daily activity could not be recorded:',error.message)}}
 async function loadTasks(){
- if(!backend||!user||S.loading||S.saving.size||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||draftSaving)return;
+ if(!backend||!user||S.loading||S.saving.size||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||draftSaving||gradeSaving)return;
  const version=++loadVersion;S.loading=true;S.ready=false;showError('');$('sync-status').textContent='Loading assignments…';lockListControls();paint();
  try{const tasks=await backend.load();if(version!==loadVersion)return;S.A=tasks;S.done=Object.fromEntries(S.A.map(a=>[a.id,!!a.completed]));try{const drafts=await backend.loadAssignmentDrafts();if(version!==loadVersion)return;S.drafts=drafts;S.draftsError=''}catch(error){if(version!==loadVersion)return;S.drafts=[];S.draftsError=error.message}if(version!==loadVersion)return;S.ready=true;await loadSavedUserSettings(version);await loadSavedLists(version);await loadSavedPriorities(version);if(version!==loadVersion)return;$('sync-status').textContent=tasks.length?`${tasks.length} assignments loaded`:'No demo assignments found. The team must add sample rows and check access policies.'}
  catch(error){if(version!==loadVersion)return;S.A=[];S.done={};resetLists();showError('Could not load assignments: '+error.message);$('sync-status').textContent='Assignments unavailable'}
  finally{if(version===loadVersion){S.loading=false;lockListControls();if($('panel').classList.contains('on')&&$('pt').textContent==='Settings')pan('settings');paint();restoreWorkspace()}}
 }
 async function tog(id){
- if(S.loading||S.prioritySaving||S.createSaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
+ if(S.loading||S.prioritySaving||S.createSaving||gradeSaving||S.saving.has(id)||!S.A.some(a=>a.id===id))return;
  if(!S.ready)return;
  // Remember both account and load version across the request. If either has
  // changed by the time it returns, this response must not update the new view.
@@ -473,7 +474,7 @@ async function tog(id){
   const assignment=S.A.find(a=>a.id===id);if(assignment){assignment.completed=saved;assignment.completedAt=saved?new Date().toISOString():null}
   S.done[id]=saved;$('sync-status').textContent=saved?'Assignment saved · completed':'Assignment saved · incomplete';
   paint();
-  if(saved)completionNotice(id);else toast('Assignment marked incomplete');
+  if(saved){completionNotice(id);openGradePrompt(id)}else toast('Assignment marked incomplete');
  }
  catch(error){showError(error.message);$('sync-status').textContent='Save was not confirmed. Reload to check the database.'}
  finally{S.saving.delete(id);lockListControls();paint();if($('panel').classList.contains('on')){const key={'Overdue assignments':'overdue','Still open':'open'}[$('pt').textContent];if(key)openWeeklyItems(key)}if(keepFocus){const scope=$('cal').classList.contains('on')?'dayp':'list';const target=$(scope).querySelector?.('[data-complete][aria-checked="false"]')||$('assignments-title');target?.focus?.({preventScroll:true})}}
@@ -495,6 +496,31 @@ function completionNotice(id){
  const view=document.createElement('button');view.type='button';view.textContent='View';view.setAttribute('aria-label','View completed assignment');
  view.addEventListener('click',()=>{navigateWorkspace('completed');const node=[...$('pb').querySelectorAll('[data-assignment-id]')].find(card=>card.dataset.assignmentId===id);node?.scrollIntoView({behavior:prefersQuietMotion()?'auto':'smooth',block:'nearest'});node?.querySelector('[data-complete]')?.focus({preventScroll:true})});
  $('toast').appendChild(view);
+}
+let pendingGradeAssignmentId=null,gradeFocus=null,gradeSaving=false;
+function openGradePrompt(id){
+ const assignment=S.A.find(item=>item.id===id);if(!assignment)return;
+ pendingGradeAssignmentId=id;gradeFocus=document.activeElement;$('grade-message').textContent='Enter the percentage earned for “'+assignment.n+'”, or choose Not graded yet.';
+ $('completion-grade').value=assignment.earnedGrade==null?'':assignment.earnedGrade;$('completion-grade-error').textContent='';$('completion-grade-error').hidden=true;$('grade-backdrop').hidden=false;$('completion-grade').focus?.();
+}
+function closeGradePrompt(){if(gradeSaving)return;pendingGradeAssignmentId=null;$('grade-backdrop').hidden=true;gradeFocus?.focus?.();gradeFocus=null}
+document.addEventListener('keydown',event=>{
+ if($('grade-backdrop').hidden)return;
+ if(event.key==='Escape'){event.preventDefault();closeGradePrompt()}
+ if(event.key==='Tab'){
+  const first=$('completion-grade'),last=$('grade-save');
+  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+ }
+});
+async function saveCompletionGrade(){
+ const id=pendingGradeAssignmentId,raw=$('completion-grade').value.trim();if(!id||gradeSaving||!user)return;
+ if(raw===''){ $('completion-grade-error').textContent='Enter a grade, or choose Not graded yet.';$('completion-grade-error').hidden=false;return }
+ const grade=Number(raw);if(!Number.isFinite(grade)||grade<0||grade>100){$('completion-grade-error').textContent='Enter a grade from 0 to 100.';$('completion-grade-error').hidden=false;return}
+ const owner=user.id,version=loadVersion,current=()=>user?.id===owner&&loadVersion===version;gradeSaving=true;S.saving.add(id);$('grade-later').disabled=$('grade-save').disabled=true;$('completion-grade').disabled=true;$('completion-grade-error').hidden=true;lockListControls();paint();
+ try{const saved=await backend.updateAssignmentGrade(id,grade);if(!current())return;const index=S.A.findIndex(item=>item.id===id);if(index>=0)S.A[index]=saved;$('sync-status').textContent='Grade saved';gradeSaving=false;closeGradePrompt();toast('Grade saved')}
+ catch(error){if(current()){$('completion-grade-error').textContent='Could not save grade: '+error.message;$('completion-grade-error').hidden=false}}
+ finally{if(!current())return;gradeSaving=false;S.saving.delete(id);$('grade-later').disabled=$('grade-save').disabled=false;$('completion-grade').disabled=false;lockListControls();paint();if(!$('grade-backdrop').hidden)$('completion-grade').focus?.()}
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-complete]');if(button&&!button.disabled)tog(button.dataset.complete)});
 document.addEventListener('click',event=>{const stat=event.target.closest('[data-weekly-items]');if(stat)openWeeklyItems(stat.dataset.weeklyItems)});
@@ -523,13 +549,13 @@ async function createAccount(){
  finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
 }
 async function signOut(){
- if(!db||signingOut||S.loading||S.settingsSaving||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving||S.sessionSaving||draftSaving||S.agentSaving)return;
+ if(!db||signingOut||S.loading||S.settingsSaving||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving||S.sessionSaving||draftSaving||gradeSaving||S.agentSaving)return;
  signingOut=true;$('signout').disabled=true;
  try{trackAppUsage();await flushAppUsage();const {error}=await db.auth.signOut();if(error)throw error;stopTimeSuggestion();clearTransientWorkspace();user=null;appUsageSeconds=0;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showError('');showSession();paint()}
  catch(error){showError('Could not sign out: '+error.message)}
  finally{signingOut=false;$('signout').disabled=false}
 }
-function clearTransientWorkspace(){S.agentsLoading=false;removalSaving=false;['create-submit','create-cancel','create-draft','remove-cancel','remove-confirm'].forEach(id=>{if($(id))$(id).disabled=false});S.drafts=[];S.saving.clear();S.createSaving=false;S.priorityPicker=null;activeDraftId=null;draftSaving=false;S.draftsError='';editingAssignmentId=null;pendingCreation=null;++agentLoadVersion;pendingRemoval=null;if($('remove-backdrop'))$('remove-backdrop').hidden=true;}
+function clearTransientWorkspace(){S.agentsLoading=false;removalSaving=false;gradeSaving=false;['create-submit','create-cancel','create-draft','remove-cancel','remove-confirm','grade-later','grade-save'].forEach(id=>{if($(id))$(id).disabled=false});S.drafts=[];S.saving.clear();S.createSaving=false;S.priorityPicker=null;activeDraftId=null;draftSaving=false;S.draftsError='';editingAssignmentId=null;pendingCreation=null;++agentLoadVersion;pendingRemoval=null;pendingGradeAssignmentId=null;if($('remove-backdrop'))$('remove-backdrop').hidden=true;if($('grade-backdrop'))$('grade-backdrop').hidden=true;}
 async function boot(){
  try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()},onDraftChanged:async()=>{const owner=user?.id,version=loadVersion;const drafts=await backend.loadAssignmentDrafts();if(user?.id===owner&&version===loadVersion){S.drafts=drafts;S.draftsError=''}}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){prepareWorkspaceRestore();await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();clearTransientWorkspace();user=null;appUsageSeconds=0;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
@@ -925,7 +951,7 @@ function setRefreshStatus(message,progress){
  status.style.setProperty('--pull-progress',progress??(busy?0.72:1));
  status.querySelector('svg').style.display=!busy&&progress==null?'none':'';
 }
-function canRefreshAssignments(){return !!backend&&!!user&&!S.loading&&!S.saving.size&&!S.listSaving&&!S.prioritySaving&&!S.settingsSaving&&!S.createSaving&&!draftSaving&&!S.sessionSaving&&!removalSaving}
+function canRefreshAssignments(){return !!backend&&!!user&&!S.loading&&!S.saving.size&&!S.listSaving&&!S.prioritySaving&&!S.settingsSaving&&!S.createSaving&&!draftSaving&&!S.sessionSaving&&!removalSaving&&!gradeSaving}
 async function refreshAssignments(){
  if(!canRefreshAssignments())return;
  const owner=user.id;clearTimeout(refreshNoticeTimer);setRefreshStatus('Refreshing assignments and study sessions…');
@@ -1056,7 +1082,7 @@ function openListEditor(){
  lockListControls();
 }
 function lockListControls(){
- const busy=S.loading||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||draftSaving||!!S.saving.size;
+ const busy=S.loading||S.listSaving||S.prioritySaving||S.settingsSaving||S.createSaving||draftSaving||gradeSaving||!!S.saving.size;
  document.querySelectorAll('[data-list-control], #ln').forEach(el=>el.disabled=busy);
  $('reload-tasks').disabled=busy;
  $('signout').disabled=busy;

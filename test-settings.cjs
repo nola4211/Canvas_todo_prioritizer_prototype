@@ -34,7 +34,7 @@ const client={from(table){assert.equal(table,'user_settings');let patch=null;
   document:{documentElement,getElementById:element,querySelectorAll:selector=>selector==='[data-user-setting], #settings-priority-button'?settingControls:[],addEventListener(){}}});
  vm.runInContext(fs.readFileSync(__dirname+'/priorities.js','utf8'),context);
  const html=fs.readFileSync(__dirname+'/index.html','utf8');
- assert.match(html,/backend\.js\?v=20261116-account-1/);
+ assert.match(html,/backend\.js\?v=20261116-grade-1/);
  const inline=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
  vm.runInContext(inline,context);
  const run=code=>vm.runInContext(code,context);
