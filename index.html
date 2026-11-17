@@ -511,14 +511,13 @@ async function changeAssignmentPriority(id,priority){
 async function signIn(){
  if(!db||signingIn)return;signingIn=true;$('signin').disabled=$('create-account').disabled=true;showError('');$('login-message').textContent='';
  try{const {data,error}=await db.auth.signInWithPassword({email:$('login-email').value.trim(),password:$('login-password').value});if(error)throw error;$('login-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
- catch(error){showError(error.code==='email_not_confirmed'?'Confirm your email using the message we sent, then sign in.':'Could not sign in: '+error.message)}finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
+ catch(error){showError('Could not sign in: '+error.message)}finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
 }
 async function createAccount(){
  if(!backend||signingIn)return;signingIn=true;$('signin').disabled=$('create-account').disabled=true;showError('');$('login-message').textContent='';
  try{
   const result=await backend.createAccount($('login-email').value,$('login-password').value);$('login-password').value='';
-  if(!result.session){$('login-message').textContent='Account created! Check your email to confirm it, then sign in.';return}
-  user=result.user;showSession();await recordAppOpen();await loadTasks();
+  user=result.user;$('login-message').textContent='Account created!';showSession();await recordAppOpen();await loadTasks();
  }catch(error){showError('Could not create account: '+error.message)}
  finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
 }
