@@ -176,7 +176,8 @@ input[type=checkbox]{flex-shrink:0;width:24px;height:24px}
 #app:has(#home.signed-out) .ov{display:none}
 #home.signed-out{overflow-y:auto;visibility:visible!important}
 #home.signed-out:has(#login:not([hidden]))>#sync-error{display:none}
-#home.signed-out #login{height:auto;min-height:100%;max-width:440px;width:100%;margin:auto;padding:32px 24px;gap:32px;flex-shrink:0}
+#home.signed-out #login{height:auto;min-height:100%;max-width:1040px;width:100%;margin:auto;padding:32px 24px;gap:32px;flex-shrink:0}
+.landing-layout{display:grid;gap:32px;align-items:center}.landing-copy{max-width:480px}.landing-copy h1{margin:0 0 12px;font-size:clamp(34px,6vw,54px);line-height:1.05;letter-spacing:-.04em}.landing-copy p{margin:0;color:var(--mu);font-size:17px;line-height:1.6}.landing-visual{display:block;width:100%;max-height:310px;object-fit:contain;border-radius:24px}.login-panel{display:flex;flex-direction:column;gap:28px}
 .login-fields{margin:0}.login-admin{margin-top:0}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
 @media(min-width:600px){
@@ -186,7 +187,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  #chat>.body,#chat>.foot,#chat>.chat-history-bar{padding-left:max(24px,calc((100% - 840px)/2));padding-right:max(24px,calc((100% - 840px)/2))}
  #cal>.body{padding:24px max(24px,calc((100% - 1120px)/2))}
  .calendar-month{width:100%;max-width:520px;margin-inline:auto}
- #home.signed-out #login{min-height:0;border:1px solid var(--ln);border-radius:18px;padding:36px;gap:40px}
+ #home.signed-out #login{min-height:0;border:1px solid var(--ln);border-radius:22px;padding:36px;gap:40px}.landing-layout{grid-template-columns:minmax(0,1.15fr) minmax(330px,.85fr)}
 }
 @media(min-width:900px){
  #app{--sidebar-width:224px}
@@ -239,9 +240,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <p id="sync-error" class="err load-error" role="alert" hidden></p>
   <p id="pull-refresh-status" class="pull-feedback" role="status" aria-live="polite" hidden><svg class="pull-ring" viewBox="0 0 32 32" aria-hidden="true"><circle class="pull-track" cx="16" cy="16" r="12"/><circle class="pull-arc" cx="16" cy="16" r="12" pathLength="100"/></svg><span id="pull-refresh-label"></span></p>
   <form id="login" hidden onsubmit="event.preventDefault();signIn()">
-   <div class="login-intro"><h2>Sign in</h2><div class="sub">Use your student account, or create one with your email and a password.</div></div>
-   <div class="login-fields"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required><p class="sub">New account passwords must have at least 8 characters.</p><p id="login-error" class="err" role="alert" hidden></p><p id="login-message" class="login-message" role="status" aria-live="polite"></p><button class="btn p" id="signin" type="submit">Sign in</button><button class="btn create-account" id="create-account" type="button" onclick="createAccount()">Create account</button></div>
-   <div class="login-admin"><button class="btn" type="button" onclick="location.href='admin.html'">Team administrator</button></div>
+   <div class="landing-layout">
+    <section class="landing-copy" aria-labelledby="landing-title"><h1 id="landing-title">Plan schoolwork with confidence.</h1><p>Bring assignments, priorities, study plans, and helpful AI guidance into one clear academic workspace.</p><img class="landing-visual" src="assets/student-planner.svg" alt="Student planning prioritized assignments"></section>
+    <div class="login-panel"><div class="login-intro"><h2>Sign in</h2><div class="sub">Use your student account, or create one with your email and a password.</div></div>
+     <div class="login-fields"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required><p class="sub">New account passwords must have at least 8 characters.</p><p id="login-error" class="err" role="alert" hidden></p><p id="login-message" class="login-message" role="status" aria-live="polite"></p><button class="btn p" id="signin" type="submit">Sign in</button><button class="btn create-account" id="create-account" type="button" onclick="createAccount()">Create account</button></div>
+     <div class="login-admin"><button class="btn" type="button" onclick="location.href='admin.html'">Team administrator</button></div></div>
+   </div>
   </form>
   <div class="body" id="list"></div>
   <div class="bar">
@@ -302,7 +306,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  <div class="scrim" id="scrim" onclick="menu(0)"></div>
  <div id="menu" role="navigation" aria-label="Workspace">
   <div class="workspace-brand">Student To-Do<span>Your academic workspace</span></div>
-  <button class="mi" data-view="home" aria-current="page" onclick="navigateWorkspace('home')"><i class="fi fi-rr-list" aria-hidden="true"></i>Assignments</button>
+  <button class="mi" data-view="home" aria-current="page" onclick="navigateWorkspace('home')"><i class="fi fi-rr-list" aria-hidden="true"></i>Maintain Records</button>
   <button class="mi" data-view="completed" onclick="navigateWorkspace('completed')"><i class="fi fi-rr-check" aria-hidden="true"></i>Completed assignments</button>
   <button class="mi" data-view="cal" onclick="navigateWorkspace('cal')"><i class="fi fi-rr-calendar" aria-hidden="true"></i>Calendar</button>
   <button class="mi" data-view="chat" onclick="navigateWorkspace('chat')"><i class="fi fi-rr-robot" aria-hidden="true"></i>AI Assistant</button>
@@ -310,6 +314,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <button class="mi" data-view="settings" onclick="navigateWorkspace('settings')"><i class="fi fi-rr-settings" aria-hidden="true"></i>Settings</button><button class="mi" data-view="profile" onclick="navigateWorkspace('profile')"><i class="fi fi-rr-user" aria-hidden="true"></i>Profile</button>
   <button class="mi" data-view="classes" onclick="navigateWorkspace('classes')"><i class="fi fi-rr-graduation-cap" aria-hidden="true"></i>Classes</button><button class="mi" data-view="newlist" onclick="navigateWorkspace('newlist')"><i class="fi fi-rr-list" aria-hidden="true"></i>New List</button><button class="mi" data-view="drafts" onclick="navigateWorkspace('drafts')"><i class="fi fi-rr-file-edit" aria-hidden="true"></i>Draft Assignments</button>
   <button class="mi" data-view="okr" id="okr-menu" onclick="navigateWorkspace('okr')" hidden><i class="fi fi-rr-chart-histogram" aria-hidden="true"></i>OKR Tracker</button>
+  <button class="mi" id="maintain-users-menu" onclick="location.href='admin.html#users'" hidden><i class="fi fi-rr-users" aria-hidden="true"></i>Maintain Users</button>
   <div class="sub" style="padding:14px">Student demo · Canvas sync is a prototype</div>
  </div>
 </div>
@@ -429,7 +434,7 @@ let db=null,backend=null,chatClient=null,sessionBackend=null,user=null,loadVersi
 const showError=message=>{['sync-error','login-error','account-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
 function paint(){home();if($('cal').classList.contains('on'))cal();if($('panel').classList.contains('on')&&$('pt').textContent==='Completed assignments')$('pb').innerHTML=completedAssignmentsMarkup()}
 function isOkrAdmin(){return user?.app_metadata?.role==='admin'}
-function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();if(!signed){$('account-actions').hidden=true;setRefreshStatus('')}$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in or create an account to load your workspace.'}
+function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();$('maintain-users-menu').hidden=!signed||!isOkrAdmin();if(!signed){$('account-actions').hidden=true;setRefreshStatus('')}$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in or create an account to load your workspace.'}
 function applyUserSettings(){document.documentElement.dataset.theme=S.userSettings.dark_mode?'dark':'light'}
 function resetUserSettings(){S.userSettings={...DEFAULT_USER_SETTINGS};S.settingsReady=false;S.settingsSaving=false;document.documentElement.removeAttribute('data-theme')}
 let appUsageSeconds=0,appUsageLastTick=Date.now(),appUsageLastActivity=Date.now(),appUsageFlushing=false;
@@ -536,7 +541,7 @@ async function changeAssignmentPriority(id,priority){
 }
 async function signIn(){
  if(!db||signingIn)return;signingIn=true;$('signin').disabled=$('create-account').disabled=true;showError('');$('login-message').textContent='';
- try{const {data,error}=await db.auth.signInWithPassword({email:$('login-email').value.trim(),password:$('login-password').value});if(error)throw error;$('login-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
+ try{const {data,error}=await db.auth.signInWithPassword({email:$('login-email').value.trim(),password:$('login-password').value});if(error)throw error;$('login-password').value='';user=data.user;if(isOkrAdmin()&&!new URLSearchParams(location.search).has('maintain-records')){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
  catch(error){showError('Could not sign in: '+error.message)}finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
 }
 async function createAccount(){
@@ -556,7 +561,7 @@ async function signOut(){
 }
 function clearTransientWorkspace(){S.agentsLoading=false;removalSaving=false;gradeSaving=false;['create-submit','create-cancel','create-draft','remove-cancel','remove-confirm','grade-later','grade-save'].forEach(id=>{if($(id))$(id).disabled=false});S.drafts=[];S.saving.clear();S.createSaving=false;S.priorityPicker=null;activeDraftId=null;draftSaving=false;S.draftsError='';editingAssignmentId=null;pendingCreation=null;++agentLoadVersion;pendingRemoval=null;pendingGradeAssignmentId=null;if($('remove-backdrop'))$('remove-backdrop').hidden=true;if($('grade-backdrop'))$('grade-backdrop').hidden=true;}
 async function boot(){
- try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()},onDraftChanged:async()=>{const owner=user?.id,version=loadVersion;const drafts=await backend.loadAssignmentDrafts();if(user?.id===owner&&version===loadVersion){S.drafts=drafts;S.draftsError=''}}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()){location.replace('admin.html');return}showSession();if(user){prepareWorkspaceRestore();await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();clearTransientWorkspace();user=null;appUsageSeconds=0;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
+ try{const config=window.APP_CONFIG;if(!config?.publishableKey||!config.demoAssignmentIds?.length)throw new Error('Setup pending: add the browser-safe project key and synthetic assignment IDs in config.js after reviewing access policies.');if(!window.supabase?.createClient)throw new Error('The sign-in service could not load. Check your internet connection.');db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);backend=CanvasBackend.create(db,config.demoAssignmentIds);sessionBackend=CanvasStudySessions.createBackend(db);chatClient=window.CanvasChat.create(db,{backend,onSaved:async()=>{await loadTasks()},onDraftChanged:async()=>{const owner=user?.id,version=loadVersion;const drafts=await backend.loadAssignmentDrafts();if(user?.id===owner&&version===loadVersion){S.drafts=drafts;S.draftsError=''}}});const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user||null;if(isOkrAdmin()&&!new URLSearchParams(location.search).has('maintain-records')){location.replace('admin.html');return}showSession();if(user){prepareWorkspaceRestore();await recordAppOpen();await loadTasks()}db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){stopTimeSuggestion();clearTransientWorkspace();user=null;appUsageSeconds=0;if(chatClient)chatClient.reset();++loadVersion;++S.sessionLoadVersion;S.A=[];S.done={};S.sessions=[];S.agentGrants=[];S.sessionsError='';resetLists();resetUserSettings();S.ready=false;S.loading=false;showSession();paint()}})}
  catch(error){$('sync-status').textContent='Demo setup pending';showError(error.message);$('login').hidden=true}
 }
 function workspaceView(view){document.querySelectorAll('#menu [data-view]').forEach(button=>{if(button.dataset.view===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')})}

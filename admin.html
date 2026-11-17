@@ -7,17 +7,19 @@
   <style>
     :root{--bg:#f4f6f8;--card:#fff;--text:#18202a;--muted:#667085;--blue:#2f6feb;--green:#238636;--line:#e4e7ec}
     *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}body{margin:0;background:var(--bg);color:var(--text)}
-    header{background:var(--card);border-bottom:1px solid var(--line);padding:18px max(20px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}
+    header{background:var(--card);border-bottom:1px solid var(--line);padding:18px max(20px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     header h1{font-size:20px;margin:0}main{max-width:1050px;margin:0 auto;padding:28px 20px}.muted{color:var(--muted)}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
     .metric{font-size:48px;font-weight:750;color:var(--blue);line-height:1;margin:12px 0}.metric.met{color:var(--green)}.stats{display:flex;gap:24px;flex-wrap:wrap;margin-top:18px}.stats b{font-size:24px;display:block}.stats span{display:block;font-size:12px}.card h2{font-size:17px;margin:0 0 6px}.target{min-height:42px;font-size:13px}.dashboard-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}.dashboard-head p{margin:0}.wide{grid-column:1/-1}.updated{font-size:12px;margin-top:10px}
     .bars{height:180px;display:flex;align-items:flex-end;gap:12px;margin-top:20px}.day{flex:1;text-align:center;font-size:12px;color:var(--muted)}.bar{background:var(--blue);border-radius:7px 7px 2px 2px;min-height:4px;margin-bottom:8px}
-    button,input{font:inherit}button{border:0;border-radius:10px;padding:10px 15px;font-weight:650;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:var(--bg);color:var(--text)}
+    button,input{font:inherit}button{border:0;border-radius:10px;padding:10px 15px;font-weight:650;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:var(--bg);color:var(--text)}button:disabled{opacity:.55;cursor:wait}
     form{max-width:420px;margin:70px auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}label{display:block;margin:15px 0 6px;color:var(--muted);font-size:13px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}form button{width:100%;margin-top:18px}.error{color:#c62828;margin-top:12px}.hidden{display:none!important}
+    .admin-nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}.admin-nav button,.admin-nav a{display:inline-block;text-decoration:none;border-radius:10px;padding:11px 16px;font-weight:650;color:var(--text);background:var(--card);border:1px solid var(--line)}.admin-nav .active{background:var(--blue);border-color:var(--blue);color:#fff}
+    .user-tools{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.user-tools h2{margin:0}.user-form{max-width:none;margin:0 0 18px;display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}.user-form label{margin:0}.user-form button{width:auto;margin:0}.table-wrap{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;min-width:700px}th,td{text-align:left;padding:13px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-size:12px}.row-actions{display:flex;gap:8px}.danger{background:#b52e39;color:#fff}.role{font-size:12px;font-weight:700;color:var(--blue)}
   </style>
 </head>
 <body>
-  <header><div><h1>Team OKR Dashboard</h1><div class="muted">Canvas To-Do Prioritizer</div></div><button id="signout" class="secondary hidden">Sign out</button></header>
+  <header><div><h1>Team Administration</h1><div class="muted">Canvas To-Do Prioritizer</div></div><div class="header-actions"><button id="back-to-student" class="secondary">Back to student sign in</button><button id="signout" class="secondary hidden">Sign out</button></div></header>
   <main>
     <form id="login" class="hidden">
       <h2>Administrator sign in</h2><p class="muted">Use your team administrator username and password.</p>
@@ -26,6 +28,8 @@
       <button class="primary" type="submit">Sign in</button><div id="login-error" class="error" role="alert"></div>
     </form>
     <section id="dashboard" class="hidden">
+      <nav class="admin-nav" aria-label="Administration"><button id="show-okr" class="active" type="button">OKR Tracker</button><button id="show-users" type="button">Maintain Users</button><a href="index.html?maintain-records=1">Maintain Records</a></nav>
+      <div id="okr-view">
       <div class="dashboard-head"><div><p class="muted" id="range"></p><p class="muted updated" id="updated"></p></div><button id="refresh" class="secondary" type="button">Refresh metrics</button></div>
       <div class="grid">
         <article class="card"><h2>Opened the app every day</h2><div class="muted target">Users who opened the app on all seven recent days.</div><div id="engagement-percent" class="metric">—</div><strong>Goal: 75% of users</strong><div id="engagement-goal" class="muted"></div><div class="stats"><div><b id="daily-users">—</b><span class="muted">7-day daily users</span></div><div><b class="active-users">—</b><span class="muted">30-day active users</span></div></div></article>
@@ -35,6 +39,13 @@
         <article class="card wide"><strong>Daily unique users</strong><div id="bars" class="bars"></div></article>
       </div>
       <p id="dashboard-error" class="error" role="alert"></p>
+      </div>
+      <div id="users-view" class="hidden">
+        <div class="user-tools"><div><h2>Maintain Users</h2><p class="muted">Create, view, edit, or delete student accounts.</p></div><button id="refresh-users" class="secondary" type="button">Refresh users</button></div>
+        <form id="user-form" class="user-form"><label>Email<input id="user-email" type="email" required></label><label>Password<input id="user-password" type="password" minlength="8" placeholder="Required for new users"></label><button id="save-user" class="primary" type="submit">Add user</button></form>
+        <p id="user-message" class="muted" role="status"></p><p id="user-error" class="error" role="alert"></p>
+        <div class="table-wrap"><table><thead><tr><th>Email</th><th>Created</th><th>Last sign-in</th><th>Role</th><th>Actions</th></tr></thead><tbody id="user-rows"></tbody></table></div>
+      </div>
     </section>
   </main>
   <script src="config.js"></script>
@@ -42,7 +53,7 @@
   <script>
     // The dashboard uses a separate administrator role. Ordinary signed-in
     // student accounts cannot read the aggregate activity report.
-    const byId=id=>document.getElementById(id);let db,refreshTimer=null,loadingDashboard=false;
+    const byId=id=>document.getElementById(id);let db,refreshTimer=null,loadingDashboard=false,editingUserId=null,users=[];
     const isAdmin=user=>user?.app_metadata?.role==='admin';
     const date=value=>new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
     function showLogin(message=''){clearInterval(refreshTimer);refreshTimer=null;byId('login').classList.remove('hidden');byId('dashboard').classList.add('hidden');byId('signout').classList.add('hidden');byId('login-error').textContent=message}
@@ -59,10 +70,24 @@
       const trend=Array.isArray(data.daily_trend)?data.daily_trend:[],max=Math.max(1,...trend.map(item=>Number(item.users)||0));byId('bars').replaceChildren();
       for(const item of trend){const day=document.createElement('div');day.className='day';const bar=document.createElement('div');bar.className='bar';bar.style.height=Math.max(4,Math.round((Number(item.users)||0)/max*140))+'px';bar.title=item.users+' unique users';const label=document.createElement('span');label.textContent=date(item.date);day.append(bar,label);byId('bars').append(day)}
     }
-    async function showDashboard(user){if(!isAdmin(user)){showLogin('Sign in with your team administrator credentials.');return}byId('login').classList.add('hidden');byId('dashboard').classList.remove('hidden');byId('signout').classList.remove('hidden');await loadDashboard();clearInterval(refreshTimer);refreshTimer=setInterval(loadDashboard,30000)}
+    async function showDashboard(user){if(!isAdmin(user)){showLogin('Sign in with your team administrator credentials.');return}byId('login').classList.add('hidden');byId('dashboard').classList.remove('hidden');byId('signout').classList.remove('hidden');if(location.hash==='#users')await showUsers();else await showOkr();clearInterval(refreshTimer);refreshTimer=setInterval(loadDashboard,30000)}
+    function shortDate(value){return value?new Date(value).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}):'Never'}
+    async function userRequest(action,values={}){const {data,error}=await db.functions.invoke('admin-users',{body:{action,...values}});if(error)throw new Error(data?.error||error.message);if(data?.error)throw new Error(data.error);return data}
+    function renderUsers(){byId('user-rows').replaceChildren();for(const account of users){const row=document.createElement('tr');const email=document.createElement('td');email.textContent=account.email;const created=document.createElement('td');created.textContent=shortDate(account.created_at);const last=document.createElement('td');last.textContent=shortDate(account.last_sign_in_at);const role=document.createElement('td');role.innerHTML=account.is_admin?'<span class="role">Administrator</span>':'Student';const actions=document.createElement('td');actions.className='row-actions';const edit=document.createElement('button');edit.className='secondary';edit.textContent='Edit';edit.onclick=()=>editUser(account);const remove=document.createElement('button');remove.className='danger';remove.textContent='Delete';remove.disabled=account.is_admin;remove.title=account.is_admin?'Administrator accounts cannot be deleted here.':'';remove.onclick=()=>deleteUser(account);actions.append(edit,remove);row.append(email,created,last,role,actions);byId('user-rows').append(row)}}
+    async function loadUsers(){byId('user-error').textContent='';byId('refresh-users').disabled=true;try{users=(await userRequest('list')).users||[];renderUsers();byId('user-message').textContent=users.length+' user account'+(users.length===1?'':'s')}catch(error){byId('user-error').textContent='Could not load users: '+error.message}finally{byId('refresh-users').disabled=false}}
+    function resetUserForm(){editingUserId=null;byId('user-form').reset();byId('save-user').textContent='Add user';byId('user-password').required=true}
+    function editUser(account){editingUserId=account.id;byId('user-email').value=account.email;byId('user-password').value='';byId('user-password').required=false;byId('save-user').textContent='Save changes';byId('user-email').focus()}
+    async function deleteUser(account){if(!confirm('Delete '+account.email+'? Their app data will no longer be accessible.'))return;byId('user-error').textContent='';try{await userRequest('delete',{id:account.id});byId('user-message').textContent='User deleted.';await loadUsers()}catch(error){byId('user-error').textContent='Could not delete user: '+error.message}}
+    async function showOkr(){location.hash='okr';byId('okr-view').classList.remove('hidden');byId('users-view').classList.add('hidden');byId('show-okr').classList.add('active');byId('show-users').classList.remove('active');await loadDashboard()}
+    async function showUsers(){location.hash='users';byId('okr-view').classList.add('hidden');byId('users-view').classList.remove('hidden');byId('show-okr').classList.remove('active');byId('show-users').classList.add('active');await loadUsers()}
     byId('login').addEventListener('submit',async event=>{event.preventDefault();byId('login-error').textContent='';const username=byId('username').value.trim().toLowerCase();if(!/^[a-z0-9_-]{3,40}$/.test(username)){showLogin('Use 3–40 letters, numbers, underscores, or hyphens.');return}const {data,error}=await db.auth.signInWithPassword({email:username+'@canvas-prioritizer.local',password:byId('password').value});byId('password').value='';if(error){showLogin('Could not sign in. Check the username and password.');return}await showDashboard(data.user)});
     byId('signout').onclick=async()=>{await db.auth.signOut();showLogin()};
+    // Returning to the student login also ends the administrator session so
+    // the normal page cannot immediately redirect back to this dashboard.
+    byId('back-to-student').onclick=async()=>{if(db)await db.auth.signOut();location.href='index.html'};
     byId('refresh').onclick=loadDashboard;
+    byId('show-okr').onclick=showOkr;byId('show-users').onclick=showUsers;byId('refresh-users').onclick=loadUsers;
+    byId('user-form').addEventListener('submit',async event=>{event.preventDefault();byId('user-error').textContent='';byId('user-message').textContent='';byId('save-user').disabled=true;try{const values={email:byId('user-email').value,password:byId('user-password').value};await userRequest(editingUserId?'update':'create',editingUserId?{id:editingUserId,...values}:values);byId('user-message').textContent=editingUserId?'User updated.':'User created.';resetUserForm();await loadUsers()}catch(error){byId('user-error').textContent='Could not save user: '+error.message}finally{byId('save-user').disabled=false}});
     (async()=>{try{const config=window.APP_CONFIG;db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);const {data,error}=await db.auth.getSession();if(error)throw error;data.session?await showDashboard(data.session.user):showLogin()}catch(error){showLogin('The administrator dashboard could not start.')}})();
   </script>
 </body>
