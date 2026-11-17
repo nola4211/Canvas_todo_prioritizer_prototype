@@ -71,8 +71,8 @@
         if(typeof password!=='string'||password.length<8)throw new Error('Use a password with at least 8 characters.');
         const {data,error}=await client.auth.signUp({email:normalizedEmail,password});
         if(error)throw new Error(error.message || 'Could not create the account.');
-        if(!data?.user)throw new Error('The account was not confirmed. Please try again.');
-        return {user:data.user,session:data.session||null};
+        if(!data?.user||!data?.session)throw new Error('The account was created, but sign-in did not start. Try signing in.');
+        return {user:data.user,session:data.session};
       },
       async recordAppOpen() {
         const {data,error}=await client.rpc('record_app_open');
