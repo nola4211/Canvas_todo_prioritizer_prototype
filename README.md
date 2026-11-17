@@ -270,6 +270,10 @@ Main keeps incomplete assignments before its Completed section, but no longer fo
 
 ## Completed assignment archive
 
+When a student marks an assignment complete, the app first waits for Supabase to confirm the completion. It then asks **What grade did you get?** The student can enter a percentage from 0 through 100 or choose **Not graded yet**. A submitted grade saves to the existing assignment's `grade_earned_percent` field and appears on the assignment after refresh. The earned grade can also be added or corrected later through **Edit Assignment**. No separate grade table is used.
+
+Run `node test-completion-grade.cjs` and `node test-completion-feedback.cjs` to verify confirmed grade saves, input limits, the optional later path, and that failed or stale completion requests never show the grade prompt.
+
 Completing an assignment starts a 30-day clock stored in `assignments.completed_at`. Marking it incomplete clears the timestamp, so completing it again starts a new consecutive 30-day period. After 30 days, the assignment is hidden from Main's regular cards, By Class, custom lists, and the list assignment picker. It appears only in Main's collapsed **Archived Assignment** section with text such as “Completed 31 days ago.” Reopening it from the archive returns it to its former lists because list membership is preserved.
 
 The migration `supabase/migrations/202611120001_completed_assignment_archive.sql` was applied to the shared Supabase project on November 12, 2026. It adds only `assignments.completed_at`, backfills currently completed assignments with the migration time, and installs a trigger so browser and connected-agent completion changes follow the same clock. Do not rerun it on the shared project. Apply it once after the student-agent migration when setting up a different Supabase project.

@@ -169,6 +169,16 @@
         if(!data)throw new Error('The assignment update was not confirmed. Reload assignments before retrying.');
         return record(data);
       },
+      async updateAssignmentGrade(assignmentId, grade) {
+        const key=id(assignmentId),value=Number(grade);
+        if(!visible.has(key))throw new Error('This assignment is not available to this account.');
+        if(!Number.isFinite(value)||value<0||value>100)throw new Error('Enter a grade from 0 to 100.');
+        const {data,error}=await client.from('assignments').update({grade_earned_percent:value})
+          .eq('assignment_id',key).eq('deleted',false).eq('completed',true).select(columns).single();
+        if(error)throw new Error(error.message || 'Could not save the grade.');
+        if(!data)throw new Error('The grade save was not confirmed. Reload assignments before retrying.');
+        return record(data);
+      },
       async updateAssignmentPriority(assignmentId, priority) {
         const key = id(assignmentId);
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
