@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" role="img" aria-labelledby="title description">
+  <title id="title">Student planning assignments</title>
+  <desc id="description">A simple illustration of a student beside a prioritized assignment list and calendar.</desc>
+  <rect width="720" height="520" rx="42" fill="#eef4ff"/>
+  <circle cx="116" cy="92" r="55" fill="#dbe8ff"/>
+  <circle cx="635" cy="437" r="70" fill="#dbe8ff"/>
+  <rect x="244" y="66" width="394" height="384" rx="28" fill="#fff" stroke="#c8d6f0" stroke-width="5"/>
+  <rect x="278" y="106" width="154" height="22" rx="11" fill="#25324a"/>
+  <rect x="278" y="145" width="250" height="12" rx="6" fill="#cbd5e1"/>
+  <g transform="translate(278 194)">
+    <circle cx="15" cy="15" r="12" fill="#b52e39"/>
+    <rect x="45" y="4" width="225" height="17" rx="8" fill="#334155"/>
+    <rect x="45" y="31" width="146" height="11" rx="5" fill="#d6dce6"/>
+  </g>
+  <g transform="translate(278 270)">
+    <circle cx="15" cy="15" r="12" fill="#f97316"/>
+    <rect x="45" y="4" width="190" height="17" rx="8" fill="#334155"/>
+    <rect x="45" y="31" width="175" height="11" rx="5" fill="#d6dce6"/>
+  </g>
+  <g transform="translate(278 346)">
+    <circle cx="15" cy="15" r="12" fill="#15803d"/>
+    <rect x="45" y="4" width="210" height="17" rx="8" fill="#334155"/>
+    <rect x="45" y="31" width="125" height="11" rx="5" fill="#d6dce6"/>
+  </g>
+  <circle cx="142" cy="190" r="48" fill="#f2c7a5"/>
+  <path d="M94 188c4-58 90-70 100-7-28-5-50-21-62-40-5 24-18 39-38 47Z" fill="#25324a"/>
+  <path d="M84 389c8-96 25-148 58-148s54 53 61 148Z" fill="#2f6feb"/>
+  <path d="m105 390-17 91M182 390l18 91" stroke="#25324a" stroke-width="22" stroke-linecap="round"/>
+  <path d="m188 281 86 44" stroke="#f2c7a5" stroke-width="19" stroke-linecap="round"/>
+  <circle cx="279" cy="328" r="11" fill="#f2c7a5"/>
+</svg>

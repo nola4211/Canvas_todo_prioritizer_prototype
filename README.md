@@ -399,6 +399,23 @@ where email = '<username>@canvas-prioritizer.local';
 
 To revoke access, remove the `role` key from that Auth user's app metadata or delete the dedicated administrator user. Keep administrator accounts separate from the shared student demo login.
 
+## Full-stack grading controls
+
+The public prototype is available at [https://nola4211.github.io/Canvas_todo_prioritizer_prototype/](https://nola4211.github.io/Canvas_todo_prioritizer_prototype/). The signed-out page is the project landing page and includes a local illustration, student email/password sign-in, account creation, and the separate team-administrator entry point.
+
+After sign-in, **Maintain Records** opens the existing assignment workspace. Assignments are the project's primary records, and this screen already supports creating, displaying, editing, completing, and deleting them. The assignment tools use the signed-in account and Supabase security policies, so another student cannot maintain those records.
+
+Administrators have two protected maintenance controls:
+
+- **Maintain Records** opens the assignment workspace with its existing create, read, update, and delete controls.
+- **Maintain Users** displays Supabase Auth accounts and allows an administrator to add a student, change the student's email or password, and delete the student. The browser calls the `admin-users` Edge Function; the service-role key stays on Supabase and never enters the website.
+
+Deploy `supabase/functions/admin-users/index.ts` as the `admin-users` Edge Function before testing user maintenance. Its administrator-role check is separate from the page's hidden controls, so changing browser HTML cannot grant access. Supporting tables for lists, settings, chats, activity, and study sessions are maintained through their normal app features instead of a raw table editor; exposing those internal relationship rows would make it easy to break record ownership.
+
+The maintenance controls are hidden before authentication. **Sign out** calls Supabase Auth sign-out, clears the browser's Supabase session, and returns the interface to its signed-out state. **Back to student sign in** on the administrator page also signs out first to prevent a redirect loop.
+
+For grading, use the URL above. The administrator username is `admin`; its password and the student demo password must be supplied to the TA through the private course submission, not committed to this public repository. Confirm both credentials in a private browser window before submitting them.
+
 ## Responsive laptop workspace (local review)
 
 See [responsive verification and screenshots](docs/responsive-verification.md) for the isolated layout preview, measured viewport checks, and remaining acceptance steps. These statuses describe the layout implementation; they do not imply deployment or full Definition of Done.
