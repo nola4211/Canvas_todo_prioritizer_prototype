@@ -335,15 +335,22 @@ Manual checks:
 
 See `docs/chat-verification.md` for completed live checks and any remaining external blockers.
 
-## Weekly engagement OKR tracker
+## Administrator OKR dashboard
 
-The OKR is measured as: **accounts that opened the app on every one of the last 7 Denver calendar days ÷ accounts that opened it at least once in the last 30 days**. The goal is 75%. This definition keeps the weekly result comparable while giving “active user” a clear meaning.
+The administrator page shows four team indicators. An **active user** is an account that opened the app at least once during the last 30 Denver calendar days. Every card uses that same active-user count so the results are easy to compare.
 
-`app_daily_activity` stores one row per Supabase Auth account per day. Opening or refreshing the signed-in app calls `record_app_open`; another open on the same day updates its timestamp and count instead of creating a duplicate. `get_weekly_engagement_okr` returns only aggregate counts, the percentage, and seven daily totals. It never returns account IDs or emails. Only a user whose Auth `app_metadata.role` is `admin` can call the report function or see **OKR Tracker** in the app menu.
+- **Daily use — goal 75%:** users who opened the app on every one of the last 7 days.
+- **Late work — goal 80%:** users with no more than one assignment completed after its due date during the last 30 days.
+- **On-time B or higher — goal 70%:** users whose graded assignments from the last 30 days were completed on time with an earned grade of at least 80% at least 90% of the time. Users without any entered grades do not count as meeting this indicator.
+- **Under 30 minutes — goal 50%:** users whose visible, active app time averages less than 30 minutes across the days they used the app during the last 7 days.
 
-The migration `supabase/migrations/202610300006_weekly_engagement_okr.sql` was applied to project `uowlwdwrqceklbqjcnmc` on October 30, 2026; **do not rerun it there**. Apply it once on another project. To designate a team administrator, set that person's immutable Auth app metadata to `{ "role": "admin" }` with an administrator-controlled Supabase tool, then have them sign out and back in so their access token refreshes. Do not give the role to a shared public demo account in production. Every student needs a separate Auth account for the metric to represent individual users; a shared login always counts as one account.
+`app_daily_activity` stores one row per account per day. Opening or refreshing the app calls `record_app_open`. While the signed-in app is visible and the user has interacted within the last two minutes, it sends small active-time totals through `record_app_usage`. Hidden or idle browser time is not counted. The assignment form exposes **Earned grade percentage** only when editing an existing assignment. The timestamp saved when an assignment is marked complete is used as its submission time.
 
-The tracker shows the current percentage against the 75% goal, the qualifying and active-account counts, and a seven-day unique-user bar chart. Run `node test-okr.cjs` to check the browser adapter and the migration's key privacy and calculation rules.
+`get_admin_okr_dashboard` calculates every card in one protected database call and returns aggregate counts only. It never returns account IDs, email addresses, or individual assignments. Only a signed-in user whose Auth `app_metadata.role` is `admin` can call it. The page refreshes the cards every 30 seconds and also provides a **Refresh metrics** button.
+
+Apply `supabase/migrations/202610300006_weekly_engagement_okr.sql` first on a new project, followed by `supabase/migrations/202611160013_admin_okr_indicators.sql`. Migrations already applied to the live project must not be rerun. The second migration adds the earned-grade and active-time fields plus the combined protected report. Run `node test-okr.cjs` and `node test-assignment-create.cjs` to check the calculations, access restrictions, time adapter, and earned-grade validation.
+
+To designate a team administrator, set that person's immutable Auth app metadata to `{ "role": "admin" }` with an administrator-controlled Supabase tool, then have them sign out and back in so their access token refreshes. Do not give the role to a shared public demo account in production. Every student needs a separate Auth account for the metrics to represent individual users; a shared login always counts as one account.
 
 ## Student MCP connection (local implementation)
 

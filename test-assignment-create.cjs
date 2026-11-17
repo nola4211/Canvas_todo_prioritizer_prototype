@@ -15,5 +15,7 @@ const client={async rpc(name,p){
  assert.equal((await backend.addAssignmentToList('study','4')).assignment_id,'4');
  for(const patch of [{n:' '},{c:' '},{t:0},{t:10081},{g:101},{g:NaN},{o:null},{p:4},{d:'2026-02-30'}])await assert.rejects(backend.createAssignment({...input,...patch}));
  assert.equal(AssignmentFields.validate({...input,g:null}).g,null);assert.equal(AssignmentFields.validate({...input,g:0}).g,0);
+ assert.equal(AssignmentFields.validate({...input,earned:85}).earned,85);assert.equal(AssignmentFields.validate({...input,earned:''}).earned,null);
+ assert.throws(()=>AssignmentFields.validate({...input,earned:-1}),/earned grade/i);assert.throws(()=>AssignmentFields.validate({...input,earned:101}),/earned grade/i);
  console.log('PASS: shared RPC creation, field validation, class/grade readback, retry identity, and new assignment list membership.');
 })().catch(e=>{console.error(e);process.exitCode=1});

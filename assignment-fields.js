@@ -23,9 +23,11 @@
     if(!Number.isSafeInteger(input.t)||input.t<1||input.t>10080)throw new Error('Estimated time must be between 1 minute and 7 days.');
     if(typeof input.o!=='boolean')throw new Error('Choose whether this assignment is optional.');
     if(input.g!==null&&(typeof input.g!=='number'||!Number.isFinite(input.g)||input.g<0||input.g>100))throw new Error('Enter a grade weight from 0 to 100, or choose unknown.');
+    const earned=input.earned===undefined||input.earned===null||input.earned===''?null:Number(input.earned);
+    if(earned!==null&&(!Number.isFinite(earned)||earned<0||earned>100))throw new Error('Enter an earned grade from 0 to 100, or leave it blank.');
     const p=input.p===undefined?(input.o?0:2):Number(input.p);
     if(!Number.isInteger(p)||p<0||p>3)throw new Error('Choose Low, Normal, High, or Urgent priority.');
-    return {n,c,description,d:input.d,t:input.t,o:input.o,g:input.g,p};
+    return {n,c,description,d:input.d,t:input.t,o:input.o,g:input.g,earned,p};
   }
   root.AssignmentFields={today,maxDueDate,validate};
 })(globalThis);
