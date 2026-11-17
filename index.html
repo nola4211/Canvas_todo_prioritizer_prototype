@@ -117,6 +117,7 @@ input[type=checkbox]{width:auto}
 .agent-card .btn{flex:0 1 auto}
 #login{padding:18px;border-bottom:1px solid var(--ln);background:var(--card)}
 #login h2{font-size:18px;margin:0}#login .btn{margin-top:14px;width:100%}
+#login .create-account{margin-top:10px}.login-message{color:#18733c;font-size:13px;line-height:1.4;margin:12px 0 0}.login-message:empty{display:none}
 #home.signed-out{justify-content:center;background:var(--card)}
 #home.signed-out .top,#home.signed-out .sync,#home.signed-out #list,#home.signed-out .bar{display:none}
 #home.signed-out #login{border:0;padding:clamp(36px,8vh,68px) 24px 32px;height:100%;display:flex;flex-direction:column}
@@ -238,8 +239,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   <p id="sync-error" class="err load-error" role="alert" hidden></p>
   <p id="pull-refresh-status" class="pull-feedback" role="status" aria-live="polite" hidden><svg class="pull-ring" viewBox="0 0 32 32" aria-hidden="true"><circle class="pull-track" cx="16" cy="16" r="12"/><circle class="pull-arc" cx="16" cy="16" r="12" pathLength="100"/></svg><span id="pull-refresh-label"></span></p>
   <form id="login" hidden onsubmit="event.preventDefault();signIn()">
-   <div class="login-intro"><h2>Shared demo sign-in</h2><div class="sub">Use the shared demo account, test@user.com, and its password.</div></div>
-   <div class="login-fields"><label for="demo-email">Email</label><input id="demo-email" type="email" autocomplete="username" required><label for="demo-password">Password</label><input id="demo-password" type="password" autocomplete="current-password" required><p id="login-error" class="err" role="alert" hidden></p><button class="btn p" id="signin" type="submit">Sign in</button></div>
+   <div class="login-intro"><h2>Sign in</h2><div class="sub">Use your student account, or create one with your email and a password.</div></div>
+   <div class="login-fields"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required><p class="sub">New account passwords must have at least 8 characters.</p><p id="login-error" class="err" role="alert" hidden></p><p id="login-message" class="login-message" role="status" aria-live="polite"></p><button class="btn p" id="signin" type="submit">Sign in</button><button class="btn create-account" id="create-account" type="button" onclick="createAccount()">Create account</button></div>
    <div class="login-admin"><button class="btn" type="button" onclick="location.href='admin.html'">Team administrator</button></div>
   </form>
   <div class="body" id="list"></div>
@@ -316,7 +317,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <!-- Update these versions when their files change, so old browser caches cannot mix releases. -->
 <script src="priorities.js?v=20261028-1"></script>
 <script src="assignment-fields.js?v=20261116-okr-1"></script>
-<script src="backend.js?v=20261116-okr-1"></script>
+<script src="backend.js?v=20261116-account-1"></script>
 <script src="study-sessions.js?v=20261105-1"></script>
 <script src="calendar-export.js?v=20261112-1"></script>
 
@@ -427,7 +428,7 @@ let db=null,backend=null,chatClient=null,sessionBackend=null,user=null,loadVersi
 const showError=message=>{['sync-error','login-error','account-error'].forEach(id=>{const target=$(id);target.textContent=message;target.hidden=!message})};
 function paint(){home();if($('cal').classList.contains('on'))cal();if($('panel').classList.contains('on')&&$('pt').textContent==='Completed assignments')$('pb').innerHTML=completedAssignmentsMarkup()}
 function isOkrAdmin(){return user?.app_metadata?.role==='admin'}
-function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();if(!signed){$('account-actions').hidden=true;setRefreshStatus('')}$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in to load the shared demo.'}
+function showSession(){const signed=!!user;$('home').classList.toggle('signed-out',!signed);$('login').hidden=signed;$('signout').hidden=!signed;$('reload-tasks').hidden=!signed;$('okr-menu').hidden=!signed||!isOkrAdmin();if(!signed){$('account-actions').hidden=true;setRefreshStatus('')}$('sync-status').textContent=signed?'Signed in · loading assignments…':'Sign in or create an account to load your workspace.'}
 function applyUserSettings(){document.documentElement.dataset.theme=S.userSettings.dark_mode?'dark':'light'}
 function resetUserSettings(){S.userSettings={...DEFAULT_USER_SETTINGS};S.settingsReady=false;S.settingsSaving=false;document.documentElement.removeAttribute('data-theme')}
 let appUsageSeconds=0,appUsageLastTick=Date.now(),appUsageLastActivity=Date.now(),appUsageFlushing=false;
@@ -508,9 +509,18 @@ async function changeAssignmentPriority(id,priority){
  finally{if(current()){S.saving.delete(id);paint();refreshWeeklyPanel()}}
 }
 async function signIn(){
- if(!db||signingIn)return;signingIn=true;$('signin').disabled=true;showError('');
- try{const {data,error}=await db.auth.signInWithPassword({email:$('demo-email').value.trim(),password:$('demo-password').value});if(error)throw error;$('demo-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
- catch(error){showError(error.code==='email_not_confirmed'?'The demo account email is not confirmed. A project administrator needs to confirm this account, then you can sign in again.':'Could not sign in: '+error.message)}finally{signingIn=false;$('signin').disabled=false}
+ if(!db||signingIn)return;signingIn=true;$('signin').disabled=$('create-account').disabled=true;showError('');$('login-message').textContent='';
+ try{const {data,error}=await db.auth.signInWithPassword({email:$('login-email').value.trim(),password:$('login-password').value});if(error)throw error;$('login-password').value='';user=data.user;if(isOkrAdmin()){location.replace('admin.html');return}showSession();await recordAppOpen();await loadTasks()}
+ catch(error){showError(error.code==='email_not_confirmed'?'Confirm your email using the message we sent, then sign in.':'Could not sign in: '+error.message)}finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
+}
+async function createAccount(){
+ if(!backend||signingIn)return;signingIn=true;$('signin').disabled=$('create-account').disabled=true;showError('');$('login-message').textContent='';
+ try{
+  const result=await backend.createAccount($('login-email').value,$('login-password').value);$('login-password').value='';
+  if(!result.session){$('login-message').textContent='Account created! Check your email to confirm it, then sign in.';return}
+  user=result.user;showSession();await recordAppOpen();await loadTasks();
+ }catch(error){showError('Could not create account: '+error.message)}
+ finally{signingIn=false;$('signin').disabled=$('create-account').disabled=false}
 }
 async function signOut(){
  if(!db||signingOut||S.loading||S.settingsSaving||S.saving.size||S.listSaving||S.prioritySaving||S.createSaving||S.sessionSaving||draftSaving||S.agentSaving)return;
@@ -932,7 +942,7 @@ async function pan(k){if(S.listSaving||S.prioritySaving||S.settingsSaving)return
  if(k=='settings')h=userSettingsPanel()+
   '<div class="gh">Your prioritization rules</div><p class="sub">These apply first in every list, unless that list chooses to ignore them.</p><button class="btn" id="settings-priority-button" onclick="openPriorityEditor(\'settings\')">Default sort order</button>'+agentSettingsMarkup()+'<p class="sub">The Canvas switch saves your preference; Canvas synchronization is still a prototype.</p><p class="sub" style="margin-top:22px">Icons by <a href="https://www.flaticon.com/uicons" target="_blank" rel="noopener noreferrer">Flaticon Uicons</a>.</p>';
  if(k=='completed')h=completedAssignmentsMarkup();
- if(k=='profile')h='<div class="card"><div class="nm">Shared demo account</div><div class="sub">Canvas sync is a prototype.</div></div>';
+ if(k=='profile')h=`<div class="card"><div class="nm">Student account</div><div class="sub">${esc(user?.email||'Signed in')}</div><div class="sub">Canvas sync is a prototype.</div></div>`;
  if(k=='classes')h='<div class="sub">The current database has no direct assignment-to-class field. Demo assignments appear under Shared demo.</div>';
  if(k=='drafts')h=draftAssignmentsMarkup();
  if(k=='newlist'){
