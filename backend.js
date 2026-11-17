@@ -3,8 +3,8 @@
 // It uses the existing schema; it never creates tables or sample rows.
 (function (root) {
   'use strict';
-  const columns = 'assignment_id,name,description,percentage_of_grade,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
-  const columnsWithoutDescription = 'assignment_id,name,percentage_of_grade,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
+  const columns = 'assignment_id,name,description,percentage_of_grade,grade_earned_percent,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
+  const columnsWithoutDescription = 'assignment_id,name,percentage_of_grade,grade_earned_percent,completed,completed_at,priority,due_date,est_time,deleted,optional,client_request_id,class_name';
   const legacyColumns = 'assignment_id,name,percentage_of_grade,completed,priority,due_date,est_time,deleted';
   const missingCreationColumns = error => error && (error.code === '42703' ||
     /(?:optional|client_request_id|class_name).*(?:does not exist|schema cache)|could not find.*(?:optional|client_request_id|class_name)/i.test(error.message || ''));
@@ -35,7 +35,7 @@
       due = `${part('year')}-${part('month')}-${part('day')}`;
     }
     return { id: id(row.assignment_id), n: String(row.name ?? ''), description: String(row.description ?? ''), c: row.class_name || 'Shared demo', d: due || '9999-12-31', noDue: !due,
-      t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade),
+      t: minutes(row.est_time), g: row.percentage_of_grade == null ? null : Number(row.percentage_of_grade), earnedGrade: row.grade_earned_percent == null ? null : Number(row.grade_earned_percent),
       p: Math.max(0, Math.min(3, Math.round(Number(row.priority) || 0))), o: !!row.optional, l: null,
       completed: row.completed, completedAt: row.completed_at == null ? null : new Date(row.completed_at).toISOString(), requestId: row.client_request_id || null, persisted: true };
   }
@@ -69,6 +69,12 @@
         const {data,error}=await client.rpc('record_app_open');
         if(error)throw new Error(error.message || 'Could not record app activity.');
         return data;
+      },
+      async recordAppUsage(seconds) {
+        if(!Number.isInteger(seconds)||seconds<1||seconds>120)throw new Error('Usage update must be between 1 and 120 seconds.');
+        const {data,error}=await client.rpc('record_app_usage',{p_seconds:seconds});
+        if(error)throw new Error(error.message || 'Could not record active app time.');
+        return Number(data);
       },
       async loadWeeklyEngagementOKR() {
         const {data,error}=await client.rpc('get_weekly_engagement_okr');
@@ -144,8 +150,8 @@
       async updateAssignment(assignmentId, input) {
         const key = id(assignmentId);
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
-        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,p:input.p,allowPast:true,originalDueDate:input.originalDueDate});
-        const patch={name:fields.n,description:fields.description,class_name:fields.c,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g,priority:fields.p};
+        const fields = globalThis.AssignmentFields.validate({n:input.n,c:input.c,description:input.description,d:input.d,t:input.t,o:input.o,g:input.g,earned:input.earned,p:input.p,allowPast:true,originalDueDate:input.originalDueDate});
+        const patch={name:fields.n,description:fields.description,class_name:fields.c,est_time:fields.t,optional:fields.o,percentage_of_grade:fields.g,grade_earned_percent:fields.earned,priority:fields.p};
         // Leave an unchanged stored instant intact; changed dates use Denver's end of day.
         if(fields.d!==input.originalDueDate)patch.due_date=root.CanvasStudySessions.dueDeadline(fields.d,'America/Denver');
         const {data,error}=await client.from('assignments').update(patch)
@@ -159,7 +165,7 @@
         if (!visible.has(key)) throw new Error('This assignment is not available to this account.');
         if (!Number.isInteger(priority) || priority < 0 || priority > 3) throw new Error('Choose a valid priority.');
         const {data,error}=await client.from('assignments').update({priority}).eq('assignment_id',key).eq('deleted',false)
-          .select('assignment_id,name,description,percentage_of_grade,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name').single();
+          .select('assignment_id,name,description,percentage_of_grade,grade_earned_percent,completed,priority,due_date,est_time,deleted,optional,client_request_id,class_name').single();
         if(error)throw new Error(error.message || 'Could not save priority.');
         if(!data)throw new Error('The priority update was not confirmed. Reload assignments before retrying.');
         return record(data);

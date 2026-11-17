@@ -10,7 +10,7 @@
     header{background:var(--card);border-bottom:1px solid var(--line);padding:18px max(20px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}
     header h1{font-size:20px;margin:0}main{max-width:1050px;margin:0 auto;padding:28px 20px}.muted{color:var(--muted)}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
-    .metric{font-size:48px;font-weight:750;color:var(--blue);line-height:1;margin:12px 0}.metric.met{color:var(--green)}.stats{display:flex;gap:28px;margin-top:18px}.stats b{font-size:24px;display:block}
+    .metric{font-size:48px;font-weight:750;color:var(--blue);line-height:1;margin:12px 0}.metric.met{color:var(--green)}.stats{display:flex;gap:24px;flex-wrap:wrap;margin-top:18px}.stats b{font-size:24px;display:block}.stats span{display:block;font-size:12px}.card h2{font-size:17px;margin:0 0 6px}.target{min-height:42px;font-size:13px}.dashboard-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}.dashboard-head p{margin:0}.wide{grid-column:1/-1}.updated{font-size:12px;margin-top:10px}
     .bars{height:180px;display:flex;align-items:flex-end;gap:12px;margin-top:20px}.day{flex:1;text-align:center;font-size:12px;color:var(--muted)}.bar{background:var(--blue);border-radius:7px 7px 2px 2px;min-height:4px;margin-bottom:8px}
     button,input{font:inherit}button{border:0;border-radius:10px;padding:10px 15px;font-weight:650;cursor:pointer}.primary{background:var(--blue);color:#fff}.secondary{background:var(--bg);color:var(--text)}
     form{max-width:420px;margin:70px auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}label{display:block;margin:15px 0 6px;color:var(--muted);font-size:13px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px}form button{width:100%;margin-top:18px}.error{color:#c62828;margin-top:12px}.hidden{display:none!important}
@@ -26,10 +26,13 @@
       <button class="primary" type="submit">Sign in</button><div id="login-error" class="error" role="alert"></div>
     </form>
     <section id="dashboard" class="hidden">
-      <p class="muted" id="range"></p>
+      <div class="dashboard-head"><div><p class="muted" id="range"></p><p class="muted updated" id="updated"></p></div><button id="refresh" class="secondary" type="button">Refresh metrics</button></div>
       <div class="grid">
-        <article class="card"><div class="muted">Opened the app every day</div><div id="percent" class="metric">—</div><strong>Goal: 75%</strong><div id="goal" class="muted"></div><div class="stats"><div><b id="daily-users">—</b><span class="muted">7-day daily users</span></div><div><b id="active-users">—</b><span class="muted">30-day active users</span></div></div></article>
-        <article class="card"><strong>Daily unique users</strong><div id="bars" class="bars"></div></article>
+        <article class="card"><h2>Opened the app every day</h2><div class="muted target">Users who opened the app on all seven recent days.</div><div id="engagement-percent" class="metric">—</div><strong>Goal: 75% of users</strong><div id="engagement-goal" class="muted"></div><div class="stats"><div><b id="daily-users">—</b><span class="muted">7-day daily users</span></div><div><b class="active-users">—</b><span class="muted">30-day active users</span></div></div></article>
+        <article class="card"><h2>At most one late assignment</h2><div class="muted target">Completed assignments from the last 30 days that were finished after their due dates.</div><div id="late-percent" class="metric">—</div><strong>Goal: 80% of users</strong><div id="late-goal" class="muted"></div><div class="stats"><div><b id="late-users">—</b><span class="muted">users at 0–1 late</span></div><div><b id="late-assignments">—</b><span class="muted">late completions</span></div><div><b class="active-users">—</b><span class="muted">active users</span></div></div></article>
+        <article class="card"><h2>On time with a B or higher</h2><div class="muted target">Users with at least 90% of graded assignments completed by the due date and earning 80% or higher.</div><div id="grade-percent" class="metric">—</div><strong>Goal: 70% of users</strong><div id="grade-goal" class="muted"></div><div class="stats"><div><b id="grade-users">—</b><span class="muted">users meeting 90%</span></div><div><b id="grade-measured">—</b><span class="muted">users with grade data</span></div><div><b class="active-users">—</b><span class="muted">active users</span></div></div></article>
+        <article class="card"><h2>Under 30 minutes per active day</h2><div class="muted target">Visible, active app time averaged across days used during the last seven days.</div><div id="usage-percent" class="metric">—</div><strong>Goal: 50% of users</strong><div id="usage-goal" class="muted"></div><div class="stats"><div><b id="usage-users">—</b><span class="muted">users under 30 min</span></div><div><b id="usage-measured">—</b><span class="muted">users with time data</span></div><div><b id="usage-average">—</b><span class="muted">average min/day</span></div></div></article>
+        <article class="card wide"><strong>Daily unique users</strong><div id="bars" class="bars"></div></article>
       </div>
       <p id="dashboard-error" class="error" role="alert"></p>
     </section>
@@ -39,21 +42,27 @@
   <script>
     // The dashboard uses a separate administrator role. Ordinary signed-in
     // student accounts cannot read the aggregate activity report.
-    const byId=id=>document.getElementById(id);let db;
+    const byId=id=>document.getElementById(id);let db,refreshTimer=null,loadingDashboard=false;
     const isAdmin=user=>user?.app_metadata?.role==='admin';
     const date=value=>new Date(value+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    function showLogin(message=''){byId('login').classList.remove('hidden');byId('dashboard').classList.add('hidden');byId('signout').classList.add('hidden');byId('login-error').textContent=message}
-    async function showDashboard(user){
-      if(!isAdmin(user)){showLogin('Sign in with your team administrator credentials.');return}
-      byId('login').classList.add('hidden');byId('dashboard').classList.remove('hidden');byId('signout').classList.remove('hidden');byId('dashboard-error').textContent='';
-      const {data,error}=await db.rpc('get_weekly_engagement_okr');if(error){byId('dashboard-error').textContent='Could not load the tracker: '+error.message;return}
-      byId('percent').textContent=data.engagement_percent+'%';byId('percent').classList.toggle('met',!!data.goal_met);byId('goal').textContent=data.goal_met?'Goal met':'Goal not met yet';
-      byId('daily-users').textContent=data.daily_users;byId('active-users').textContent=data.active_users;byId('range').textContent='Reporting period: '+date(data.week_start)+'–'+date(data.week_end);
+    function showLogin(message=''){clearInterval(refreshTimer);refreshTimer=null;byId('login').classList.remove('hidden');byId('dashboard').classList.add('hidden');byId('signout').classList.add('hidden');byId('login-error').textContent=message}
+    function metric(prefix,value){byId(prefix+'-percent').textContent=value.current_percent+'%';byId(prefix+'-percent').classList.toggle('met',!!value.goal_met);byId(prefix+'-goal').textContent=value.goal_met?'Goal met':'Goal not met yet'}
+    async function loadDashboard(){
+      if(loadingDashboard)return;loadingDashboard=true;byId('refresh').disabled=true;byId('dashboard-error').textContent='';
+      const {data,error}=await db.rpc('get_admin_okr_dashboard');loadingDashboard=false;byId('refresh').disabled=false;if(error){byId('dashboard-error').textContent='Could not load the trackers: '+error.message;return}
+      metric('engagement',data.engagement);metric('late',data.late_work);metric('grade',data.on_time_b);metric('usage',data.under_30_minutes);
+      byId('daily-users').textContent=data.engagement.qualifying_users;document.querySelectorAll('.active-users').forEach(node=>node.textContent=data.active_users);
+      byId('late-users').textContent=data.late_work.qualifying_users;byId('late-assignments').textContent=data.late_work.late_assignments;
+      byId('grade-users').textContent=data.on_time_b.qualifying_users;byId('grade-measured').textContent=data.on_time_b.measured_users;
+      byId('usage-users').textContent=data.under_30_minutes.qualifying_users;byId('usage-measured').textContent=data.under_30_minutes.measured_users;byId('usage-average').textContent=data.under_30_minutes.average_minutes;
+      byId('range').textContent='Reporting period: '+date(data.week_start)+'–'+date(data.week_end)+' · Assignment window: 30 days';byId('updated').textContent='Updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
       const trend=Array.isArray(data.daily_trend)?data.daily_trend:[],max=Math.max(1,...trend.map(item=>Number(item.users)||0));byId('bars').replaceChildren();
       for(const item of trend){const day=document.createElement('div');day.className='day';const bar=document.createElement('div');bar.className='bar';bar.style.height=Math.max(4,Math.round((Number(item.users)||0)/max*140))+'px';bar.title=item.users+' unique users';const label=document.createElement('span');label.textContent=date(item.date);day.append(bar,label);byId('bars').append(day)}
     }
+    async function showDashboard(user){if(!isAdmin(user)){showLogin('Sign in with your team administrator credentials.');return}byId('login').classList.add('hidden');byId('dashboard').classList.remove('hidden');byId('signout').classList.remove('hidden');await loadDashboard();clearInterval(refreshTimer);refreshTimer=setInterval(loadDashboard,30000)}
     byId('login').addEventListener('submit',async event=>{event.preventDefault();byId('login-error').textContent='';const username=byId('username').value.trim().toLowerCase();if(!/^[a-z0-9_-]{3,40}$/.test(username)){showLogin('Use 3–40 letters, numbers, underscores, or hyphens.');return}const {data,error}=await db.auth.signInWithPassword({email:username+'@canvas-prioritizer.local',password:byId('password').value});byId('password').value='';if(error){showLogin('Could not sign in. Check the username and password.');return}await showDashboard(data.user)});
     byId('signout').onclick=async()=>{await db.auth.signOut();showLogin()};
+    byId('refresh').onclick=loadDashboard;
     (async()=>{try{const config=window.APP_CONFIG;db=window.supabase.createClient(config.supabaseUrl,config.publishableKey);const {data,error}=await db.auth.getSession();if(error)throw error;data.session?await showDashboard(data.session.user):showLogin()}catch(error){showLogin('The administrator dashboard could not start.')}})();
   </script>
 </body>
