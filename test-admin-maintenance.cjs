@@ -6,7 +6,8 @@ const admin=fs.readFileSync('admin.html','utf8');
 const edge=fs.readFileSync('supabase/functions/admin-users/index.ts','utf8');
 
 assert.match(app,/assets\/student-planner\.svg/);
-assert.match(app,/>Maintain Records</);
+assert.match(app,/>Assignments</);
+assert.doesNotMatch(app,/data-view="home"[^>]*>[^<]*Maintain Records/);
 assert.match(app,/id="maintain-users-menu"[^>]*hidden/);
 assert.match(admin,/>Maintain Users</);
 assert.match(admin,/>Maintain Records</);
