@@ -99,6 +99,12 @@ Open `http://127.0.0.1:4183/`, sign in with the shared account, and wait for **a
 
 GitHub Pages deployment should be checked separately after publishing source changes; local verification does not establish deployment. Missing configuration shows **Demo setup pending**. Failed loads show an error and no fixture cards. An empty successful load indicates sample rows or their access policies need checking.
 
+### Student account creation
+
+The sign-in page includes **Create account** and asks only for an email address and a password of at least eight characters. It uses Supabase Auth's browser-safe `signUp` method; no service-role key is sent to the browser. The resulting Auth user ID becomes the owner ID used by assignments, lists, settings, chats, and activity tracking. The existing database trigger creates that account's starter Study list automatically, so no separate profile table is needed.
+
+The live project allows new email signups, requires email confirmation, and uses the GitHub Pages app as its confirmation destination. The page therefore tells a new student to use the confirmation email before signing in. Another project may disable confirmation for a classroom prototype, in which case the new account is signed in immediately. Account creation must remain enabled in Supabase Authentication settings. Run `node test-account-creation.cjs` to check validation, Supabase signup, confirmation handling, and the visible page controls.
+
 ## Verifying the Vertical Slice
 
 [Recording and submission checklist](docs/return-checklist.md) contains the completed checks and remaining team tasks.

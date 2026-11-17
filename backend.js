@@ -65,6 +65,15 @@
     let visible = new Set(allowed);
     if (!allowed.length) throw new Error('Configure the synthetic assignment IDs first.');
     return {
+      async createAccount(email, password) {
+        const normalizedEmail=String(email||'').trim().toLowerCase();
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail))throw new Error('Enter a valid email address.');
+        if(typeof password!=='string'||password.length<8)throw new Error('Use a password with at least 8 characters.');
+        const {data,error}=await client.auth.signUp({email:normalizedEmail,password});
+        if(error)throw new Error(error.message || 'Could not create the account.');
+        if(!data?.user)throw new Error('The account was not confirmed. Please try again.');
+        return {user:data.user,session:data.session||null};
+      },
       async recordAppOpen() {
         const {data,error}=await client.rpc('record_app_open');
         if(error)throw new Error(error.message || 'Could not record app activity.');
